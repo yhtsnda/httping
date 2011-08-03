@@ -1,4 +1,4 @@
-/* (C) 2007 by folkert@vanheusden.com
+/* (C) 2007-2011 by folkert@vanheusden.com
  * The GPL (GNU public license) applies to this sourcecode.
  */
 #include <errno.h>

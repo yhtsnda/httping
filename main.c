@@ -52,7 +52,7 @@ char last_error[ERROR_BUFFER_SIZE];
 
 void version(void)
 {
-	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2010 folkert@vanheusden.com\n");
+	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2011 folkert@vanheusden.com\n");
 #ifndef NO_SSL
 	fprintf(stderr, "SSL support included\n");
 #endif
