@@ -350,6 +350,7 @@ int main(int argc, char *argv[])
 					{
 						bind_to = (struct sockaddr_in *)&bind_to_6;
 						memset(&bind_to_6, 0x00, sizeof(bind_to_6));
+						bind_to_6.sin6_family = AF_INET6;
 
 						if (inet_pton(AF_INET6, optarg, &(bind_to_6.sin6_addr)) != 1)
 						{
@@ -360,6 +361,7 @@ int main(int argc, char *argv[])
 					{
 						bind_to = (struct sockaddr_in *)&bind_to_4;
 						memset(&bind_to_4, 0x00, sizeof(bind_to_4));
+						bind_to_4.sin_family = AF_INET;
 
 						if (inet_pton(AF_INET, optarg, &(bind_to_4.sin_addr)) != 1)
 						{
