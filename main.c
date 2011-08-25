@@ -1096,6 +1096,8 @@ persistent_loop:
 			break;
 		}
 
+		fflush(NULL);
+
 		if (curncount != count && !stop)
 			usleep((useconds_t)(wait * 1000000.0));
 	}
