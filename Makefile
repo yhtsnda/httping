@@ -16,6 +16,7 @@ include version
 
 TARGET=httping
 
+DEBUG=yes
 WFLAGS=-Wall -W
 OFLAGS=-O2
 CFLAGS+=$(WFLAGS) $(OFLAGS) -DVERSION=\"$(VERSION)\" -g
