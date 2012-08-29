@@ -88,3 +88,10 @@ package: clean
 	$(INSTALLDOC) *.c *.h Makefile version $(MANS) $(DOCS) $(PACKAGE)
 	$(ARCHIVE) $(PACKAGE) | $(COMPRESS) > $(PACKAGE).tgz
 	$(RMDIR) $(PACKAGE)
+
+coverity: clean
+	rm -rf cov-int
+	CC=gcc cov-build --dir cov-int make all
+	tar vczf ~/site/coverity/httping.tgz README cov-int/
+	putsite -q
+	/home/folkert/.coverity-hp.sh
