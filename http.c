@@ -83,14 +83,3 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 
 	return rc;
 }
-
-char * get_lf_terminated_str(char *pnt)
-{
-	char *end = strchr(pnt, '\n');
-	int len = strlen(pnt);
-
-	if (end)
-		return strndup(pnt, (end-pnt)+1);
-	else
-		return strndup(pnt, len);
-}

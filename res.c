@@ -32,7 +32,7 @@ extern char last_error[];
 int resolve_host(char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 {
 	char servname[10];
-	struct addrinfo myaddr, *result;
+	struct addrinfo myaddr;
 	memset(&myaddr, 0, sizeof(myaddr));
 	/* myaddr.ai_flags = AI_PASSIVE; */
 	myaddr.ai_socktype = SOCK_STREAM;

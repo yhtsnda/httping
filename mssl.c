@@ -113,6 +113,8 @@ int WRITE_SSL(SSL *ssl_h, char *whereto, int len)
 int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int timeout)
 {
 	int dummy;
+
+	// FIXME handle t/o
 #if 0
 	int rc;
 	struct timeval to;
@@ -153,8 +155,6 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int
 
 SSL_CTX * initialize_ctx(void)
 {
-	SSL_METHOD *meth;
-
 	if (!bio_err)
 	{
 		SSL_library_init();
@@ -165,7 +165,7 @@ SSL_CTX * initialize_ctx(void)
 	}
 
 	/* create context */
-	meth = SSLv23_method();
+	const SSL_METHOD *meth = SSLv23_method();
 
 	return SSL_CTX_new(meth);
 }

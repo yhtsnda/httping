@@ -89,6 +89,9 @@ package: clean
 	$(ARCHIVE) $(PACKAGE) | $(COMPRESS) > $(PACKAGE).tgz
 	$(RMDIR) $(PACKAGE)
 
+check:
+	cppcheck -v --enable=all --std=c++11 --inconclusive -I. . 2> err.txt
+
 coverity: clean
 	rm -rf cov-int
 	CC=gcc cov-build --dir cov-int make all

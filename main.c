@@ -232,7 +232,6 @@ int main(int argc, char *argv[])
 	int timeout=30;
 	char show_statuscodes = 0;
 	char use_ssl = 0;
-	SSL_CTX *client_ctx = NULL;
 	char *ok_str = "200";
 	char *err_str = "-1";
 	char *useragent = NULL;
@@ -258,7 +257,6 @@ int main(int argc, char *argv[])
 	char show_bytes_xfer = 0, show_fp = 0;
 	int fd = -1;
 	SSL *ssl_h = NULL;
-	BIO *s_bio = NULL;
 	struct sockaddr_in *bind_to = NULL;
 	struct sockaddr_in bind_to_4;
 	struct sockaddr_in6 bind_to_6;
@@ -606,6 +604,7 @@ int main(int argc, char *argv[])
 	}
 
 #ifndef NO_SSL
+	SSL_CTX *client_ctx = NULL;
 	if (use_ssl)
 	{
 		client_ctx = initialize_ctx();
@@ -654,7 +653,7 @@ int main(int argc, char *argv[])
 	if (auth_mode) { 
 		char auth_string[255];
 		char b64_auth_string[255];
-		if ( usr == NULL )
+		if (usr == NULL)
 			error_exit("Basic Authnetication (-A) can only be used with a username and/or password (-U -P) ");
 		sprintf(auth_string,"%s:%s",usr,pwd); 
 		enc_b64(auth_string, strlen(auth_string), b64_auth_string);
@@ -782,9 +781,8 @@ persistent_loop:
 #ifndef NO_SSL
 				if (use_ssl && ssl_h == NULL)
 				{
-					int rc;
-
-					rc = connect_ssl(fd, client_ctx, &ssl_h, &s_bio, timeout);
+					BIO *s_bio = NULL;
+					int rc = connect_ssl(fd, client_ctx, &ssl_h, &s_bio, timeout);
 					if (rc != 0)
 					{
 						close(fd);
