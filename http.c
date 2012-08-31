@@ -56,6 +56,7 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 		}
 		else if (rrc == RC_TIMEOUT)		/* timeout */
 		{
+			free(buffer);
 			return RC_TIMEOUT;
 		}
 
@@ -73,7 +74,12 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 	}
 
 	*headers = buffer;
-	*overflow = len_in - (strstr(buffer, "\r\n\r\n") - buffer + 4);
+
+	char *term = strstr(buffer, "\r\n\r\n");
+	if (term)
+		*overflow = len_in - (term - buffer + 4);
+	else
+		*overflow = 0;
 
 	return rc;
 }
