@@ -60,6 +60,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout)
 
 		if (bind(fd, bind_to, sizeof(*bind_to)) == -1)
 		{
+			close(fd);
 			snprintf(last_error, ERROR_BUFFER_SIZE, "error binding to interface (%s)", strerror(errno));
 			return -1;
 		}
