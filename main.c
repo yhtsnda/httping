@@ -685,6 +685,7 @@ int main(int argc, char *argv[])
 	host = proxyhost?proxyhost:hostname;
 	port = proxyhost?proxyport:portnr;
 
+	double started_at = get_ts();
 	if (resolve_once)
 	{
 		memset(&addr, 0x00, sizeof(addr));
@@ -1102,16 +1103,23 @@ persistent_loop:
 			usleep((useconds_t)(wait * 1000000.0));
 	}
 
-	avg_httping_time = avg / (double)ok;
+	if (ok)
+		avg_httping_time = avg / (double)ok;
+	else
+		avg_httping_time = -1.0;
 
+	double total_took = get_ts() - started_at;
 	if (!quiet && !machine_readable && !nagios_mode)
 	{
 		printf("--- %s ping statistics ---\n", get);
 
+		if (curncount == 0 && err > 0)
+			fprintf(stderr, "internal error! (curncount)\n");
+
 		if (count == -1)
-			printf("%d connects, %d ok, %3.2f%% failed\n", curncount, ok, (((double)err) / ((double)curncount)) * 100.0);
+			printf("%d connects, %d ok, %3.2f%% failed, time %.0fms\n", curncount, ok, (((double)err) / ((double)curncount)) * 100.0, total_took * 1000.0);
 		else
-			printf("%d connects, %d ok, %3.2f%% failed\n", curncount, ok, (((double)err) / ((double)count)) * 100.0);
+			printf("%d connects, %d ok, %3.2f%% failed, time %.0fms\n", curncount, ok, (((double)err) / ((double)count)) * 100.0, total_took * 1000.0);
 
 		if (ok > 0)
 		{
