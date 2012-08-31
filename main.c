@@ -221,9 +221,9 @@ int main(int argc, char *argv[])
 	char *proxy = NULL, *proxyhost = NULL;
 	int proxyport = 8080;
 	int portnr = 80;
-	char *get = NULL, *request;
-	int req_len;
-	int c;
+	char *get = NULL, *request = NULL;
+	int req_len = 0;
+	int c = 0;
 	int count = -1, curncount = 0;
 	double wait = 1.0;
 	int audible = 0;
@@ -237,13 +237,11 @@ int main(int argc, char *argv[])
 	char *err_str = "-1";
 	char *useragent = NULL;
 	char *referer = NULL;
-	char *host;
+	char *host = NULL;
 	char *pwd = NULL;
 	char *usr = NULL;
 	char *cookie = NULL;
-	int port;
-	struct sockaddr_in6 addr;
-	struct addrinfo ai;
+	int port = 0;
 	char resolve_once = 0;
 	char auth_mode = 0;
 	char have_resolved = 0;
@@ -251,7 +249,7 @@ int main(int argc, char *argv[])
 	int nagios_exit_code = 2;
 	double avg_httping_time = -1.0;
 	int get_instead_of_head = 0;
-	char *buffer;
+	char *buffer = NULL;
 	int page_size = sysconf(_SC_PAGESIZE);
 	char show_Bps = 0, ask_compression = 0;
 	int Bps_min = 1 << 30, Bps_max = 0;
@@ -260,7 +258,7 @@ int main(int argc, char *argv[])
 	char show_bytes_xfer = 0, show_fp = 0;
 	int fd = -1;
 	SSL *ssl_h = NULL;
-	BIO *s_bio;
+	BIO *s_bio = NULL;
 	struct sockaddr_in *bind_to = NULL;
 	struct sockaddr_in bind_to_4;
 	struct sockaddr_in6 bind_to_6;
@@ -685,17 +683,21 @@ int main(int argc, char *argv[])
 	host = proxyhost?proxyhost:hostname;
 	port = proxyhost?proxyport:portnr;
 
+	struct sockaddr_in6 addr;
+	struct addrinfo *ai = NULL, *ai_use;
+
 	double started_at = get_ts();
 	if (resolve_once)
 	{
-		memset(&addr, 0x00, sizeof(addr));
-
-		if (resolve_host(host, &addr, &ai, use_ipv6, port) == -1)
+		if (resolve_host(host, &ai, use_ipv6, port) == -1)
 		{
 			err++;
 			emit_error();
 			have_resolved = 1;
 		}
+
+		ai_use = select_resolved_host(ai, use_ipv6);
+		get_addr(ai_use, &addr);
 	}
 
 	if (persistent_connections)
@@ -727,18 +729,28 @@ persistent_loop:
 			{
 				memset(&addr, 0x00, sizeof(addr));
 
-				if (resolve_host(host, &addr, &ai, use_ipv6, port) == -1)
+				if (ai)
+				{
+					freeaddrinfo(ai);
+
+					ai = NULL;
+				}
+
+				if (resolve_host(host, &ai, use_ipv6, port) == -1)
 				{
 					err++;
 					emit_error();
 					break;
 				}
 
+				ai_use = select_resolved_host(ai, use_ipv6);
+				get_addr(ai_use, &addr);
+
 				have_resolved = 1;
 			}
 
 			if ((persistent_connections && fd < 0) || (!persistent_connections))
-				fd = connect_to(bind_to_valid?bind_to:NULL, &ai, timeout);
+				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout);
 
 			if (fd == -3)	/* ^C pressed */
 				break;
@@ -1162,6 +1174,11 @@ error_exit:
 		printf("%s: - failed: %s", nagios_exit_code == 1?"WARNING":(nagios_exit_code == 2?"CRITICAL":"ERROR"), last_error);
 		return nagios_exit_code;
 	}
+
+	freeaddrinfo(ai);
+	free(request);
+	free(hostname);
+	free(buffer);
 
 	if (ok)
 		return 0;

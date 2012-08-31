@@ -29,7 +29,7 @@
 
 extern char last_error[];
 
-int resolve_host(char *host, struct sockaddr_in6 *addr, struct addrinfo *ai, char use_ipv6, int portnr)
+int resolve_host(char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 {
 	char servname[10];
 	struct addrinfo myaddr, *result;
@@ -40,13 +40,28 @@ int resolve_host(char *host, struct sockaddr_in6 *addr, struct addrinfo *ai, cha
 	myaddr.ai_family = use_ipv6 ? AF_INET6 : AF_INET;
 	snprintf(servname, sizeof(servname), "%d", portnr);
 
-	if (getaddrinfo(host, servname, &myaddr, &result))
+	if (getaddrinfo(host, servname, &myaddr, ai))
 		error_exit("Error resolving '%s'", host);
 
-	memcpy(addr, result->ai_addr, result->ai_addrlen);
-	memcpy(ai, result, sizeof(*result));
-
-	freeaddrinfo(result);
-
 	return 0;
+}
+
+struct addrinfo * select_resolved_host(struct addrinfo *ai, char use_ipv6)
+{
+	struct addrinfo *p = ai;
+	while(p)
+	{
+		if (p -> ai_family == AF_INET6 && use_ipv6)
+			return p;
+
+		if (p -> ai_family == AF_INET)
+			return ai;
+	}
+
+	return NULL;
+}
+
+void get_addr(struct addrinfo *ai_use, struct sockaddr_in6 *addr)
+{
+	memcpy(addr, ai_use->ai_addr, ai_use->ai_addrlen);
 }
