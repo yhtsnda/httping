@@ -68,7 +68,10 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout)
 
 	/* make fd nonblocking */
 	if (set_fd_nonblocking(fd) == -1)
+	{
+		close(fd);
 		return -1;
+	}
 
 	/* wait for connection */
 	FD_ZERO(&wfds);
@@ -108,6 +111,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout)
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optvallen) == -1)
 		{
 			snprintf(last_error, ERROR_BUFFER_SIZE, "getsockopt failed (%s)\n", strerror(errno));
+			close(fd);
 			return -1;
 		}
 
