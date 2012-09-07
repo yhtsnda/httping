@@ -79,7 +79,7 @@ ifneq (DEBUG,yes)
 endif
 
 clean:
-	$(RMDIR) $(OBJS) $(TARGET) *~ core
+	$(RMDIR) $(OBJS) $(TARGET) *~ core cov-int
 
 package: clean
 	# source package
