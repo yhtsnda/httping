@@ -52,7 +52,7 @@ char last_error[ERROR_BUFFER_SIZE];
 
 void version(void)
 {
-	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2011 folkert@vanheusden.com\n");
+	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2012 folkert@vanheusden.com\n");
 #ifndef NO_SSL
 	fprintf(stderr, "SSL support included\n");
 #endif
@@ -147,6 +147,7 @@ void usage(void)
 	fprintf(stderr, "--cookie		-C\n");
 	fprintf(stderr, "--persistent-connections	-Q\n");
 	fprintf(stderr, "--no-cache		-Z\n");
+	fprintf(stderr, "--tcp-fast-open        -F\n");
 	fprintf(stderr, "--version		-V\n");
 	fprintf(stderr, "--help			-h\n");
 }
@@ -244,6 +245,7 @@ int main(int argc, char *argv[])
 	char resolve_once = 0;
 	char auth_mode = 0;
 	char have_resolved = 0;
+	int  req_sent = 0;
 	double nagios_warn=0.0, nagios_crit=0.0;
 	int nagios_exit_code = 2;
 	double avg_httping_time = -1.0;
@@ -264,6 +266,8 @@ int main(int argc, char *argv[])
 	char split = 0, use_ipv6 = 0;
 	char persistent_connections = 0, persistent_did_reconnect = 0;
 	char no_cache = 0;
+	char *getcopyorg = NULL;
+	int tfo = 0;
 
 	static struct option long_options[] =
 	{
@@ -305,7 +309,7 @@ int main(int argc, char *argv[])
 		{"password",	1, NULL, 'P' },
 		{"cookie",	1, NULL, 'C' },
 		{"version",	0, NULL, 'V' },
-		{"help",	0, NULL, 'h' },
+		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
 	};
 
@@ -316,7 +320,7 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "ZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "ZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
@@ -409,7 +413,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'h':
-				hostname = optarg;
+				hostname = strdup(optarg);
 				break;
 
 			case 'p':
@@ -502,6 +506,20 @@ int main(int argc, char *argv[])
 			case 'C':
 				cookie = optarg;
 				break;
+
+			case 'F':
+#ifdef TCP_TFO
+				tfo = 1;
+#else
+				printf("Warning: TCP TFO is not supported. Disabling.\n");
+#endif
+				break;
+ 
+			case 'H':
+				version();
+				usage();
+				return 0;
+
 			case '?':
 			default:
 				version();
@@ -517,10 +535,15 @@ int main(int argc, char *argv[])
 	if (!get_instead_of_head && show_Bps)
 		error_exit("-b/-B can only be used when also using -G\n");
 
+	if(tfo && use_ssl)
+		error_exit("TCP Fast open and SSL not supported together\n");
+
 	if (get != NULL && hostname == NULL)
 	{
 		char *slash, *colon;
 		char *getcopy = mystrdup(get, "get request");
+
+		getcopyorg = getcopy;
 
 		if (strncasecmp(getcopy, "http://", 7) == 0)
 		{
@@ -748,8 +771,13 @@ persistent_loop:
 				have_resolved = 1;
 			}
 
+			req_sent = 0;
+			
 			if ((persistent_connections && fd < 0) || (!persistent_connections))
-				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout);
+			{
+				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout, tfo, request, req_len, &req_sent);
+			}
+		
 
 			if (fd == -3)	/* ^C pressed */
 				break;
@@ -777,7 +805,7 @@ persistent_loop:
 					fd = -1;
 					break;
 				}
-
+					
 #ifndef NO_SSL
 				if (use_ssl && ssl_h == NULL)
 				{
@@ -823,7 +851,13 @@ persistent_loop:
 				rc = WRITE_SSL(ssl_h, request, req_len);
 			else
 #endif
-				rc = mywrite(fd, request, req_len, timeout);
+			{
+				if(!req_sent)
+					rc = mywrite(fd, request, req_len, timeout);
+				else
+					rc = req_len;
+			}
+
 			if (rc != req_len)
 			{
 				if (persistent_connections)
@@ -1175,8 +1209,8 @@ error_exit:
 
 	freeaddrinfo(ai);
 	free(request);
-	free(hostname);
 	free(buffer);
+	free(getcopyorg);
 
 	if (ok)
 		return 0;

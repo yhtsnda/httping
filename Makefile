@@ -18,8 +18,8 @@ TARGET=httping
 
 DEBUG=yes
 WFLAGS=-Wall -W
-OFLAGS=-O2
-CFLAGS+=$(WFLAGS) $(OFLAGS) -DVERSION=\"$(VERSION)\" -g
+OFLAGS=-O3
+CFLAGS+=$(WFLAGS) $(OFLAGS) -DVERSION=\"$(VERSION)\"
 
 PACKAGE=$(TARGET)-$(VERSION)
 PREFIX=/usr
@@ -44,6 +44,9 @@ MANS=httping.1
 
 DOCS=license.txt license.OpenSSL readme.txt
 
+# support for tcp fast open?
+# TFO=yes
+
 ifeq ($(SSL),no)
 CFLAGS+=-DNO_SSL
 else
@@ -51,8 +54,12 @@ OBJS+=mssl.o
 LDFLAGS+=-lssl -lcrypto
 endif
 
+ifeq ($(TFO),yes)
+CFLAGS+=-DTCP_TFO
+endif
+
 ifeq ($(DEBUG),yes)
-CFLAGS+=-D_DEBUG -g
+CFLAGS+=-D_DEBUG -ggdb
 LDFLAGS+=-g
 endif
 

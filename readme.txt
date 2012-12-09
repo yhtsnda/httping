@@ -3,7 +3,10 @@ Installation:
 make install
 
 to build without SSL support:
-make -f Makefile.nossl install
+	make -f Makefile.nossl install
+
+to build with "tcp fast open" support, add the following to the makefile:
+	TFO=yes
 
 
 Usage:
