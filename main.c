@@ -58,6 +58,50 @@ void version(void)
 #endif
 }
 
+void help_long(void)
+{
+	fprintf(stderr, "--url			-g\n");
+	fprintf(stderr, "--hostname		-h\n");
+	fprintf(stderr, "--port			-p\n");
+	fprintf(stderr, "--host-port		-x\n");
+	fprintf(stderr, "--count		-c\n");
+	fprintf(stderr, "--interval		-i\n");
+	fprintf(stderr, "--timeout		-t\n");
+	fprintf(stderr, "--ipv6		-	6\n");
+	fprintf(stderr, "--show-statusodes	-s\n");
+	fprintf(stderr, "--split-time		-S\n");
+	fprintf(stderr, "--get-request		-G\n");
+	fprintf(stderr, "--show-transfer-speed	-b\n");
+	fprintf(stderr, "--show-xfer-speed-compressed		-B\n");
+	fprintf(stderr, "--data-limit		-L\n");
+	fprintf(stderr, "--show-kb		-X\n");
+#ifndef NO_SSL
+	fprintf(stderr, "--use-ssl		-l\n");
+	fprintf(stderr, "--show-fingerprint	-z\n");
+#endif
+	fprintf(stderr, "--flood		-f\n");
+	fprintf(stderr, "--audible-ping		-a\n");
+	fprintf(stderr, "--parseable-output	-m\n");
+	fprintf(stderr, "--ok-result-codes	-o\n");
+	fprintf(stderr, "--result-string	-e\n");
+	fprintf(stderr, "--user-agent		-I\n");
+	fprintf(stderr, "--referer		-S\n");
+	fprintf(stderr, "--resolve-once		-r\n");
+	fprintf(stderr, "--nagios-mode-1	-n\n");
+	fprintf(stderr, "--nagios-mode-2	-n\n");
+	fprintf(stderr, "--bind-to		-y\n");
+	fprintf(stderr, "--quiet		-q\n");
+	fprintf(stderr, "--basic-auth		-A\n");
+	fprintf(stderr, "--username		-U\n");
+	fprintf(stderr, "--password		-P\n");
+	fprintf(stderr, "--cookie		-C\n");
+	fprintf(stderr, "--persistent-connections	-Q\n");
+	fprintf(stderr, "--no-cache		-Z\n");
+	fprintf(stderr, "--tcp-fast-open        -F\n");
+	fprintf(stderr, "--version		-V\n");
+	fprintf(stderr, "--help			-H\n");
+}
+
 void usage(void)
 {
 	fprintf(stderr, "\n-g url         url (e.g. -g http://localhost/)\n");
@@ -110,46 +154,8 @@ void usage(void)
 	fprintf(stderr, "-C cookie=value Add a cookie to the request\n");
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "--url			-g\n");
-	fprintf(stderr, "--hostname		-h\n");
-	fprintf(stderr, "--port			-p\n");
-	fprintf(stderr, "--host-port		-x\n");
-	fprintf(stderr, "--count		-c\n");
-	fprintf(stderr, "--interval		-i\n");
-	fprintf(stderr, "--timeout		-t\n");
-	fprintf(stderr, "--ipv6		-	6\n");
-	fprintf(stderr, "--show-statusodes	-s\n");
-	fprintf(stderr, "--split-time		-S\n");
-	fprintf(stderr, "--get-request		-G\n");
-	fprintf(stderr, "--show-transfer-speed	-b\n");
-	fprintf(stderr, "--show-xfer-speed-compressed		-B\n");
-	fprintf(stderr, "--data-limit		-L\n");
-	fprintf(stderr, "--show-kb		-X\n");
-#ifndef NO_SSL
-	fprintf(stderr, "--use-ssl		-l\n");
-	fprintf(stderr, "--show-fingerprint	-z\n");
-#endif
-	fprintf(stderr, "--flood		-f\n");
-	fprintf(stderr, "--audible-ping		-a\n");
-	fprintf(stderr, "--parseable-output	-m\n");
-	fprintf(stderr, "--ok-result-codes	-o\n");
-	fprintf(stderr, "--result-string	-e\n");
-	fprintf(stderr, "--user-agent		-I\n");
-	fprintf(stderr, "--referer		-S\n");
-	fprintf(stderr, "--resolve-once		-r\n");
-	fprintf(stderr, "--nagios-mode-1	-n\n");
-	fprintf(stderr, "--nagios-mode-2	-n\n");
-	fprintf(stderr, "--bind-to		-y\n");
-	fprintf(stderr, "--quiet		-q\n");
-	fprintf(stderr, "--basic-auth		-A\n");
-	fprintf(stderr, "--username		-U\n");
-	fprintf(stderr, "--password		-P\n");
-	fprintf(stderr, "--cookie		-C\n");
-	fprintf(stderr, "--persistent-connections	-Q\n");
-	fprintf(stderr, "--no-cache		-Z\n");
-	fprintf(stderr, "--tcp-fast-open        -F\n");
-	fprintf(stderr, "--version		-V\n");
-	fprintf(stderr, "--help			-H\n");
+	fprintf(stderr, "-J             list long options\n");
+	fprintf(stderr, "\n");
 }
 
 void emit_error()
@@ -267,7 +273,7 @@ int main(int argc, char *argv[])
 	char persistent_connections = 0, persistent_did_reconnect = 0;
 	char no_cache = 0;
 	char *getcopyorg = NULL;
-	int tfo = 0;
+	char tfo = 0;
 
 	static struct option long_options[] =
 	{
@@ -320,10 +326,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "ZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'J':
+				help_long();
+				return 0;
+
 			case 'Z':
 				no_cache = 1;
 				break;
@@ -775,7 +785,7 @@ persistent_loop:
 			
 			if ((persistent_connections && fd < 0) || (!persistent_connections))
 			{
-				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout, tfo, request, req_len, &req_sent);
+				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout, &tfo, request, req_len, &req_sent);
 			}
 		
 
