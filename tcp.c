@@ -111,14 +111,15 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	rc = select(fd + 1, NULL, &wfds, NULL, &to);
 	if (rc == 0)
 	{
+		snprintf(last_error, ERROR_BUFFER_SIZE, "connect time out\n");
 		close (fd);
-		return -2;	/* timeout */
+		return RC_TIMEOUT;	/* timeout */
 	}
 	else if (rc == -1)
 	{
 		close(fd);
 		if (errno == EINTR)
-			return -3;	/* ^C pressed */
+			return RC_CTRLC;/* ^C pressed */
 		else
 			return -1;	/* error */
 	}

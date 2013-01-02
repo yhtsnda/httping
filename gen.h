@@ -16,6 +16,7 @@
 #define RC_OK		0
 #define RC_SHORTREAD	-1
 #define RC_TIMEOUT	-2
+#define RC_CTRLC	-3
 
 #ifdef NO_SSL
 	#define SSL	void

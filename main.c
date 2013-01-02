@@ -52,7 +52,7 @@ char last_error[ERROR_BUFFER_SIZE];
 
 void version(void)
 {
-	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2012 folkert@vanheusden.com\n");
+	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2013 folkert@vanheusden.com\n");
 #ifndef NO_SSL
 	fprintf(stderr, "SSL support included\n");
 #endif
@@ -161,9 +161,7 @@ void usage(void)
 void emit_error()
 {
 	if (!quiet && !machine_readable && !nagios_mode)
-	{
 		printf("%s", last_error);
-	}
 
 	if (!nagios_mode)
 		last_error[0] = 0x00;
@@ -787,9 +785,7 @@ persistent_loop:
 			{
 				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout, &tfo, request, req_len, &req_sent);
 			}
-		
-
-			if (fd == -3)	/* ^C pressed */
+			if (fd == RC_CTRLC)	/* ^C pressed */
 				break;
 
 			if (fd < 0)
@@ -826,26 +822,23 @@ persistent_loop:
 						close(fd);
 						fd = rc;
 
-						if (persistent_connections)
+						if (persistent_connections && ++persistent_tries < 2)
 						{
-							if (++persistent_tries < 2)
-							{
-								close(fd);
-								fd = -1;
-								persistent_did_reconnect = 1;
-								goto persistent_loop;
-							}
+							persistent_did_reconnect = 1;
+
+							goto persistent_loop;
 						}
 					}
 				}
 #endif
 			}
+
 			if (split)
 				dafter_connect = get_ts();
 
 			if (fd < 0)
 			{
-				if (fd == -2)
+				if (fd == RC_TIMEOUT)
 					snprintf(last_error, ERROR_BUFFER_SIZE, "timeout connecting to host\n");
 
 				emit_error();
@@ -883,9 +876,9 @@ persistent_loop:
 
 				if (rc == -1)
 					snprintf(last_error, ERROR_BUFFER_SIZE, "error sending request to host\n");
-				else if (rc == -2)
+				else if (rc == RC_TIMEOUT)
 					snprintf(last_error, ERROR_BUFFER_SIZE, "timeout sending to host\n");
-				else if (rc == -3)
+				else if (rc == RC_CTRLC)
 				{/* ^C */}
 				else if (rc == 0)
 					snprintf(last_error, ERROR_BUFFER_SIZE, "connection prematurely closed by peer\n");
@@ -931,17 +924,15 @@ persistent_loop:
 				{
 					char *dummy = strchr(encoding + 1, '\n');
 					if (dummy) *dummy = 0x00;
-					dummy = strchr(sc, '\r');
+					dummy = strchr(encoding + 1, '\r');
 					if (dummy) *dummy = 0x00;
 
 					if (strstr(encoding, "gzip") == 0 || strstr(encoding, "deflate") == 0)
-					{
 						is_compressed = 1;
-					}
 				}
 			}
 
-			if (persistent_connections && show_bytes_xfer)
+			if (persistent_connections && show_bytes_xfer && reply != NULL)
 			{
 				char *length = strstr(reply, "\nContent-Length:");
 				if (!length)
@@ -952,12 +943,16 @@ persistent_loop:
 					fd = -1;
 					break;
 				}
+
 				len = atoi(&length[17]);
 			}
 
-			headers_len = (strstr(reply, "\r\n\r\n") - reply) + 4;
-
-			free(reply);
+			headers_len = 0;
+			if (reply)
+			{
+				headers_len = strlen(reply) + 4;
+				free(reply);
+			}
 
 			if (rc < 0)
 			{
@@ -1082,8 +1077,10 @@ persistent_loop:
 				{
 					printf("%s", err_str);
 				}
+
 				if(audible)
 					putchar('\a');
+
 				printf("\n");
 			}
 			else if (!quiet && !nagios_mode)
@@ -1129,8 +1126,10 @@ persistent_loop:
 					printf(" %s", fp);
 					free(fp);
 				}
+
 				if(audible)
 					putchar('\a');
+
 				printf("\n");
 			}
 
