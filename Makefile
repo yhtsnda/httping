@@ -81,7 +81,7 @@ install: $(TARGET)
 	$(INSTALLMAN) $(MANS) $(DESTDIR)/$(MANDIR)/man1
 	$(INSTALLDIR) $(DESTDIR)/$(DOCDIR)
 	$(INSTALLDOC) $(DOCS) $(DESTDIR)/$(DOCDIR)
-ifneq (DEBUG,yes)
+ifneq ($(DEBUG),yes)
 	$(STRIP) $(DESTDIR)/$(BINDIR)/$(TARGET)
 endif
 
