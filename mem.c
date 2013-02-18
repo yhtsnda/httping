@@ -1,6 +1,5 @@
-/* (C) 2007-2011 by folkert@vanheusden.com
- * The GPL (GNU public license) applies to this sourcecode.
- */
+/* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
+
 #include <errno.h>
 #include <regex.h>
 #include <signal.h>

@@ -1,7 +1,9 @@
-The license of this program can be obtained from: http://www.vanheusden.com/license.txt
-It is actually the GNU Public License.
+HTTPing is (C) 2003-2013 by folkert@vanheusden.com
 
-  In addition, as a special exception, the copyright holders give
+The GPL version 2 applies to this program. That document can be found
+on the website of the free software foundation.
+
+  In addition, as a special exception, the copyright holder gives
   permission to link the code of portions of this program with the
   OpenSSL library under certain conditions as described in each
   individual source file, and distribute linked combinations
