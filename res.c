@@ -40,10 +40,7 @@ int resolve_host(char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 	myaddr.ai_family = use_ipv6 ? AF_INET6 : AF_INET;
 	snprintf(servname, sizeof(servname), "%d", portnr);
 
-	if (getaddrinfo(host, servname, &myaddr, ai))
-		error_exit("Error resolving '%s'", host);
-
-	return 0;
+	return getaddrinfo(host, servname, &myaddr, ai);
 }
 
 struct addrinfo * select_resolved_host(struct addrinfo *ai, char use_ipv6)

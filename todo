@@ -6,3 +6,5 @@ http/1.1
 
 - checked on; linux freebsd and irix
  ook solaris testen en aix fixen
+
+- switch for NOT terminate when resolving

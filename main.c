@@ -801,6 +801,14 @@ persistent_loop:
 				}
 
 				ai_use = select_resolved_host(ai, use_ipv6);
+				if (!ai_use)
+				{
+					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s\n", host);
+					emit_error();
+					err++;
+					break;
+				}
+
 				get_addr(ai_use, &addr);
 
 				have_resolved = 1;
