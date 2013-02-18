@@ -12,8 +12,6 @@
 #include <unistd.h>
 #include "gen.h"
 
-extern char last_error[];
-
 ssize_t read_to(int fd, char *whereto, size_t len, int timeout)
 {
 	for(;;)

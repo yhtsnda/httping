@@ -10,9 +10,9 @@
 #include <openssl/x509.h>
 #include <openssl/md5.h>
 
+#include "gen.h"
 #include "mssl.h"
 
-extern char last_error[];
 BIO *bio_err=0;
 
 char close_ssl_connection(SSL *ssl_h, int socket_h)

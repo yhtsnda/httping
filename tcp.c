@@ -16,8 +16,6 @@
 #include "io.h"
 #include "tcp.h"
 
-extern char last_error[];
-
 int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, int *msg_accepted)
 {
 	int     fd;
@@ -99,9 +97,12 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		if (rc == -1)
 		{
 			// problem connecting
-			snprintf(last_error, sizeof last_error, "connect time out\n");
-			close(fd);
-			return -1;
+			if (errno != EINPROGRESS)
+			{
+				snprintf(last_error, sizeof last_error, "problem connecting to host: %s\n", strerror(errno));
+				close(fd);
+				return -1;
+			}
 		}
 	}
 
@@ -116,10 +117,13 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	else if (rc == -1)
 	{
 		close(fd);
+
 		if (errno == EINTR)
 			return RC_CTRLC;/* ^C pressed */
-		else
-			return -1;	/* error */
+
+		snprintf(last_error, sizeof last_error, "select() failed: %s\n", strerror(errno));
+
+		return -1;	/* error */
 	}
 	else
 	{

@@ -25,3 +25,5 @@
 		#define TCPI_OPT_SYN_DATA	32
 	#endif
 #endif
+
+extern char last_error[ERROR_BUFFER_SIZE];
