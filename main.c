@@ -85,7 +85,7 @@ void help_long(void)
 	fprintf(stderr, "--ok-result-codes	-o\n");
 	fprintf(stderr, "--result-string	-e\n");
 	fprintf(stderr, "--user-agent		-I\n");
-	fprintf(stderr, "--referer		-S\n");
+	fprintf(stderr, "--referer		-R\n");
 	fprintf(stderr, "--resolve-once		-r\n");
 	fprintf(stderr, "--nagios-mode-1	-n\n");
 	fprintf(stderr, "--nagios-mode-2	-n\n");
@@ -149,8 +149,9 @@ void usage(void)
 	fprintf(stderr, "-y ip[:port]   bind to ip-address (and thus interface) [/port]\n");
 	fprintf(stderr, "-q             quiet, only returncode\n");
 	fprintf(stderr, "-A             Activate Basic authentication\n");
-	fprintf(stderr, "-U Username    needed for authentication\n");
-	fprintf(stderr, "-P Password    needed for authentication\n");
+	fprintf(stderr, "-U username    needed for authentication\n");
+	fprintf(stderr, "-P password    needed for authentication\n");
+	fprintf(stderr, "-T x           read the password fom the file 'x' (replacement for -P)\n");
 	fprintf(stderr, "-C cookie=value Add a cookie to the request\n");
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
@@ -218,7 +219,26 @@ int enc_b64(char *source, size_t source_lenght, char *target)
 	target[0] = 0;
 	return 1;
 } 
-/* Base64 encoding END */  
+/* Base64 encoding END */
+
+const char * read_file(const char *file)
+{
+	char buffer[4096] = { 0 }, *lf = NULL;
+	FILE *fh = fopen(file, "rb");
+	if (!fh)
+		error_exit("Cannot open password-file %s", file);
+
+	if (!fgets(buffer, sizeof buffer, fh))
+		error_exit("Problem reading password from file %s", file);
+
+	fclose(fh);
+
+	lf = strchr(buffer, '\n');
+	if (lf)
+		*lf = 0x00;
+
+	return strdup(buffer);
+}
 
 int main(int argc, char *argv[])
 {
@@ -242,8 +262,8 @@ int main(int argc, char *argv[])
 	char *useragent = NULL;
 	char *referer = NULL;
 	char *host = NULL;
-	char *pwd = NULL;
-	char *usr = NULL;
+	const char *pwd = NULL;
+	const char *usr = NULL;
 	char *cookie = NULL;
 	int port = 0;
 	char resolve_once = 0;
@@ -324,10 +344,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "T:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'T':
+				pwd = read_file(optarg);
+				break;
+
 			case 'J':
 				help_long();
 				return 0;
@@ -727,6 +751,9 @@ int main(int argc, char *argv[])
 		}
 
 		ai_use = select_resolved_host(ai, use_ipv6);
+		if (!ai_use)
+			error_exit("No valid IPv4 or IPv6 address found for %s", host);
+
 		get_addr(ai_use, &addr);
 	}
 

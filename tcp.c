@@ -54,6 +54,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		/* set reuse flags */
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) == -1)
 		{
+			close(fd);
 			snprintf(last_error, ERROR_BUFFER_SIZE, "error setting sockopt to interface (%s)", strerror(errno));
 			return -1;
 		}
