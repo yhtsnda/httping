@@ -807,11 +807,12 @@ persistent_loop:
 			}
 
 			req_sent = 0;
-			
-			if ((persistent_connections && fd < 0) || (!persistent_connections))
+
+			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
 				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout, &tfo, request, req_len, &req_sent);
 			}
+
 			if (fd == RC_CTRLC)	/* ^C pressed */
 				break;
 
@@ -838,7 +839,7 @@ persistent_loop:
 					fd = -1;
 					break;
 				}
-					
+
 #ifndef NO_SSL
 				if (use_ssl && ssl_h == NULL)
 				{
