@@ -142,6 +142,7 @@ void usage(void)
 	fprintf(stderr, "               pinging roundrobin DNS: also takes the first\n");
 	fprintf(stderr, "               DNS lookup out of the loop so that the first\n");
 	fprintf(stderr, "               measurement is also correct)\n");
+	fprintf(stderr, "-W             do not abort the program if resolving failed: keep retrying\n");
 	fprintf(stderr, "-n warn,crit   Nagios-mode: return 1 when avg. response time\n");
 	fprintf(stderr, "               >= warn, 2 if >= crit, otherwhise return 0\n");
 	fprintf(stderr, "-N x           Nagios mode 2: return 0 when all fine, 'x'\n");
@@ -292,6 +293,7 @@ int main(int argc, char *argv[])
 	char no_cache = 0;
 	char *getcopyorg = NULL;
 	char tfo = 0;
+	char abort_on_resolve_failure = 1;
 
 	static struct option long_options[] =
 	{
@@ -344,10 +346,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "T:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "WT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'W':
+				abort_on_resolve_failure = 0;
+				break;
+
 			case 'T':
 				pwd = read_file(optarg);
 				break;
@@ -747,14 +753,28 @@ int main(int argc, char *argv[])
 		{
 			err++;
 			emit_error();
-			have_resolved = 1;
+			have_resolved = 0;
+			if (abort_on_resolve_failure)
+				error_exit(last_error);
 		}
 
 		ai_use = select_resolved_host(ai, use_ipv6);
 		if (!ai_use)
-			error_exit("No valid IPv4 or IPv6 address found for %s", host);
+		{
+			snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s\n", host);
 
-		get_addr(ai_use, &addr);
+			if (abort_on_resolve_failure)
+				error_exit(last_error);
+
+			// do not emit the resolve-error here: as 'have_resolved' is set to 0
+			// next, the program will try to resolve again anyway
+			// this prevents a double error-message while err is increased only
+			// once
+			have_resolved = 0;
+		}
+
+		if (have_resolved)
+			get_addr(ai_use, &addr);
 	}
 
 	if (persistent_connections)
@@ -797,6 +817,9 @@ persistent_loop:
 				{
 					err++;
 					emit_error();
+
+					if (abort_on_resolve_failure)
+						error_exit(last_error);
 					break;
 				}
 
@@ -806,6 +829,10 @@ persistent_loop:
 					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s\n", host);
 					emit_error();
 					err++;
+
+					if (abort_on_resolve_failure)
+						error_exit(last_error);
+
 					break;
 				}
 
