@@ -29,7 +29,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (fd == -1)
 	{
-		snprintf(last_error, ERROR_BUFFER_SIZE, "problem creating socket (%s)", strerror(errno));
+		snprintf(last_error, sizeof last_error, "problem creating socket (%s)", strerror(errno));
 		return -1;
 	}
 
@@ -42,14 +42,14 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) == -1)
 		{
 			close(fd);
-			snprintf(last_error, ERROR_BUFFER_SIZE, "error setting sockopt to interface (%s)", strerror(errno));
+			snprintf(last_error, sizeof last_error, "error setting sockopt to interface (%s)", strerror(errno));
 			return -1;
 		}
 
 		if (bind(fd, bind_to, sizeof(*bind_to)) == -1)
 		{
 			close(fd);
-			snprintf(last_error, ERROR_BUFFER_SIZE, "error binding to interface (%s)", strerror(errno));
+			snprintf(last_error, sizeof last_error, "error binding to interface (%s)", strerror(errno));
 			return -1;
 		}
 	}
@@ -88,10 +88,20 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	else
 #endif
 	{
-		if (connect(fd, ai -> ai_addr, ai -> ai_addrlen) == 0)
+		int rc = connect(fd, ai -> ai_addr, ai -> ai_addrlen);
+
+		if (rc == 0)
 		{
 			/* connection made, return */
 			return fd;
+		}
+
+		if (rc == -1)
+		{
+			// problem connecting
+			snprintf(last_error, sizeof last_error, "connect time out\n");
+			close(fd);
+			return -1;
 		}
 	}
 
@@ -99,8 +109,8 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	rc = select(fd + 1, NULL, &wfds, NULL, &to);
 	if (rc == 0)
 	{
-		snprintf(last_error, ERROR_BUFFER_SIZE, "connect time out\n");
-		close (fd);
+		snprintf(last_error, sizeof last_error, "connect time out\n");
+		close(fd);
 		return RC_TIMEOUT;	/* timeout */
 	}
 	else if (rc == -1)
@@ -119,7 +129,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		/* see if the connect succeeded or failed */
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optvallen) == -1)
 		{
-			snprintf(last_error, ERROR_BUFFER_SIZE, "getsockopt failed (%s)\n", strerror(errno));
+			snprintf(last_error, sizeof last_error, "getsockopt failed (%s)\n", strerror(errno));
 			close(fd);
 			return -1;
 		}
@@ -134,7 +144,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 
 	close(fd);
 
-	snprintf(last_error, ERROR_BUFFER_SIZE, "could not connect (%s)\n", strerror(errno));
+	snprintf(last_error, sizeof last_error, "could not connect (%s)\n", strerror(errno));
 
 	return -1;
 }
@@ -145,7 +155,7 @@ int set_tcp_low_latency(int sock)
 
 	if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
 	{
-		snprintf(last_error, ERROR_BUFFER_SIZE, "could not set TCP_NODELAY on socket (%s)\n", strerror(errno));
+		snprintf(last_error, sizeof last_error, "could not set TCP_NODELAY on socket (%s)\n", strerror(errno));
 		return -1;
 	}
 

@@ -16,5 +16,5 @@ double get_ts(void)
 	if (gettimeofday(&ts, &tz) == -1)
 		error_exit("gettimeofday failed");
 
-	return (((double)ts.tv_sec) + ((double)ts.tv_usec)/1000000.0);
+	return (double)ts.tv_sec + ((double)ts.tv_usec)/1000000.0;
 }

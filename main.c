@@ -658,7 +658,7 @@ int main(int argc, char *argv[])
 		client_ctx = initialize_ctx();
 		if (!client_ctx)
 		{
-			snprintf(last_error, ERROR_BUFFER_SIZE, "problem creating SSL context\n");
+			snprintf(last_error, sizeof last_error, "problem creating SSL context\n");
 			goto error_exit;
 		}
 	}
@@ -889,7 +889,7 @@ persistent_loop:
 			if (fd < 0)
 			{
 				if (fd == RC_TIMEOUT)
-					snprintf(last_error, ERROR_BUFFER_SIZE, "timeout connecting to host\n");
+					snprintf(last_error, sizeof last_error, "timeout connecting to host\n");
 
 				emit_error();
 				err++;
@@ -925,13 +925,13 @@ persistent_loop:
 				}
 
 				if (rc == -1)
-					snprintf(last_error, ERROR_BUFFER_SIZE, "error sending request to host\n");
+					snprintf(last_error, sizeof last_error, "error sending request to host\n");
 				else if (rc == RC_TIMEOUT)
-					snprintf(last_error, ERROR_BUFFER_SIZE, "timeout sending to host\n");
+					snprintf(last_error, sizeof last_error, "timeout sending to host\n");
 				else if (rc == RC_CTRLC)
 				{/* ^C */}
 				else if (rc == 0)
-					snprintf(last_error, ERROR_BUFFER_SIZE, "connection prematurely closed by peer\n");
+					snprintf(last_error, sizeof last_error, "connection prematurely closed by peer\n");
 
 				emit_error();
 
@@ -987,7 +987,7 @@ persistent_loop:
 				char *length = strstr(reply, "\nContent-Length:");
 				if (!length)
 				{
-					snprintf(last_error, ERROR_BUFFER_SIZE, "'Content-Length'-header missing!\n");
+					snprintf(last_error, sizeof last_error, "'Content-Length'-header missing!\n");
 					emit_error();
 					close(fd);
 					fd = -1;
@@ -1018,9 +1018,9 @@ persistent_loop:
 				}
 
 				if (rc == RC_SHORTREAD)
-					snprintf(last_error, ERROR_BUFFER_SIZE, "error receiving reply from host\n");
+					snprintf(last_error, sizeof last_error, "short read during receiving reply-headers from host\n");
 				else if (rc == RC_TIMEOUT)
-					snprintf(last_error, ERROR_BUFFER_SIZE, "timeout receiving reply from host\n");
+					snprintf(last_error, sizeof last_error, "timeout while receiving reply-headers from host\n");
 
 				emit_error();
 
@@ -1083,7 +1083,7 @@ persistent_loop:
 
 				if (close_ssl_connection(ssl_h, fd) == -1)
 				{
-					snprintf(last_error, ERROR_BUFFER_SIZE, "error shutting down ssl\n");
+					snprintf(last_error, sizeof last_error, "error shutting down ssl\n");
 					emit_error();
 				}
 

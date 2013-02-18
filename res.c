@@ -29,6 +29,7 @@ int resolve_host(char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 
 	return getaddrinfo(host, servname, &myaddr, ai);
 }
+	ai -> ai_family = use_ipv6 ? AF_INET6 : AF_INET;
 
 struct addrinfo * select_resolved_host(struct addrinfo *ai, char use_ipv6)
 {
