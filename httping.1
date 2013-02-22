@@ -105,8 +105,23 @@ Be quiet, only return an exit-code.
 .B "\-A,U,P"
 Activate the basic authentication, Username follow the -U, Password the -P.
 .TP
+.B "\-T x"
+Read the password from file 'x' (instead of entering it on the command line).
+.TP
 .B "\-F"
 Attempt TCP Fast Open while trying to connect to a server (for Linux, version 3.7 onwards of the kernel)   
+.TP
+.B "\-Y"
+Enable colors
+.TP
+.B "\-\-offset\-red x"
+If the measured offset is higher than x (and -Y is given), then the shown value is colored red. If you also use --offset-yellow, then this value must be bigger.
+.TP
+.B "\-\-offset\-yellow x"
+If the measured offset is higher than x (and -Y is given), then the shown value is colored yellow.
+.TP
+.B "\-W"
+Do not abort program if resolving fails.
 .TP
 .B "\-V"
 Show the version and exit.

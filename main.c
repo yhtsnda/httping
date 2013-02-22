@@ -87,6 +87,8 @@ void help_long(void)
 	fprintf(stderr, "--no-cache		-Z\n");
 	fprintf(stderr, "--colors		-Y\n");
 	fprintf(stderr, "--tcp-fast-open        -F\n");
+	fprintf(stderr, "--offset-yellow        from what ping offset to show the value in yellow\n");
+	fprintf(stderr, "--offset-red           from what ping offset to show the value in red (must be bigger than yellow)\n");
 	fprintf(stderr, "--version		-V\n");
 	fprintf(stderr, "--help			-H\n");
 }
@@ -310,6 +312,7 @@ int main(int argc, char *argv[])
 	const char *c_white = "";
 	const char *c_bright = "";
 	const char *c_normal = "";
+	double offset_yellow = -1, offset_red = -1;
 
 	static struct option long_options[] =
 	{
@@ -351,6 +354,8 @@ int main(int argc, char *argv[])
 		{"password",	1, NULL, 'P' },
 		{"cookie",	1, NULL, 'C' },
 		{"colors",	0, NULL, 'Y' },
+		{"offset-yellow",	1, NULL, 1   },
+		{"offset-red",	1, NULL, 2   },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -367,6 +372,14 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 1:
+				offset_yellow = atof(optarg);
+				break;
+
+			case 2:
+				offset_red = atof(optarg);
+				break;
+
 			case 'Y':
 				colors = 1;
 				break;
@@ -1213,6 +1226,7 @@ persistent_loop:
 			}
 			else if (!quiet && !nagios_mode)
 			{
+				const char *ms_color = c_green;
 				char current_host[1024];
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 
@@ -1222,15 +1236,20 @@ persistent_loop:
 				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d", errno);
 
+				if (offset_red > 0.0 && ms >= offset_red)
+					ms_color = c_red;
+				else if (offset_yellow > 0.0 && ms >= offset_yellow)
+					ms_color = c_yellow;
+
 				if (persistent_connections && show_bytes_xfer)
 					printf("%s %s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
 					printf("%s %s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					printf("time=%.2f+%.2f=%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, (dend - dafter_connect) * 1000.0, c_green, ms, c_white, c_cyan, sc?sc:"", c_white);
+					printf("time=%.2f+%.2f=%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, (dend - dafter_connect) * 1000.0, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
 				else
-					printf("time=%s%.2f%s ms %s%s%s", c_green, ms, c_white, c_cyan, sc?sc:"", c_white);
+					printf("time=%s%.2f%s ms %s%s%s", ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
 
 				if (persistent_did_reconnect)
 				{
