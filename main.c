@@ -198,7 +198,7 @@ int enc_b64(char *source, size_t source_lenght, char *target)
 	/* Add padding to the rest */
 	if (source_lenght > 0) {
 		char pad[3];
-	 	memset(pad, 0, sizeof(pad));
+	 	memset(pad, 0, sizeof pad);
 		memcpy(pad, source, source_lenght);
 		encode_tryptique(pad, target);
 		target[3] = '=';
@@ -375,7 +375,7 @@ int main(int argc, char *argv[])
 					if (dummy)
 					{
 						bind_to = (struct sockaddr_in *)&bind_to_6;
-						memset(&bind_to_6, 0x00, sizeof(bind_to_6));
+						memset(&bind_to_6, 0x00, sizeof bind_to_6);
 						bind_to_6.sin6_family = AF_INET6;
 
 						if (inet_pton(AF_INET6, optarg, &(bind_to_6.sin6_addr)) != 1)
@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
 					else
 					{
 						bind_to = (struct sockaddr_in *)&bind_to_4;
-						memset(&bind_to_4, 0x00, sizeof(bind_to_4));
+						memset(&bind_to_4, 0x00, sizeof bind_to_4);
 						bind_to_4.sin_family = AF_INET;
 
 						if (inet_pton(AF_INET, optarg, &(bind_to_4.sin_addr)) != 1)
@@ -777,6 +777,7 @@ int main(int argc, char *argv[])
 		char is_compressed = 0;
 		long long int bytes_transferred = 0;
 		time_t their_ts = 0;
+		int age = -1;
 
 		dstart = get_ts();
 
@@ -793,7 +794,7 @@ int main(int argc, char *argv[])
 persistent_loop:
 			if ((!resolve_once || (resolve_once == 1 && have_resolved == 0)) && fd == -1)
 			{
-				memset(&addr, 0x00, sizeof(addr));
+				memset(&addr, 0x00, sizeof addr);
 
 				if (ai)
 				{
@@ -984,6 +985,21 @@ persistent_loop:
 				}
 			}
 
+			if (reply != NULL && their_ts > 0)
+			{
+				char *date = strstr(reply, "\nLast-Modified:");
+				char *komma = date ? strchr(date, ',') : NULL;
+				if (date && komma)
+				{
+					struct tm tm;
+					memset(&tm, 0x00, sizeof tm);
+
+					// 22 Feb 2013 09:13:56
+					if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
+						age = their_ts - mktime(&tm);
+				}
+			}
+
 			if (ask_compression && reply != NULL)
 			{
 				char *encoding = strstr(reply, "\nContent-Encoding:");
@@ -1155,8 +1171,8 @@ persistent_loop:
 				char current_host[1024];
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 
-				if (getnameinfo((const struct sockaddr *)&addr, sizeof(addr), current_host, sizeof(current_host), NULL, 0, NI_NUMERICHOST) == -1)
-					snprintf(current_host, sizeof(current_host), "getnameinfo() failed: %d", errno);
+				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
+					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d", errno);
 
 				if (persistent_connections && show_bytes_xfer)
 					printf("%s %s:%d (%d/%d bytes), seq=%d ", operation, current_host, portnr, headers_len, len, curncount-1);
@@ -1204,6 +1220,9 @@ persistent_loop:
 					/*  if diff_ts > 0, then their clock is running too fast */
 					printf(" to=%d", (int)diff_ts);
 				}
+
+				if (age > 0)
+					printf(" age=%d", age);
 
 				if(audible)
 					putchar('\a');

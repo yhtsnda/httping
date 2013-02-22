@@ -128,7 +128,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	else
 	{
 		int optval=0;
-		socklen_t optvallen=sizeof(optval);
+		socklen_t optvallen = sizeof optval;
 
 		/* see if the connect succeeded or failed */
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optvallen) == -1)

@@ -18,12 +18,12 @@ int resolve_host(char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 {
 	char servname[10];
 	struct addrinfo myaddr;
-	memset(&myaddr, 0, sizeof(myaddr));
+	memset(&myaddr, 0, sizeof myaddr);
 	/* myaddr.ai_flags = AI_PASSIVE; */
 	myaddr.ai_socktype = SOCK_STREAM;
 	myaddr.ai_protocol = IPPROTO_TCP;
 	myaddr.ai_family = use_ipv6 ? AF_INET6 : AF_INET;
-	snprintf(servname, sizeof(servname), "%d", portnr);
+	snprintf(servname, sizeof servname, "%d", portnr);
 
 	return getaddrinfo(host, servname, &myaddr, ai);
 }

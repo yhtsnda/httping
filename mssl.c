@@ -166,9 +166,9 @@ char * get_fingerprint(SSL *ssl_h)
 
 	if (x509_data)
 	{
-		unsigned int fp_digest_size = sizeof(fp_digest);
+		unsigned int fp_digest_size = sizeof fp_digest;
 
-		memset(fp_digest, 0x00, sizeof(fp_digest));
+		memset(fp_digest, 0x00, fp_digest_size);
 
 		if (X509_digest(x509_data, EVP_md5(), fp_digest, &fp_digest_size))
 		{
