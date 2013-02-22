@@ -34,6 +34,9 @@ static volatile int stop = 0;
 int quiet = 0;
 char machine_readable = 0;
 
+const char *c_error = "";
+const char *c_normal = "";
+
 char nagios_mode = 0;
 
 char last_error[ERROR_BUFFER_SIZE];
@@ -149,6 +152,7 @@ void usage(const char *me)
 	fprintf(stderr, "-T x           read the password fom the file 'x' (replacement for -P)\n");
 	fprintf(stderr, "-C cookie=value Add a cookie to the request\n");
 	fprintf(stderr, "-Y             add colors\n");
+	fprintf(stderr, "-v             verbose mode\n");
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "-J             list long options\n");
@@ -171,7 +175,7 @@ void usage(const char *me)
 void emit_error()
 {
 	if (!quiet && !machine_readable && !nagios_mode)
-		printf("%s", last_error);
+		printf("%s%s%s", c_error, last_error, c_normal);
 
 	if (!nagios_mode)
 		last_error[0] = 0x00;
@@ -302,7 +306,6 @@ int main(int argc, char *argv[])
 	char *getcopyorg = NULL;
 	char tfo = 0;
 	char abort_on_resolve_failure = 1;
-	char colors = 0;
 	const char *c_red = "";
 	const char *c_blue = "";
 	const char *c_green = "";
@@ -311,8 +314,9 @@ int main(int argc, char *argv[])
 	const char *c_cyan = "";
 	const char *c_white = "";
 	const char *c_bright = "";
-	const char *c_normal = "";
 	double offset_yellow = -1, offset_red = -1;
+	char colors = 0;
+	int verbose = 0;
 
 	static struct option long_options[] =
 	{
@@ -368,10 +372,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "YWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "vYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'v':
+				verbose++;
+				break;
+
 			case 1:
 				offset_yellow = atof(optarg);
 				break;
@@ -619,8 +627,11 @@ int main(int argc, char *argv[])
 		c_magenta = "\033[35m";
 		c_cyan = "\033[36m";
 		c_white = "\033[37m";
+
 		c_bright = "\033[1m";
 		c_normal = "\033[0m";
+
+		c_error = "\033[1;4m";
 	}
 
 	if (get != NULL && hostname == NULL)
@@ -1229,9 +1240,14 @@ persistent_loop:
 				const char *ms_color = c_green;
 				char current_host[1024];
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
+				const char *sep = c_bright, *unsep = c_normal;
 
 				if (curncount & 1)
+				{
 					printf("%s", c_bright);
+					sep = c_normal;
+					unsep = c_bright;
+				}
 
 				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d", errno);
@@ -1247,7 +1263,7 @@ persistent_loop:
 					printf("%s %s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					printf("time=%.2f+%.2f=%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, (dend - dafter_connect) * 1000.0, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
+					printf("time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
 				else
 					printf("time=%s%.2f%s ms %s%s%s", ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
 
@@ -1277,7 +1293,7 @@ persistent_loop:
 					free(fp);
 				}
 
-				if (their_ts > 0)
+				if (verbose > 0 && their_ts > 0)
 				{
 					/* estimate of when other end started replying */
 					double their_est_ts = (dend + dstart) / 2.0;
@@ -1288,7 +1304,7 @@ persistent_loop:
 					printf(" toff=%d", (int)diff_ts);
 				}
 
-				if (age > 0)
+				if (verbose > 0 && age > 0)
 					printf(" age=%d", age);
 
 				printf("%s", c_normal);
