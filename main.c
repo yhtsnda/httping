@@ -85,13 +85,17 @@ void help_long(void)
 	fprintf(stderr, "--cookie		-C\n");
 	fprintf(stderr, "--persistent-connections	-Q\n");
 	fprintf(stderr, "--no-cache		-Z\n");
+	fprintf(stderr, "--colors		-Y\n");
 	fprintf(stderr, "--tcp-fast-open        -F\n");
 	fprintf(stderr, "--version		-V\n");
 	fprintf(stderr, "--help			-H\n");
 }
 
-void usage(void)
+void usage(const char *me)
 {
+	char *dummy = NULL, has_color = 0;
+	char host[256] = { 0 };
+
 	fprintf(stderr, "\n-g url         url (e.g. -g http://localhost/)\n");
 	fprintf(stderr, "-h hostname    hostname (e.g. localhost)\n");
 	fprintf(stderr, "-p portnr      portnumber (e.g. 80)\n");
@@ -142,10 +146,24 @@ void usage(void)
 	fprintf(stderr, "-P password    needed for authentication\n");
 	fprintf(stderr, "-T x           read the password fom the file 'x' (replacement for -P)\n");
 	fprintf(stderr, "-C cookie=value Add a cookie to the request\n");
+	fprintf(stderr, "-Y             add colors\n");
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "-J             list long options\n");
 	fprintf(stderr, "\n");
+
+	dummy = getenv("TERM");
+	if (dummy)
+	{
+		if (strstr(dummy, "ANSI") || strstr(dummy, "xterm") || strstr(dummy, "screen"))
+			has_color = 1;
+	}
+
+	if (gethostname(host, sizeof host))
+		strcpy(host, "localhost");
+
+	fprintf(stderr, "Example:\n");
+	fprintf(stderr, "\t%s %s%s -s -Z", me, host, has_color ? " -Y" : "");
 }
 
 void emit_error()
@@ -282,6 +300,16 @@ int main(int argc, char *argv[])
 	char *getcopyorg = NULL;
 	char tfo = 0;
 	char abort_on_resolve_failure = 1;
+	char colors = 0;
+	const char *c_red = "";
+	const char *c_blue = "";
+	const char *c_green = "";
+	const char *c_yellow = "";
+	const char *c_magenta = "";
+	const char *c_cyan = "";
+	const char *c_white = "";
+	const char *c_bright = "";
+	const char *c_normal = "";
 
 	static struct option long_options[] =
 	{
@@ -322,6 +350,7 @@ int main(int argc, char *argv[])
 		{"username",	1, NULL, 'U' },
 		{"password",	1, NULL, 'P' },
 		{"cookie",	1, NULL, 'C' },
+		{"colors",	0, NULL, 'Y' },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -334,10 +363,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "WT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "YWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'Y':
+				colors = 1;
+				break;
+
 			case 'W':
 				abort_on_resolve_failure = 0;
 				break;
@@ -543,13 +576,13 @@ int main(int argc, char *argv[])
  
 			case 'H':
 				version();
-				usage();
+				usage(argv[0]);
 				return 0;
 
 			case '?':
 			default:
 				version();
-				usage();
+				usage(argv[0]);
 				return 1;
 		}
 	}
@@ -563,6 +596,19 @@ int main(int argc, char *argv[])
 
 	if(tfo && use_ssl)
 		error_exit("TCP Fast open and SSL not supported together\n");
+
+	if (colors)
+	{
+		c_red = "\033[31m";
+		c_blue = "\033[34m";
+		c_green = "\033[32m";
+		c_yellow = "\033[33m";
+		c_magenta = "\033[35m";
+		c_cyan = "\033[36m";
+		c_white = "\033[37m";
+		c_bright = "\033[1m";
+		c_normal = "\033[0m";
+	}
 
 	if (get != NULL && hostname == NULL)
 	{
@@ -611,7 +657,7 @@ int main(int argc, char *argv[])
 
 	if (hostname == NULL)
 	{
-		usage();
+		usage(argv[0]);
 		error_exit("No hostname/getrequest given\n");
 	}
 
@@ -720,7 +766,7 @@ int main(int argc, char *argv[])
 	req_len = strlen(request);
 
 	if (!quiet && !machine_readable && !nagios_mode)
-		printf("PING %s:%d (%s):\n", hostname, portnr, get);
+		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
 
 	signal(SIGINT, handler);
 	signal(SIGTERM, handler);
@@ -1170,22 +1216,25 @@ persistent_loop:
 				char current_host[1024];
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 
+				if (curncount & 1)
+					printf("%s", c_bright);
+
 				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d", errno);
 
 				if (persistent_connections && show_bytes_xfer)
-					printf("%s %s:%d (%d/%d bytes), seq=%d ", operation, current_host, portnr, headers_len, len, curncount-1);
+					printf("%s %s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
-					printf("%s %s:%d (%d bytes), seq=%d ", operation, current_host, portnr, headers_len, curncount-1);
+					printf("%s %s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					printf("time=%.2f+%.2f=%.2f ms %s", (dafter_connect - dstart) * 1000.0, (dend - dafter_connect) * 1000.0, ms, sc?sc:"");
+					printf("time=%.2f+%.2f=%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, (dend - dafter_connect) * 1000.0, c_green, ms, c_white, c_cyan, sc?sc:"", c_white);
 				else
-					printf("time=%.2f ms %s", ms, sc?sc:"");
+					printf("time=%s%.2f%s ms %s%s%s", c_green, ms, c_white, c_cyan, sc?sc:"", c_white);
 
 				if (persistent_did_reconnect)
 				{
-					printf(" C");
+					printf(" %sC%s", c_magenta, c_white);
 					persistent_did_reconnect = 0;
 				}
 
@@ -1222,6 +1271,8 @@ persistent_loop:
 
 				if (age > 0)
 					printf(" age=%d", age);
+
+				printf("%s", c_normal);
 
 				if(audible)
 					putchar('\a');
