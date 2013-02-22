@@ -1,6 +1,7 @@
-keepalive
+- keepalive
 
-multiple threads!
+- multiple threads!
 
-- checked on; linux freebsd and irix
- ook solaris testen en aix fixen
+- emit results:
+	 - html
+	 - gnuplot script + data file

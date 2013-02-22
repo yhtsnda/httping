@@ -37,14 +37,14 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		int set = 1;
 
 		/* set reuse flags */
-		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) == -1)
+		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof set) == -1)
 		{
 			close(fd);
 			snprintf(last_error, sizeof last_error, "error setting sockopt to interface (%s)", strerror(errno));
 			return -1;
 		}
 
-		if (bind(fd, bind_to, sizeof(*bind_to)) == -1)
+		if (bind(fd, bind_to, sizeof *bind_to) == -1)
 		{
 			close(fd);
 			snprintf(last_error, sizeof last_error, "error binding to interface (%s)", strerror(errno));

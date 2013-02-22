@@ -848,16 +848,16 @@ persistent_loop:
 
 			if (fd >= 0)
 			{
-				/* set socket to low latency */
-				if (set_tcp_low_latency(fd) == -1)
+				/* set fd blocking */
+				if (set_fd_blocking(fd) == -1)
 				{
 					close(fd);
 					fd = -1;
 					break;
 				}
 
-				/* set fd blocking */
-				if (set_fd_blocking(fd) == -1)
+				/* set socket to low latency */
+				if (set_tcp_low_latency(fd) == -1)
 				{
 					close(fd);
 					fd = -1;
@@ -907,7 +907,7 @@ persistent_loop:
 			else
 #endif
 			{
-				if(!req_sent)
+				if (!req_sent)
 					rc = mywrite(fd, request, req_len, timeout);
 				else
 					rc = req_len;
@@ -979,7 +979,7 @@ persistent_loop:
 					memset(&tm, 0x00, sizeof tm);
 
 					// 22 Feb 2013 09:13:56
-					if (strptime(komma + 1, "%d %b %Y %H:%M:%S", &tm))
+					if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
 						their_ts = mktime(&tm);
 				}
 			}
