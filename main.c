@@ -1218,7 +1218,7 @@ persistent_loop:
 					double diff_ts = (double)their_ts - their_est_ts;
 
 					/*  if diff_ts > 0, then their clock is running too fast */
-					printf(" to=%d", (int)diff_ts);
+					printf(" toff=%d", (int)diff_ts);
 				}
 
 				if (age > 0)

@@ -5,3 +5,5 @@
 - emit results:
 	 - html
 	 - gnuplot script + data file
+
+- proxy buster: url met &bla=rand()
