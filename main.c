@@ -1,5 +1,6 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
+#define _XOPEN_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -775,6 +776,7 @@ int main(int argc, char *argv[])
 		int Bps = 0;
 		char is_compressed = 0;
 		long long int bytes_transferred = 0;
+		time_t their_ts = 0;
 
 		dstart = get_ts();
 
@@ -964,6 +966,21 @@ persistent_loop:
 					dummy = strchr(sc, '\n');
 					if (dummy)
 						*dummy = 0x00;
+				}
+			}
+
+			if (reply != NULL)
+			{
+				char *date = strstr(reply, "\nDate:");
+				char *komma = date ? strchr(date, ',') : NULL;
+				if (date && komma)
+				{
+					struct tm tm;
+					memset(&tm, 0x00, sizeof tm);
+
+					// 22 Feb 2013 09:13:56
+					if (strptime(komma + 1, "%d %b %Y %H:%M:%S", &tm))
+						their_ts = mktime(&tm);
 				}
 			}
 
@@ -1175,6 +1192,17 @@ persistent_loop:
 				{
 					printf(" %s", fp);
 					free(fp);
+				}
+
+				if (their_ts > 0)
+				{
+					/* estimate of when other end started replying */
+					double their_est_ts = (dend + dstart) / 2.0;
+
+					double diff_ts = (double)their_ts - their_est_ts;
+
+					/*  if diff_ts > 0, then their clock is running too fast */
+					printf(" to=%d", (int)diff_ts);
 				}
 
 				if(audible)
