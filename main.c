@@ -710,9 +710,8 @@ int main(int argc, char *argv[])
 	}
 
 	/* Cookie Insertion */
-	if (cookie) { 
+	if (cookie)
 		sprintf(&request[strlen(request)], "Cookie: %s;\r\n", cookie);
-	}
 
 	if (persistent_connections)
 		sprintf(&request[strlen(request)], "Connection: keep-alive\r\n");
