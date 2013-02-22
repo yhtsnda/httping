@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -18,6 +17,8 @@
 #include "mssl.h"
 #endif
 #include <arpa/inet.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "gen.h"
 #include "http.h"
@@ -36,6 +37,7 @@ char machine_readable = 0;
 
 const char *c_error = "";
 const char *c_normal = "";
+const char *c_very_normal = "";
 
 char nagios_mode = 0;
 
@@ -620,19 +622,23 @@ int main(int argc, char *argv[])
 
 	if (colors)
 	{
-		c_red = "\033[31m";
-		c_blue = "\033[34m";
-		c_green = "\033[32m";
-		c_yellow = "\033[33m";
-		c_magenta = "\033[35m";
-		c_cyan = "\033[36m";
-		c_white = "\033[37m";
+		c_red = "\033[31;40m";
+		c_blue = "\033[34;40m";
+		c_green = "\033[32;40m";
+		c_yellow = "\033[33;40m";
+		c_magenta = "\033[35;40m";
+		c_cyan = "\033[36;40m";
+		c_white = "\033[37;40m";
 
-		c_bright = "\033[1m";
-		c_normal = "\033[0m";
+		c_bright = "\033[1;40m";
+		c_normal = "\033[0;37;40m";
 
-		c_error = "\033[1;4m";
+		c_very_normal = "\033[0m";
+
+		c_error = "\033[1;4;40m";
 	}
+
+	printf("%s%s", c_normal, c_white);
 
 	if (get != NULL && hostname == NULL)
 	{
@@ -1258,9 +1264,9 @@ persistent_loop:
 					ms_color = c_yellow;
 
 				if (persistent_connections && show_bytes_xfer)
-					printf("%s %s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
+					printf("%s%s %s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_white, operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
-					printf("%s %s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
+					printf("%s%s %s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
 					printf("time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
@@ -1346,22 +1352,24 @@ persistent_loop:
 	double total_took = get_ts() - started_at;
 	if (!quiet && !machine_readable && !nagios_mode)
 	{
+		int dummy = count;
+
 		printf("--- %s ping statistics ---\n", get);
 
 		if (curncount == 0 && err > 0)
 			fprintf(stderr, "internal error! (curncount)\n");
 
 		if (count == -1)
-			printf("%d connects, %d ok, %3.2f%% failed, time %.0fms\n", curncount, ok, (((double)err) / ((double)curncount)) * 100.0, total_took * 1000.0);
-		else
-			printf("%d connects, %d ok, %3.2f%% failed, time %.0fms\n", curncount, ok, (((double)err) / ((double)count)) * 100.0, total_took * 1000.0);
+			dummy = curncount;
+
+		printf("%s%d%s connects, %s%d%s ok, %s%3.2f%%%s failed, time %s%s%.0fms%s\n", c_yellow, curncount, c_normal, c_green, ok, c_normal, c_red, (((double)err) / ((double)dummy)) * 100.0, c_normal, c_blue, c_bright, total_took * 1000.0, c_normal);
 
 		if (ok > 0)
 		{
-			printf("round-trip min/avg/max = %.1f/%.1f/%.1f ms\n", min, avg_httping_time, max);
+			printf("round-trip min/avg/max = %s%.1f%s/%s%.1f%s/%s%.1f%s ms\n", c_bright, min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, max, c_normal);
 
 			if (show_Bps)
-				printf("Transfer speed: min/avg/max = %d/%d/%d KB\n", Bps_min / 1024, (int)(Bps_avg / ok) / 1024, Bps_max / 1024);
+				printf("Transfer speed: min/avg/max = %s%d%s/%s%d%s/%s%d%s KB\n", c_bright, Bps_min / 1024, c_normal, c_bright, (int)(Bps_avg / ok) / 1024, c_normal, c_bright, Bps_max / 1024, c_normal);
 		}
 	}
 
@@ -1402,6 +1410,8 @@ error_exit:
 	free(request);
 	free(buffer);
 	free(getcopyorg);
+
+	printf("%s", c_very_normal);
 
 	if (ok)
 		return 0;
