@@ -94,6 +94,7 @@ void help_long(void)
 	fprintf(stderr, "--tcp-fast-open        -F\n");
 	fprintf(stderr, "--offset-yellow        from what ping offset to show the value in yellow\n");
 	fprintf(stderr, "--offset-red           from what ping offset to show the value in red (must be bigger than yellow)\n");
+	fprintf(stderr, "--offset-show          from what ping offset to show the results\n");
 	fprintf(stderr, "--version		-V\n");
 	fprintf(stderr, "--help			-H\n");
 }
@@ -319,6 +320,7 @@ int main(int argc, char *argv[])
 	double offset_yellow = -1, offset_red = -1;
 	char colors = 0;
 	int verbose = 0;
+	double offset_show = -1.0;
 
 	static struct option long_options[] =
 	{
@@ -362,6 +364,8 @@ int main(int argc, char *argv[])
 		{"colors",	0, NULL, 'Y' },
 		{"offset-yellow",	1, NULL, 1   },
 		{"offset-red",	1, NULL, 2   },
+		{"offset-show",	1, NULL, 3   },
+		{"show-offset",	1, NULL, 3   },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -388,6 +392,10 @@ int main(int argc, char *argv[])
 
 			case 2:
 				offset_red = atof(optarg);
+				break;
+
+			case 3:
+				offset_show = atof(optarg);
 				break;
 
 			case 'Y':
@@ -1241,7 +1249,7 @@ persistent_loop:
 
 				printf("\n");
 			}
-			else if (!quiet && !nagios_mode)
+			else if (!quiet && !nagios_mode && ms >= offset_show)
 			{
 				const char *ms_color = c_green;
 				char current_host[1024];
