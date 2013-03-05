@@ -1,6 +1,6 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
-#define _XOPEN_SOURCE
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
