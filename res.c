@@ -37,7 +37,9 @@ struct addrinfo * select_resolved_host(struct addrinfo *ai, char use_ipv6)
 			return p;
 
 		if (p -> ai_family == AF_INET)
-			return ai;
+			return p;
+
+		p = p -> ai_next;
 	}
 
 	return NULL;
