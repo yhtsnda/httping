@@ -84,6 +84,11 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	}
 			
 	else
+#else
+	(void)tfo;
+	(void)msg;
+	(void)msg_len;
+	(void)msg_accepted;
 #endif
 	{
 		int rc = connect(fd, ai -> ai_addr, ai -> ai_addrlen);
