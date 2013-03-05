@@ -132,7 +132,7 @@ void usage(const char *me)
 	fprintf(stderr, "-m             give machine parseable output (see\n");
 	fprintf(stderr, "               also -o and -e)\n");
 	fprintf(stderr, "-o rc,rc,...   what http results codes indicate 'ok'\n");
-	fprintf(stderr, "               coma seperated WITHOUT spaces inbetween\n");
+	fprintf(stderr, "               comma seperated WITHOUT spaces inbetween\n");
 	fprintf(stderr, "               default is 200, use with -e\n");
 	fprintf(stderr, "-e str         string to display when http result code\n");
 	fprintf(stderr, "               doesn't match\n");
@@ -321,6 +321,7 @@ int main(int argc, char *argv[])
 	char colors = 0;
 	int verbose = 0;
 	double offset_show = -1.0;
+	char show_ts = 0;
 
 	static struct option long_options[] =
 	{
@@ -366,6 +367,8 @@ int main(int argc, char *argv[])
 		{"offset-red",	1, NULL, 2   },
 		{"offset-show",	1, NULL, 3   },
 		{"show-offset",	1, NULL, 3   },
+		{"timestamp",	0, NULL, 4   },
+		{"ts",		0, NULL, 4   },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -396,6 +399,10 @@ int main(int argc, char *argv[])
 
 			case 3:
 				offset_show = atof(optarg);
+				break;
+
+			case 4:
+				show_ts = 1;
 				break;
 
 			case 'Y':
@@ -1255,6 +1262,20 @@ persistent_loop:
 				char current_host[1024];
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 				const char *sep = c_bright, *unsep = c_normal;
+
+				if (show_ts)
+				{
+					struct timeval tv;
+
+					(void)gettimeofday(&tv, NULL);
+
+					struct tm *tvm = localtime(&tv.tv_sec);
+
+					if (verbose)
+						printf("%04d/%02d/%02d ", tvm -> tm_year + 1900, tvm -> tm_mon + 1, tvm -> tm_mday);
+
+					printf("%02d:%02d:%02d.%03d ", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
+				}
 
 				if (curncount & 1)
 				{
