@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include "error.h"
-#include "mem.h"
 #include "utils.h"
 
 /*
@@ -11,7 +10,7 @@ Most unixes have this function already.
 #ifndef _GNU_SOURCE
 char *strndup(char *in, int size)
 {
-	char *out = mymalloc(size + 1, "strndup");
+	char *out = malloc(size + 1);
 
 	memcpy(out, in, size);
 	out[size] = 0x00;

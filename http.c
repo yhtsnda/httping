@@ -9,7 +9,6 @@
 #endif
 
 #include "gen.h"
-#include "mem.h"
 #include "http.h"
 #include "io.h"
 #include "str.h"
@@ -18,7 +17,7 @@
 int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, int timeout)
 {
 	int len_in=0, len=4096;
-	char *buffer = mymalloc(len, "http header");
+	char *buffer = (char *)malloc(len);
 	int rc = RC_OK;
 
 	*headers = NULL;
@@ -56,7 +55,7 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 		if (len_in == (len - 1))
 		{
 			len <<= 1;
-			buffer = (char *)myrealloc(buffer, len, "http reply");
+			buffer = (char *)realloc(buffer, len);
 		}
 	}
 

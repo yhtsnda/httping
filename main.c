@@ -24,7 +24,6 @@
 #include "http.h"
 #include "io.h"
 #include "str.h"
-#include "mem.h"
 #include "tcp.h"
 #include "res.h"
 #include "utils.h"
@@ -80,6 +79,7 @@ void help_long(void)
 	fprintf(stderr, "--password             -P\n");
 	fprintf(stderr, "--persistent-connections  -Q\n");
 	fprintf(stderr, "--port                 -p\n");
+	fprintf(stderr, "--proxy-buster x       adds \"&x=[random value]\" to the request URL\n");
 	fprintf(stderr, "--quiet                -q\n");
 	fprintf(stderr, "--referer              -R\n");
 	fprintf(stderr, "--resolve-once         -r\n");
@@ -293,10 +293,85 @@ const char * read_file(const char *file)
 	return strdup(buffer);
 }
 
+char * create_request_header(const char *get, char use_proxyhost, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_pwd, const char *cookie, const char *proxy_buster)
+{
+	char *request = (char *)malloc(strlen(get) + 8192);
+	char pb[128] = { 0 };
+
+	if (proxy_buster)
+	{
+		if (strchr(get, '?'))
+			pb[0] = '&';
+		else
+			pb[0] = '?';
+
+		snprintf(pb + 1, sizeof pb - 1, "%s=%ld", proxy_buster, lrand48());
+	}
+
+	if (use_proxyhost)
+		sprintf(request, "%s %s%s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", get, pb, persistent_connections?'1':'0');
+	else
+	{
+		const char *dummy = get, *slash = NULL;
+		if (strncasecmp(dummy, "http://", 7) == 0)
+			dummy += 7;
+		else if (strncasecmp(dummy, "https://", 7) == 0)
+			dummy += 8;
+
+		slash = strchr(dummy, '/');
+		if (slash)
+			sprintf(request, "%s %s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", slash, persistent_connections?'1':'0');
+		else
+			sprintf(request, "%s / HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", persistent_connections?'1':'0');
+	}
+
+	if (hostname)
+		sprintf(&request[strlen(request)], "Host: %s\r\n", hostname);
+
+	if (useragent)
+		sprintf(&request[strlen(request)], "User-Agent: %s\r\n", useragent);
+	else
+		sprintf(&request[strlen(request)], "User-Agent: HTTPing v" VERSION "\r\n");
+
+	if (referer)
+		sprintf(&request[strlen(request)], "Referer: %s\r\n", referer);
+
+	if (ask_compression)
+		sprintf(&request[strlen(request)], "Accept-Encoding: gzip,deflate\r\n");
+
+	if (no_cache)
+	{
+		sprintf(&request[strlen(request)], "Pragma: no-cache\r\n");
+		sprintf(&request[strlen(request)], "Cache-Control: no-cache\r\n");
+	}
+
+	/* Basic Authentification */
+	if (auth_usr)
+	{ 
+		char auth_string[255] = { 0 };
+		char b64_auth_string[255] = { 0 };
+
+		sprintf(auth_string, "%s:%s", auth_usr, auth_pwd); 
+		enc_b64(auth_string, strlen(auth_string), b64_auth_string);
+		sprintf(&request[strlen(request)], "Authorization: Basic %s\r\n", b64_auth_string);
+	}
+
+	/* Cookie Insertion */
+	if (cookie)
+		sprintf(&request[strlen(request)], "Cookie: %s;\r\n", cookie);
+
+	if (persistent_connections)
+		sprintf(&request[strlen(request)], "Connection: keep-alive\r\n");
+
+	strcat(request, "\r\n");
+
+	return request;
+}
+
 int main(int argc, char *argv[])
 {
-	char *hostname = NULL;
-	char *proxy = NULL, *proxyhost = NULL;
+	const char *hostname = NULL;
+	const char *proxy = NULL, *proxyhost = NULL;
 	int proxyport = 8080;
 	int portnr = 80;
 	char *get = NULL, *request = NULL;
@@ -310,14 +385,14 @@ int main(int argc, char *argv[])
 	int timeout=30;
 	char show_statuscodes = 0;
 	char use_ssl = 0;
-	char *ok_str = "200";
-	char *err_str = "-1";
-	char *useragent = NULL;
-	char *referer = NULL;
-	char *host = NULL;
-	const char *pwd = NULL;
-	const char *usr = NULL;
-	char *cookie = NULL;
+	const char *ok_str = "200";
+	const char *err_str = "-1";
+	const char *useragent = NULL;
+	const char *referer = NULL;
+	const char *host = NULL;
+	const char *auth_pwd = NULL;
+	const char *auth_usr = NULL;
+	const char *cookie = NULL;
 	int port = 0;
 	char resolve_once = 0;
 	char auth_mode = 0;
@@ -359,6 +434,7 @@ int main(int argc, char *argv[])
 	double offset_show = -1.0;
 	char show_ts = 0;
 	char add_host_header = 1;
+	char *proxy_buster = NULL;
 
 	static struct option long_options[] =
 	{
@@ -410,6 +486,7 @@ int main(int argc, char *argv[])
 		{"timestamp",	0, NULL, 4   },
 		{"ts",		0, NULL, 4   },
 		{"no-host-header",	0, NULL, 5 },
+		{"proxy-buster",	1, NULL, 6 },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -417,7 +494,7 @@ int main(int argc, char *argv[])
 
 	signal(SIGPIPE, SIG_IGN);
 
-	buffer = (char *)mymalloc(buffer_size, "receive buffer");
+	buffer = (char *)malloc(buffer_size);
 
 	while((c = getopt_long(argc, argv, "MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
@@ -451,6 +528,10 @@ int main(int argc, char *argv[])
 				add_host_header = 0;
 				break;
 
+			case 6:
+				proxy_buster = optarg;
+				break;
+
 			case 'Y':
 				colors = 1;
 				break;
@@ -460,7 +541,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'T':
-				pwd = read_file(optarg);
+				auth_pwd = read_file(optarg);
 				break;
 
 			case 'J':
@@ -638,10 +719,10 @@ int main(int argc, char *argv[])
 				auth_mode = 1; 
 				break;
 			case 'P':
-				pwd = optarg;
+				auth_pwd = optarg;
 				break;
 			case 'U':
-				usr = optarg;
+				auth_usr = optarg;
 				break;
 			case 'C':
 				cookie = optarg;
@@ -679,8 +760,11 @@ int main(int argc, char *argv[])
 	if (!get_instead_of_head && show_Bps)
 		error_exit("-b/-B can only be used when also using -G\n");
 
-	if(tfo && use_ssl)
+	if (tfo && use_ssl)
 		error_exit("TCP Fast open and SSL not supported together\n");
+
+	if (auth_mode && (auth_usr == NULL || auth_pwd == NULL))
+		error_exit("Basic Authnetication (-A) can only be used with a username and/or password (-U -P) ");
 
 	if (colors)
 	{
@@ -706,7 +790,7 @@ int main(int argc, char *argv[])
 	if (get != NULL && hostname == NULL)
 	{
 		char *slash, *colon;
-		char *getcopy = mystrdup(get, "get request");
+		char *getcopy = strdup(get);
 
 		getcopyorg = getcopy;
 
@@ -764,13 +848,13 @@ int main(int argc, char *argv[])
 #ifndef NO_SSL
 		if (use_ssl)
 		{
-			get = mymalloc(8 /* http:// */ + strlen(hostname) + 1 /* colon */ + 5 /* portnr */ + 1 /* / */ + 1 /* 0x00 */, "get");
+			get = malloc(8 /* http:// */ + strlen(hostname) + 1 /* colon */ + 5 /* portnr */ + 1 /* / */ + 1 /* 0x00 */);
 			sprintf(get, "https://%s:%d/", hostname, portnr);
 		}
 		else
 		{
 #endif
-			get = mymalloc(7 /* http:// */ + strlen(hostname) + 1 /* colon */ + 5 /* portnr */ + 1 /* / */ + 1 /* 0x00 */, "get");
+			get = malloc(7 /* http:// */ + strlen(hostname) + 1 /* colon */ + 5 /* portnr */ + 1 /* / */ + 1 /* 0x00 */);
 			sprintf(get, "http://%s:%d/", hostname, portnr);
 #ifndef NO_SSL
 		}
@@ -804,61 +888,6 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	request = mymalloc(strlen(get) + 8192, "request");
-	if (proxyhost)
-		sprintf(request, "%s %s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", get, persistent_connections?'1':'0');
-	else
-	{
-		char *dummy = get, *slash;
-		if (strncasecmp(dummy, "http://", 7) == 0)
-			dummy += 7;
-		else if (strncasecmp(dummy, "https://", 7) == 0)
-			dummy += 8;
-
-		slash = strchr(dummy, '/');
-		if (slash)
-			sprintf(request, "%s %s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", slash, persistent_connections?'1':'0');
-		else
-			sprintf(request, "%s / HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", persistent_connections?'1':'0');
-	}
-	if (add_host_header)
-		sprintf(&request[strlen(request)], "Host: %s\r\n", hostname);
-	if (useragent)
-		sprintf(&request[strlen(request)], "User-Agent: %s\r\n", useragent);
-	else
-		sprintf(&request[strlen(request)], "User-Agent: HTTPing v" VERSION "\r\n");
-	if (referer)
-		sprintf(&request[strlen(request)], "Referer: %s\r\n", referer);
-	if (ask_compression)
-		sprintf(&request[strlen(request)], "Accept-Encoding: gzip,deflate\r\n");
-
-	if (no_cache)
-	{
-		sprintf(&request[strlen(request)], "Pragma: no-cache\r\n");
-		sprintf(&request[strlen(request)], "Cache-Control: no-cache\r\n");
-	}
-
-	/* Basic Authentification */
-	if (auth_mode) { 
-		char auth_string[255];
-		char b64_auth_string[255];
-		if (usr == NULL)
-			error_exit("Basic Authnetication (-A) can only be used with a username and/or password (-U -P) ");
-		sprintf(auth_string,"%s:%s",usr,pwd); 
-		enc_b64(auth_string, strlen(auth_string), b64_auth_string);
-		sprintf(&request[strlen(request)], "Authorization: Basic %s\r\n", b64_auth_string);
-	}
-
-	/* Cookie Insertion */
-	if (cookie)
-		sprintf(&request[strlen(request)], "Cookie: %s;\r\n", cookie);
-
-	if (persistent_connections)
-		sprintf(&request[strlen(request)], "Connection: keep-alive\r\n");
-
-	strcat(request, "\r\n");
-	req_len = strlen(request);
-
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
 
@@ -870,8 +899,8 @@ int main(int argc, char *argv[])
 
 	timeout *= 1000;	/* change to ms */
 
-	host = proxyhost?proxyhost:hostname;
-	port = proxyhost?proxyport:portnr;
+	host = proxyhost ? proxyhost : hostname;
+	port = proxyhost ? proxyport : portnr;
 
 	struct sockaddr_in6 addr;
 	struct addrinfo *ai = NULL, *ai_use;
@@ -974,6 +1003,10 @@ persistent_loop:
 			}
 
 			req_sent = 0;
+
+			free(request);
+			request = create_request_header(get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_pwd, cookie, proxy_buster);
+			req_len = strlen(request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
@@ -1148,6 +1181,7 @@ persistent_loop:
 				{
 					char *dummy = strchr(encoding + 1, '\n');
 					if (dummy) *dummy = 0x00;
+
 					dummy = strchr(encoding + 1, '\r');
 					if (dummy) *dummy = 0x00;
 

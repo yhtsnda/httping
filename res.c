@@ -14,7 +14,7 @@
 #include "res.h"
 #include "error.h"
 
-int resolve_host(char *host, struct addrinfo **ai, char use_ipv6, int portnr)
+int resolve_host(const char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 {
 	char servname[10];
 	struct addrinfo myaddr;

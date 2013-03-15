@@ -66,7 +66,7 @@ int READ_SSL(SSL *ssl_h, char *whereto, int len)
 	return cnt;
 }
 
-int WRITE_SSL(SSL *ssl_h, char *whereto, int len)
+int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 {
 	int cnt=len;
 
@@ -74,7 +74,7 @@ int WRITE_SSL(SSL *ssl_h, char *whereto, int len)
 	{
 		int rc;
 
-		rc = SSL_write(ssl_h, whereto, len);
+		rc = SSL_write(ssl_h, wherefrom, len);
 		if (rc == -1)
 		{
 			if (errno != EINTR && errno != EAGAIN)
@@ -89,7 +89,7 @@ int WRITE_SSL(SSL *ssl_h, char *whereto, int len)
 		}
 		else
 		{
-			whereto += rc;
+			wherefrom += rc;
 			len -= rc;
 		}
 	}
