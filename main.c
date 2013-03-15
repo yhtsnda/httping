@@ -95,6 +95,7 @@ void help_long(void)
 	fprintf(stderr, "--offset-yellow        from what ping offset to show the value in yellow\n");
 	fprintf(stderr, "--offset-red           from what ping offset to show the value in red (must be bigger than yellow)\n");
 	fprintf(stderr, "--offset-show          from what ping offset to show the results\n");
+	fprintf(stderr, "--timestamp / --ts	put a timestamp before the measured values, use -v to include the date and -vv to show in microseconds\n");
 	fprintf(stderr, "--version		-V\n");
 	fprintf(stderr, "--help			-H\n");
 }
@@ -1271,10 +1272,13 @@ persistent_loop:
 
 					struct tm *tvm = localtime(&tv.tv_sec);
 
-					if (verbose)
+					if (verbose == 1)
 						printf("%04d/%02d/%02d ", tvm -> tm_year + 1900, tvm -> tm_mon + 1, tvm -> tm_mday);
+					else if (verbose >= 2)
+						printf("%.6f ", dend);
 
-					printf("%02d:%02d:%02d.%03d ", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
+					if (verbose <= 1)
+						printf("%02d:%02d:%02d.%03d ", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
 				}
 
 				if (curncount & 1)
