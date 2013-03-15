@@ -180,7 +180,7 @@ void usage(const char *me)
 	fprintf(stderr, "\t%s %s%s -s -Z", me, host, has_color ? " -Y" : "");
 }
 
-void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, int Bps, const char *host, const char *ssl_fp)
+void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -190,13 +190,13 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 	printf("\"start_ts\" : \"%f\", ", start_ts);
 	printf("\"connect_end_ts\" : \"%f\", ", connect_end_ts);
 	printf("\"ping_end_ts\" : \"%f\", ", ping_end_ts);
-	printf("\"connect_s\" : \"%f\", ", connect_end_ts - start_ts);
-	printf("\"total_s\" : \"%f\", ", ping_end_ts - start_ts);
+	printf("\"connect_s\" : \"%e\", ", connect_end_ts - start_ts);
+	printf("\"total_s\" : \"%e\", ", ping_end_ts - start_ts);
 	printf("\"http_code\" : \"%d\", ", http_code);
 	printf("\"msg\" : \"%s\", ", msg);
 	printf("\"header_size\" : \"%d\", ", header_size);
 	printf("\"data_size\" : \"%d\", ", data_size);
-	printf("\"bps\" : \"%d\", ", Bps);
+	printf("\"bps\" : \"%f\", ", Bps);
 	printf("\"host\" : \"%s\", ", host);
 	printf("\"ssl_fingerprint\" : \"%s\"", ssl_fp);
 	printf("}");
@@ -328,9 +328,9 @@ int main(int argc, char *argv[])
 	double avg_httping_time = -1.0;
 	int get_instead_of_head = 0;
 	char *buffer = NULL;
-	int page_size = sysconf(_SC_PAGESIZE);
+	int buffer_size = 131072;
 	char show_Bps = 0, ask_compression = 0;
-	int Bps_min = 1 << 30, Bps_max = 0;
+	double Bps_min = 1 << 30, Bps_max = -Bps_min;
 	long long int Bps_avg = 0;
 	int Bps_limit = -1;
 	char show_bytes_xfer = 0, show_fp = 0;
@@ -358,6 +358,7 @@ int main(int argc, char *argv[])
 	int verbose = 0;
 	double offset_show = -1.0;
 	char show_ts = 0;
+	char add_host_header = 1;
 
 	static struct option long_options[] =
 	{
@@ -408,6 +409,7 @@ int main(int argc, char *argv[])
 		{"show-threshold",	1, NULL, 3   },
 		{"timestamp",	0, NULL, 4   },
 		{"ts",		0, NULL, 4   },
+		{"no-host-header",	0, NULL, 5 },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -415,10 +417,7 @@ int main(int argc, char *argv[])
 
 	signal(SIGPIPE, SIG_IGN);
 
-	if (page_size == -1)
-		page_size = 4096;
-
-	buffer = (char *)mymalloc(page_size, "receive buffer");
+	buffer = (char *)mymalloc(buffer_size, "receive buffer");
 
 	while((c = getopt_long(argc, argv, "MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
@@ -446,6 +445,10 @@ int main(int argc, char *argv[])
 
 			case 4:
 				show_ts = 1;
+				break;
+
+			case 5:
+				add_host_header = 0;
 				break;
 
 			case 'Y':
@@ -697,7 +700,8 @@ int main(int argc, char *argv[])
 		c_error = "\033[1;4;40m";
 	}
 
-	printf("%s%s", c_normal, c_white);
+	if (!machine_readable && !json_output)
+		printf("%s%s", c_normal, c_white);
 
 	if (get != NULL && hostname == NULL)
 	{
@@ -817,11 +821,12 @@ int main(int argc, char *argv[])
 		else
 			sprintf(request, "%s / HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", persistent_connections?'1':'0');
 	}
+	if (add_host_header)
+		sprintf(&request[strlen(request)], "Host: %s\r\n", hostname);
 	if (useragent)
 		sprintf(&request[strlen(request)], "User-Agent: %s\r\n", useragent);
 	else
 		sprintf(&request[strlen(request)], "User-Agent: HTTPing v" VERSION "\r\n");
-	sprintf(&request[strlen(request)], "Host: %s\r\n", hostname);
 	if (referer)
 		sprintf(&request[strlen(request)], "Referer: %s\r\n", referer);
 	if (ask_compression)
@@ -910,7 +915,7 @@ int main(int argc, char *argv[])
 		double ms;
 		double dstart, dend, dafter_connect = 0.0;
 		char *reply;
-		int Bps = 0;
+		double Bps = 0;
 		char is_compressed = 0;
 		long long int bytes_transferred = 0;
 		time_t their_ts = 0;
@@ -1205,7 +1210,7 @@ persistent_loop:
 			if (get_instead_of_head && show_Bps)
 			{
 				double dl_start = get_ts(), dl_end;
-				int cur_limit = Bps_limit;
+				double cur_limit = Bps_limit;
 
 				if (persistent_connections)
 				{
@@ -1215,7 +1220,7 @@ persistent_loop:
 
 				for(;;)
 				{
-					int n = cur_limit != -1 ? min(cur_limit - bytes_transferred, page_size) : page_size;
+					int n = cur_limit != -1 ? min(cur_limit - bytes_transferred, buffer_size) : buffer_size;
 					int rc = read(fd, buffer, n);
 
 					if (rc == -1)
@@ -1224,7 +1229,9 @@ persistent_loop:
 							error_exit("read failed");
 					}
 					else if (rc == 0)
+					{
 						break;
+					}
 
 					bytes_transferred += rc;
 
@@ -1234,7 +1241,7 @@ persistent_loop:
 
 				dl_end = get_ts();
 
-				Bps = bytes_transferred / max(dl_end - dl_start, 0.000001);
+				Bps = (double)bytes_transferred / max(dl_end - dl_start, 0.000001);
 				Bps_min = min(Bps_min, Bps);
 				Bps_max = max(Bps_max, Bps);
 				Bps_avg += Bps;
@@ -1369,7 +1376,7 @@ persistent_loop:
 
 				if (show_Bps)
 				{
-					printf(" %dKB/s", Bps / 1024);
+					printf(" %dKB/s", (int)Bps / 1024);
 					if (show_bytes_xfer)
 						printf(" %dKB", (int)(bytes_transferred / 1024));
 					if (ask_compression)
@@ -1457,7 +1464,7 @@ persistent_loop:
 			printf("round-trip min/avg/max = %s%.1f%s/%s%.1f%s/%s%.1f%s ms\n", c_bright, min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, max, c_normal);
 
 			if (show_Bps)
-				printf("Transfer speed: min/avg/max = %s%d%s/%s%d%s/%s%d%s KB\n", c_bright, Bps_min / 1024, c_normal, c_bright, (int)(Bps_avg / ok) / 1024, c_normal, c_bright, Bps_max / 1024, c_normal);
+				printf("Transfer speed: min/avg/max = %s%f%s/%s%f%s/%s%f%s KB\n", c_bright, Bps_min / 1024, c_normal, c_bright, (Bps_avg / (double)ok) / 1024.0, c_normal, c_bright, Bps_max / 1024.0, c_normal);
 		}
 	}
 
