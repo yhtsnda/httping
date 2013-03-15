@@ -180,7 +180,7 @@ void usage(const char *me)
 	fprintf(stderr, "\t%s %s%s -s -Z", me, host, has_color ? " -Y" : "");
 }
 
-void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp)
+void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -198,7 +198,8 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 	printf("\"data_size\" : \"%d\", ", data_size);
 	printf("\"bps\" : \"%f\", ", Bps);
 	printf("\"host\" : \"%s\", ", host);
-	printf("\"ssl_fingerprint\" : \"%s\"", ssl_fp);
+	printf("\"ssl_fingerprint\" : \"%s\", ", ssl_fp);
+	printf("\"time_offset\" : \"%f\" ", toff_diff_ts);
 	printf("}");
 }
 
@@ -208,7 +209,7 @@ void emit_error(int seq, double start_ts, double cur_ts)
 		printf("%s%s%s", c_error, last_error, c_normal);
 
 	if (json_output)
-		emit_json(0, seq, start_ts, cur_ts, -1, -1, last_error, -1, -1, -1, "", "");
+		emit_json(0, seq, start_ts, cur_ts, -1, -1, last_error, -1, -1, -1, "", "", -1);
 
 	if (!nagios_mode)
 		last_error[0] = 0x00;
@@ -1313,6 +1314,10 @@ persistent_loop:
 			min = min > ms ? ms : min;
 			max = max < ms ? ms : max;
 
+			/* estimate of when other end started replying */
+			double their_est_ts = (dend + dstart) / 2.0;
+			double toff_diff_ts = (double)their_ts - their_est_ts;
+
 			if (json_output)
 			{
 				char current_host[1024];
@@ -1321,7 +1326,7 @@ persistent_loop:
 				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(&last_error[strlen(last_error)], sizeof last_error - 256, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp);
+				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts);
 			}
 			else if (machine_readable)
 			{
@@ -1430,13 +1435,8 @@ persistent_loop:
 
 				if (verbose > 0 && their_ts > 0)
 				{
-					/* estimate of when other end started replying */
-					double their_est_ts = (dend + dstart) / 2.0;
-
-					double diff_ts = (double)their_ts - their_est_ts;
-
 					/*  if diff_ts > 0, then their clock is running too fast */
-					printf(" toff=%d", (int)diff_ts);
+					printf(" toff=%d", (int)toff_diff_ts);
 				}
 
 				if (verbose > 0 && age > 0)
