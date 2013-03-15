@@ -56,51 +56,51 @@ void version(void)
 
 void help_long(void)
 {
-	fprintf(stderr, "--url			-g\n");
-	fprintf(stderr, "--hostname		-h\n");
-	fprintf(stderr, "--port			-p\n");
-	fprintf(stderr, "--host-port		-x\n");
-	fprintf(stderr, "--count		-c\n");
-	fprintf(stderr, "--interval		-i\n");
-	fprintf(stderr, "--timeout		-t\n");
-	fprintf(stderr, "--ipv6		-	6\n");
-	fprintf(stderr, "--show-statusodes	-s\n");
-	fprintf(stderr, "--split-time		-S\n");
-	fprintf(stderr, "--get-request		-G\n");
-	fprintf(stderr, "--show-transfer-speed	-b\n");
-	fprintf(stderr, "--show-xfer-speed-compressed		-B\n");
-	fprintf(stderr, "--data-limit		-L\n");
-	fprintf(stderr, "--show-kb		-X\n");
-#ifndef NO_SSL
-	fprintf(stderr, "--use-ssl		-l\n");
-	fprintf(stderr, "--show-fingerprint	-z\n");
-#endif
-	fprintf(stderr, "--flood		-f\n");
-	fprintf(stderr, "--audible-ping		-a\n");
-	fprintf(stderr, "--parseable-output	-m\n");
-	fprintf(stderr, "--ok-result-codes	-o\n");
-	fprintf(stderr, "--result-string	-e\n");
-	fprintf(stderr, "--user-agent		-I\n");
-	fprintf(stderr, "--referer		-R\n");
-	fprintf(stderr, "--resolve-once		-r\n");
-	fprintf(stderr, "--nagios-mode-1	-n\n");
-	fprintf(stderr, "--nagios-mode-2	-n\n");
-	fprintf(stderr, "--bind-to		-y\n");
-	fprintf(stderr, "--quiet		-q\n");
-	fprintf(stderr, "--basic-auth		-A\n");
-	fprintf(stderr, "--username		-U\n");
-	fprintf(stderr, "--password		-P\n");
-	fprintf(stderr, "--cookie		-C\n");
-	fprintf(stderr, "--persistent-connections	-Q\n");
-	fprintf(stderr, "--no-cache		-Z\n");
-	fprintf(stderr, "--colors		-Y\n");
-	fprintf(stderr, "--tcp-fast-open        -F\n");
-	fprintf(stderr, "--offset-yellow        from what ping offset to show the value in yellow\n");
+	fprintf(stderr, "--audible-ping         -a\n");
+	fprintf(stderr, "--basic-auth           -A\n");
+	fprintf(stderr, "--bind-to              -y\n");
+	fprintf(stderr, "--colors               -Y\n");
+	fprintf(stderr, "--cookie               -C\n");
+	fprintf(stderr, "--count                -c\n");
+	fprintf(stderr, "--data-limit           -L\n");
+	fprintf(stderr, "--flood                -f\n");
+	fprintf(stderr, "--get-request          -G\n");
+	fprintf(stderr, "--hostname             -h\n");
+	fprintf(stderr, "--host-port            -x\n");
+	fprintf(stderr, "--interval             -i\n");
+	fprintf(stderr, "--ipv6                 -6\n");
+	fprintf(stderr, "--nagios-mode-1        -n\n");
+	fprintf(stderr, "--nagios-mode-2        -n\n");
+	fprintf(stderr, "--no-cache             -Z\n");
 	fprintf(stderr, "--offset-red           from what ping offset to show the value in red (must be bigger than yellow)\n");
 	fprintf(stderr, "--offset-show          from what ping offset to show the results\n");
-	fprintf(stderr, "--timestamp / --ts	put a timestamp before the measured values, use -v to include the date and -vv to show in microseconds\n");
-	fprintf(stderr, "--version		-V\n");
-	fprintf(stderr, "--help			-H\n");
+	fprintf(stderr, "--offset-yellow        from what ping offset to show the value in yellow\n");
+	fprintf(stderr, "--ok-result-codes      -o (only for -m)\n");
+	fprintf(stderr, "--parseable-output     -m\n");
+	fprintf(stderr, "--password             -P\n");
+	fprintf(stderr, "--persistent-connections  -Q\n");
+	fprintf(stderr, "--port                 -p\n");
+	fprintf(stderr, "--quiet                -q\n");
+	fprintf(stderr, "--referer              -R\n");
+	fprintf(stderr, "--resolve-once         -r\n");
+	fprintf(stderr, "--result-string        -e\n");
+	fprintf(stderr, "--show-kb              -X\n");
+	fprintf(stderr, "--show-statusodes      -s\n");
+	fprintf(stderr, "--show-transfer-speed  -b\n");
+	fprintf(stderr, "--show-xfer-speed-compressed  -B\n");
+	fprintf(stderr, "--split-time           -S\n");
+	fprintf(stderr, "--tcp-fast-open        -F\n");
+	fprintf(stderr, "--timeout              -t\n");
+	fprintf(stderr, "--timestamp / --ts     put a timestamp before the measured values, use -v to include the date and -vv to show in microseconds\n");
+	fprintf(stderr, "--url                  -g\n");
+	fprintf(stderr, "--user-agent           -I\n");
+	fprintf(stderr, "--username             -U\n");
+#ifndef NO_SSL
+	fprintf(stderr, "--use-ssl              -l\n");
+	fprintf(stderr, "--show-fingerprint     -z\n");
+#endif
+	fprintf(stderr, "--version              -V\n");
+	fprintf(stderr, "--help                 -H\n");
 }
 
 void usage(const char *me)
@@ -113,7 +113,7 @@ void usage(const char *me)
 	fprintf(stderr, "-p portnr      portnumber (e.g. 80)\n");
 	fprintf(stderr, "-x host:port   hostname+portnumber of proxyserver\n");
 	fprintf(stderr, "-c count       how many times to connect\n");
-	fprintf(stderr, "-i interval    delay between each connect, can be only smaller than 1 if user is root\n");
+	fprintf(stderr, "-i interval    delay between each connect\n");
 	fprintf(stderr, "-t timeout     timeout (default: 30s)\n");
 	fprintf(stderr, "-Z             ask any proxies on the way not to cache the requests\n");
 	fprintf(stderr, "-Q             use a persistent connection. adds a 'C' to the output if httping had to reconnect\n");
@@ -400,9 +400,12 @@ int main(int argc, char *argv[])
 		{"cookie",	1, NULL, 'C' },
 		{"colors",	0, NULL, 'Y' },
 		{"offset-yellow",	1, NULL, 1   },
+		{"threshold-yellow",	1, NULL, 1   },
 		{"offset-red",	1, NULL, 2   },
+		{"threshold-red",	1, NULL, 2   },
 		{"offset-show",	1, NULL, 3   },
 		{"show-offset",	1, NULL, 3   },
+		{"show-threshold",	1, NULL, 3   },
 		{"timestamp",	0, NULL, 4   },
 		{"ts",		0, NULL, 4   },
 		{"version",	0, NULL, 'V' },
@@ -563,11 +566,8 @@ int main(int argc, char *argv[])
 
 			case 'i':
 				wait = atof(optarg);
-				if (wait < 1.0 && getuid() != 0)
-				{
-					fprintf(stderr, "Only root can use intervals smaller than 1\n");
-					wait = 1.0;
-				}
+				if (wait < 0.0)
+					error_exit("-i cannot have a value smaller than zero");
 				break;
 
 			case 't':
@@ -1428,7 +1428,7 @@ persistent_loop:
 
 		fflush(NULL);
 
-		if (curncount != count && !stop)
+		if (curncount != count && !stop && wait > 0)
 			usleep((useconds_t)(wait * 1000000.0));
 	}
 
