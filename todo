@@ -9,7 +9,7 @@
 
 - koppelen aan iets externs? dus een thread die v/e ander programma eea opvangt en dan meeneemt in de logging? (gps bijv.)
 
-- timestamp ook in epoch formaat
+- http 302 volgen?
 
 - proxy buster: url met &bla=rand()
 
