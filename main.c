@@ -34,6 +34,7 @@ static volatile int stop = 0;
 
 int quiet = 0;
 char machine_readable = 0;
+char json_output = 0;
 
 const char *c_error = "";
 const char *c_normal = "";
@@ -42,6 +43,8 @@ const char *c_very_normal = "";
 char nagios_mode = 0;
 
 char last_error[ERROR_BUFFER_SIZE];
+
+int fd = -1;
 
 void version(void)
 {
@@ -132,6 +135,7 @@ void usage(const char *me)
 	fprintf(stderr, "-a             audible ping\n");
 	fprintf(stderr, "-m             give machine parseable output (see\n");
 	fprintf(stderr, "               also -o and -e)\n");
+	fprintf(stderr, "-M             json output, cannot be combined with -m\n");
 	fprintf(stderr, "-o rc,rc,...   what http results codes indicate 'ok'\n");
 	fprintf(stderr, "               comma seperated WITHOUT spaces inbetween\n");
 	fprintf(stderr, "               default is 200, use with -e\n");
@@ -176,10 +180,35 @@ void usage(const char *me)
 	fprintf(stderr, "\t%s %s%s -s -Z", me, host, has_color ? " -Y" : "");
 }
 
-void emit_error()
+void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, int Bps, const char *host, const char *ssl_fp)
 {
-	if (!quiet && !machine_readable && !nagios_mode)
+	if (seq > 1)
+		printf(", \n");
+	printf("{ ");
+	printf("\"status\" : \"%d\", ", ok);
+	printf("\"seq\" : \"%d\", ", seq);
+	printf("\"start_ts\" : \"%f\", ", start_ts);
+	printf("\"connect_end_ts\" : \"%f\", ", connect_end_ts);
+	printf("\"ping_end_ts\" : \"%f\", ", ping_end_ts);
+	printf("\"connect_s\" : \"%f\", ", connect_end_ts - start_ts);
+	printf("\"total_s\" : \"%f\", ", ping_end_ts - start_ts);
+	printf("\"http_code\" : \"%d\", ", http_code);
+	printf("\"msg\" : \"%s\", ", msg);
+	printf("\"header_size\" : \"%d\", ", header_size);
+	printf("\"data_size\" : \"%d\", ", data_size);
+	printf("\"bps\" : \"%d\", ", Bps);
+	printf("\"host\" : \"%s\", ", host);
+	printf("\"ssl_fingerprint\" : \"%s\"", ssl_fp);
+	printf("}");
+}
+
+void emit_error(int seq, double start_ts, double cur_ts)
+{
+	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 		printf("%s%s%s", c_error, last_error, c_normal);
+
+	if (json_output)
+		emit_json(0, seq, start_ts, cur_ts, -1, -1, last_error, -1, -1, -1, "", "");
 
 	if (!nagios_mode)
 		last_error[0] = 0x00;
@@ -189,7 +218,14 @@ void emit_error()
 
 void handler(int sig)
 {
-	fprintf(stderr, "Got signal %d\n", sig);
+	if (!json_output)
+		fprintf(stderr, "Got signal %d\n", sig);
+
+	if (fd != -1)
+	{
+		close(fd);
+		fd = -1;
+	}
 
 	stop = 1;
 }
@@ -298,7 +334,6 @@ int main(int argc, char *argv[])
 	long long int Bps_avg = 0;
 	int Bps_limit = -1;
 	char show_bytes_xfer = 0, show_fp = 0;
-	int fd = -1;
 	SSL *ssl_h = NULL;
 	struct sockaddr_in *bind_to = NULL;
 	struct sockaddr_in bind_to_4;
@@ -382,10 +417,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)mymalloc(page_size, "receive buffer");
 
-	while((c = getopt_long(argc, argv, "vYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'M':
+				json_output = 1;
+				break;
+
 			case 'v':
 				verbose++;
 				break;
@@ -625,8 +664,12 @@ int main(int argc, char *argv[])
 				return 1;
 		}
 	}
+
 	if (optind < argc)
 		get = argv[optind];
+
+	if (machine_readable && json_output)
+		error_exit("Cannot combine -m with -M");
 
 	last_error[0] = 0x00;
 
@@ -811,8 +854,11 @@ int main(int argc, char *argv[])
 	strcat(request, "\r\n");
 	req_len = strlen(request);
 
-	if (!quiet && !machine_readable && !nagios_mode)
+	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
+
+	if (json_output)
+		printf("[\n");
 
 	signal(SIGINT, handler);
 	signal(SIGTERM, handler);
@@ -831,7 +877,7 @@ int main(int argc, char *argv[])
 		if (resolve_host(host, &ai, use_ipv6, port) == -1)
 		{
 			err++;
-			emit_error();
+			emit_error(-1, started_at, get_ts());
 			have_resolved = 0;
 			if (abort_on_resolve_failure)
 				error_exit(last_error);
@@ -878,7 +924,7 @@ int main(int argc, char *argv[])
 			int rc;
 			char *sc = NULL, *scdummy = NULL;
 			int persistent_tries = 0;
-			int len = 0, overflow = 0, headers_len;
+			int len = 0, overflow = 0, headers_len = 0;
 
 			curncount++;
 
@@ -897,7 +943,7 @@ persistent_loop:
 				if (resolve_host(host, &ai, use_ipv6, port) == -1)
 				{
 					err++;
-					emit_error();
+					emit_error(curncount, dstart, get_ts());
 
 					if (abort_on_resolve_failure)
 						error_exit(last_error);
@@ -908,7 +954,7 @@ persistent_loop:
 				if (!ai_use)
 				{
 					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s\n", host);
-					emit_error();
+					emit_error(curncount, dstart, get_ts());
 					err++;
 
 					if (abort_on_resolve_failure)
@@ -934,7 +980,7 @@ persistent_loop:
 
 			if (fd < 0)
 			{
-				emit_error();
+				emit_error(curncount, dstart, get_ts());
 				fd = -1;
 			}
 
@@ -977,15 +1023,14 @@ persistent_loop:
 #endif
 			}
 
-			if (split)
-				dafter_connect = get_ts();
+			dafter_connect = get_ts();
 
 			if (fd < 0)
 			{
 				if (fd == RC_TIMEOUT)
 					snprintf(last_error, sizeof last_error, "timeout connecting to host\n");
 
-				emit_error();
+				emit_error(curncount, dstart, get_ts());
 				err++;
 
 				fd = -1;
@@ -1027,7 +1072,7 @@ persistent_loop:
 				else if (rc == 0)
 					snprintf(last_error, sizeof last_error, "connection prematurely closed by peer\n");
 
-				emit_error();
+				emit_error(curncount, dstart, get_ts());
 
 				close(fd);
 				fd = -1;
@@ -1038,7 +1083,7 @@ persistent_loop:
 
 			rc = get_HTTP_headers(fd, ssl_h, &reply, &overflow, timeout);
 
-			if ((show_statuscodes || machine_readable) && reply != NULL)
+			if ((show_statuscodes || machine_readable || json_output) && reply != NULL)
 			{
 				/* statuscode is in first line behind
 				 * 'HTTP/1.x'
@@ -1112,7 +1157,7 @@ persistent_loop:
 				if (!length)
 				{
 					snprintf(last_error, sizeof last_error, "'Content-Length'-header missing!\n");
-					emit_error();
+					emit_error(curncount, dstart, get_ts());
 					close(fd);
 					fd = -1;
 					break;
@@ -1146,7 +1191,7 @@ persistent_loop:
 				else if (rc == RC_TIMEOUT)
 					snprintf(last_error, sizeof last_error, "timeout while receiving reply-headers from host\n");
 
-				emit_error();
+				emit_error(curncount, dstart, get_ts());
 
 				close(fd);
 				fd = -1;
@@ -1208,7 +1253,7 @@ persistent_loop:
 				if (close_ssl_connection(ssl_h, fd) == -1)
 				{
 					snprintf(last_error, sizeof last_error, "error shutting down ssl\n");
-					emit_error();
+					emit_error(curncount, dstart, get_ts());
 				}
 
 				SSL_free(ssl_h);
@@ -1227,7 +1272,17 @@ persistent_loop:
 			min = min > ms ? ms : min;
 			max = max < ms ? ms : max;
 
-			if (machine_readable)
+			if (json_output)
+			{
+				char current_host[1024];
+
+
+				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
+					snprintf(&last_error[strlen(last_error)], sizeof last_error - 256, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
+
+				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp);
+			}
+			else if (machine_readable)
 			{
 				if (sc)
 				{
@@ -1289,7 +1344,7 @@ persistent_loop:
 				}
 
 				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
-					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d", errno);
+					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
 				if (offset_red > 0.0 && ms >= offset_red)
 					ms_color = c_red;
@@ -1383,7 +1438,7 @@ persistent_loop:
 		avg_httping_time = -1.0;
 
 	double total_took = get_ts() - started_at;
-	if (!quiet && !machine_readable && !nagios_mode)
+	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 	{
 		int dummy = count;
 
@@ -1444,7 +1499,11 @@ error_exit:
 	free(buffer);
 	free(getcopyorg);
 
-	printf("%s", c_very_normal);
+	if (!json_output && !machine_readable)
+		printf("%s", c_very_normal);
+
+	if (json_output)
+		printf("\n]\n");
 
 	if (ok)
 		return 0;
