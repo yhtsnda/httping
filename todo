@@ -11,7 +11,7 @@
 
 - http 302 volgen?
 
-- proxy buster: url met &bla=rand()
+- socks support
 
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
