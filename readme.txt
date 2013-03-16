@@ -16,6 +16,13 @@ Usage:
 httping www.vanheusden.com
 
 
+See:
+	httping -h
+for a list of commandline switches. Also check the man-page.
+
+plot-json.py is a script to convert the json-output of httping to a script for gnuplot.
+
+
 Thanks to Thanatos for cookie and authentication support.
 
 

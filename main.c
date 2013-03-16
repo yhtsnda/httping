@@ -373,9 +373,67 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 	return request;
 }
 
+void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl)
+{
+	char in_use[4096] = { 0 }, *dummy = NULL;
+
+	/* make url complete, if not already */
+	if (strncasecmp(in, "http://", 7) == 0 || strncasecmp(in, "https://", 8) == 0) /* complete url? */
+	{
+		if (strchr(&in[8], '/') == NULL)
+			sprintf(in_use, "%s/", in);
+		else
+			strcpy(in_use, in);
+	}
+	else if (strchr(in, '/')) /* hostname + location without 'http://'? */
+		sprintf(in_use, "http://%s", in);
+	else if (use_ssl)
+		sprintf(in_use, "https://%s/", in);
+	else
+		sprintf(in_use, "http://%s/", in);
+
+	/* sanity check */
+	if (strncasecmp(in_use, "http://", 7) == 0 && use_ssl)
+		error_exit("using \"http://\" with SSL enabled (-l)");
+
+	/* fetch hostname */
+	if (strncasecmp(in_use, "http://", 7) == 0)
+		*hostname = strdup(&in_use[7]);
+	else /* https */
+		*hostname = strdup(&in_use[8]);
+
+	dummy = strchr(*hostname, '/');
+	if (dummy)
+		*dummy = 0x00;
+
+	/* fetch port number */
+	if (use_ssl || strncasecmp(in, "https://", 8) == 0)
+		*portnr = 443;
+	else
+		*portnr = 80;
+
+	if (!use_ipv6)
+	{
+		char *colon = strchr(*hostname, ':');
+
+		if (colon)
+		{
+			*colon = 0x00;
+			*portnr = atoi(colon + 1);
+		}
+	}
+
+	/* fetch path */
+	dummy = strchr(&in_use[8], '/');
+	if (dummy)
+		*path = strdup(dummy);
+	else
+		*path = strdup("/");
+}
+
 int main(int argc, char *argv[])
 {
-	const char *hostname = NULL;
+	char *hostname = NULL;
 	const char *proxy = NULL, *proxyhost = NULL;
 	const char *proxy_user = NULL, *proxy_password = NULL;
 	int proxyport = 8080;
@@ -442,6 +500,7 @@ int main(int argc, char *argv[])
 	char add_host_header = 1;
 	char *proxy_buster = NULL;
 	char proxy_is_socks5 = 0;
+	const char *url = NULL;
 
 	static struct option long_options[] =
 	{
@@ -650,7 +709,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'g':
-				get = optarg;
+				url = optarg;
 				break;
 
 			case 'r':
@@ -658,7 +717,12 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'h':
-				hostname = strdup(optarg);
+				{
+					char dummy_buffer[4096] = { 0 };
+					snprintf(dummy_buffer, sizeof dummy_buffer, "http://%s/", optarg);
+					hostname = strdup(dummy_buffer);
+				}
+
 				break;
 
 			case 'p':
@@ -771,7 +835,13 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind < argc)
-		get = argv[optind];
+		url = argv[optind];
+
+	if (!url)
+	{
+		usage(argv[0]);
+		error_exit("No URL/host to ping given");
+	}
 
 	if (machine_readable && json_output)
 		error_exit("Cannot combine -m with -M");
@@ -808,79 +878,10 @@ int main(int argc, char *argv[])
 	if (!machine_readable && !json_output)
 		printf("%s%s", c_normal, c_white);
 
-	if (get != NULL && hostname == NULL)
-	{
-		char *slash, *colon;
-		char *getcopy = strdup(get);
+	interpret_url(url, &get, &hostname, &portnr, use_ipv6, use_ssl);
 
-		getcopyorg = getcopy;
-
-		if (strncasecmp(getcopy, "http://", 7) == 0)
-		{
-			getcopy += 7;
-		}
-		else if (strncasecmp(getcopy, "https://", 8) == 0)
-		{
-			getcopy += 8;
-			use_ssl = 1;
-		}
-
-		/*
-		   if (strncasecmp(getcopy, http_string, http_string_len) != 0)
-		   {
-		   fprintf(stderr, "'%s' is a strange URL\n", getcopy);
-		   fprintf(stderr, "Expected: %s...\n", http_string);
-		   if (strncasecmp(getcopy, "https://", 8) == 0)
-		   fprintf(stderr, "Did you forget to add the '-l' switch to the httping commandline?\n");
-		   return 2;
-		   }
-		 */
-
-		slash = strchr(getcopy, '/');
-		if (slash)
-			*slash = 0x00;
-
-		if (!use_ipv6)
-		{
-			colon = strchr(getcopy, ':');
-			if (colon)
-			{
-				*colon = 0x00;
-				portnr = atoi(colon + 1);
-			}
-		}
-
-		hostname = getcopy;
-	}
-
-	if (hostname == NULL)
-	{
-		usage(argv[0]);
-		error_exit("No hostname/getrequest given\n");
-	}
-
-#ifndef NO_SSL
-	if (use_ssl && portnr == 80)
-		portnr = 443;
-#endif
-
-	if (get == NULL)
-	{
-#ifndef NO_SSL
-		if (use_ssl)
-		{
-			get = malloc(8 /* http:// */ + strlen(hostname) + 1 /* colon */ + 5 /* portnr */ + 1 /* / */ + 1 /* 0x00 */);
-			sprintf(get, "https://%s:%d/", hostname, portnr);
-		}
-		else
-		{
-#endif
-			get = malloc(7 /* http:// */ + strlen(hostname) + 1 /* colon */ + 5 /* portnr */ + 1 /* / */ + 1 /* 0x00 */);
-			sprintf(get, "http://%s:%d/", hostname, portnr);
-#ifndef NO_SSL
-		}
-#endif
-	}
+	if (verbose)
+		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
 
 	if (proxy)
 	{
@@ -946,10 +947,11 @@ int main(int argc, char *argv[])
 			if (abort_on_resolve_failure)
 				error_exit(last_error);
 
-			// do not emit the resolve-error here: as 'have_resolved' is set to 0
-			// next, the program will try to resolve again anyway
-			// this prevents a double error-message while err is increased only
-			// once
+			/* do not emit the resolve-error here: as 'have_resolved' is set to 0
+			   next, the program will try to resolve again anyway
+			   this prevents a double error-message while err is increased only
+			   once
+			*/
 			have_resolved = 0;
 		}
 
@@ -1177,7 +1179,7 @@ persistent_loop:
 					struct tm tm;
 					memset(&tm, 0x00, sizeof tm);
 
-					// 22 Feb 2013 09:13:56
+					/* 22 Feb 2013 09:13:56 */
 					if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
 						their_ts = mktime(&tm);
 				}
@@ -1192,7 +1194,7 @@ persistent_loop:
 					struct tm tm;
 					memset(&tm, 0x00, sizeof tm);
 
-					// 22 Feb 2013 09:13:56
+					/* 22 Feb 2013 09:13:56 */
 					if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
 						age = their_ts - mktime(&tm);
 				}
