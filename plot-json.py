@@ -3,6 +3,7 @@
 import sys
 import json
 import os
+import math
 
 fin = sys.argv[1]
 
@@ -20,11 +21,36 @@ data_fh = open(fdata, "w")
 
 host='?'
 
+total=0
+total_sd=0
+n=0
+avg=0
+sd=0
+minp = 999999999
+maxp = -minp
+
 for row in json_data:
-	data_fh.write("%f %f\n" % (float(row['start_ts']), float(row['total_s'])))
+	val = float(row['total_s'])
+	data_fh.write("%f %f\n" % (float(row['start_ts']), val))
 	host=row['host']
+	total += val
+	total_sd += val * val
+	n += 1
+	if val > maxp:
+		maxp = val
+	if val < minp:
+		minp = val
 
 data_fh.close()
+
+if n > 0:
+	avg = total / n
+	sd = math.sqrt((total_sd / n) - math.pow(avg, 2.0))
+
+print "Average ping time: %fs (%d pings)" % (avg, n)
+print "Standard deviation: %fs" % (sd)
+print "Minimum ping value: %fs" % (minp)
+print "Maximum ping value: %fs" % (maxp)
 
 fscript = fin + ".sh"
 print "Writing script to %s" % (fscript)
