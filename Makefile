@@ -38,7 +38,7 @@ MKDIR=/bin/mkdir
 ARCHIVE=/bin/tar cf -
 COMPRESS=/bin/gzip -9
 
-OBJS=http.o io.o str.o error.o utils.o main.o tcp.o res.o
+OBJS=http.o io.o str.o error.o utils.o main.o tcp.o res.o socks5.o
 
 MANS=httping.1
 

@@ -68,7 +68,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 
 	/* connect to peer */
 #ifdef TCP_TFO
-	if (*tfo)
+	if (tfo && *tfo)
 	{
 		rc = sendto(fd, msg, msg_len, MSG_FASTOPEN, ai -> ai_addr, ai -> ai_addrlen);
 		

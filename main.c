@@ -28,6 +28,7 @@
 #include "res.h"
 #include "utils.h"
 #include "error.h"
+#include "socks5.h"
 
 static volatile int stop = 0;
 
@@ -88,6 +89,8 @@ void help_long(void)
 	fprintf(stderr, "--show-statusodes      -s\n");
 	fprintf(stderr, "--show-transfer-speed  -b\n");
 	fprintf(stderr, "--show-xfer-speed-compressed  -B\n");
+	fprintf(stderr, "--socks5-user          \n");
+	fprintf(stderr, "--socks5-password      \n");
 	fprintf(stderr, "--split-time           -S\n");
 	fprintf(stderr, "--tcp-fast-open        -F\n");
 	fprintf(stderr, "--timeout              -t\n");
@@ -112,6 +115,7 @@ void usage(const char *me)
 	fprintf(stderr, "-h hostname    hostname (e.g. localhost)\n");
 	fprintf(stderr, "-p portnr      portnumber (e.g. 80)\n");
 	fprintf(stderr, "-x host:port   hostname+portnumber of proxyserver\n");
+	fprintf(stderr, "-5             proxy is a socks5 server\n");
 	fprintf(stderr, "-c count       how many times to connect\n");
 	fprintf(stderr, "-i interval    delay between each connect\n");
 	fprintf(stderr, "-t timeout     timeout (default: 30s)\n");
@@ -373,6 +377,7 @@ int main(int argc, char *argv[])
 {
 	const char *hostname = NULL;
 	const char *proxy = NULL, *proxyhost = NULL;
+	const char *proxy_user = NULL, *proxy_password = NULL;
 	int proxyport = 8080;
 	int portnr = 80;
 	char *get = NULL, *request = NULL;
@@ -436,6 +441,7 @@ int main(int argc, char *argv[])
 	char show_ts = 0;
 	char add_host_header = 1;
 	char *proxy_buster = NULL;
+	char proxy_is_socks5 = 0;
 
 	static struct option long_options[] =
 	{
@@ -488,6 +494,8 @@ int main(int argc, char *argv[])
 		{"ts",		0, NULL, 4   },
 		{"no-host-header",	0, NULL, 5 },
 		{"proxy-buster",	1, NULL, 6 },
+		{"proxy-user",	1, NULL, 7 },
+		{"proxy-password",	1, NULL, 8 },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -497,7 +505,7 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
@@ -531,6 +539,18 @@ int main(int argc, char *argv[])
 
 			case 6:
 				proxy_buster = optarg;
+				break;
+
+			case '5':
+				proxy_is_socks5 = 1;
+				break;
+
+			case 7:
+				proxy_user = optarg;
+				break;
+
+			case 8:
+				proxy_password = optarg;
 				break;
 
 			case 'Y':
@@ -904,7 +924,7 @@ int main(int argc, char *argv[])
 	port = proxyhost ? proxyport : portnr;
 
 	struct sockaddr_in6 addr;
-	struct addrinfo *ai = NULL, *ai_use;
+	struct addrinfo *ai = NULL, *ai_use = NULL;
 
 	double started_at = get_ts();
 	if (resolve_once)
@@ -972,7 +992,7 @@ persistent_loop:
 				{
 					freeaddrinfo(ai);
 
-					ai = NULL;
+					ai_use = ai = NULL;
 				}
 
 				if (resolve_host(host, &ai, use_ipv6, port) == -1)
@@ -1011,7 +1031,10 @@ persistent_loop:
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
-				fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai, timeout, &tfo, request, req_len, &req_sent);
+				if (proxy_is_socks5)
+					fd = socks5connect(ai_use, timeout, proxy_user, proxy_password, hostname, portnr);
+				else
+					fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai_use, timeout, &tfo, request, req_len, &req_sent);
 			}
 
 			if (fd == RC_CTRLC)	/* ^C pressed */

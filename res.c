@@ -49,3 +49,45 @@ void get_addr(struct addrinfo *ai_use, struct sockaddr_in6 *addr)
 {
 	memcpy(addr, ai_use->ai_addr, ai_use->ai_addrlen);
 }
+
+#define incopy(a)       *((struct in_addr *)a)
+
+int resolve_host_ipv4(const char *host, struct sockaddr_in *addr)
+{
+	struct hostent *hostdnsentries;
+
+	hostdnsentries = gethostbyname(host);
+
+	if (hostdnsentries == NULL)
+	{
+		switch(h_errno)
+		{
+			case HOST_NOT_FOUND:
+				sprintf(last_error, "The specified host is unknown.");
+				break;
+
+			case NO_ADDRESS:
+				sprintf(last_error, "The requested name is valid but does not have an IP address.");
+				break;
+
+			case NO_RECOVERY:
+				sprintf(last_error, "A non-recoverable name server error occurred.");
+				break;
+
+			case TRY_AGAIN:
+				sprintf(last_error, "A temporary error occurred on an authoritative name server. Try again later.");
+				break;
+
+			default:
+				sprintf(last_error, "Could not resolve %s for an unknown reason (%d)", host, h_errno);
+		}
+
+		return -1;
+	}
+
+	/* create address structure */
+	addr -> sin_family = hostdnsentries -> h_addrtype;
+	addr -> sin_addr = incopy(hostdnsentries -> h_addr_list[0]);
+
+	return 0;
+}

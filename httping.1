@@ -129,8 +129,17 @@ Put a timestamp before the result-lines. Use -v to also show a date.
 .B "\-\-no-host-header"
 Do not put a "Host:"-header in the request header.
 .TP
+.B "\-5"
+The proxy server selected is a SOCKS5 server.
+.TP
 .B "\-W"
 Do not abort program if resolving fails.
+.TP
+.B "\-\-socks5-user x"
+Use username 'x' to authenticate against socks5 server (optional).
+.TP
+.B "\-\-socks5-password x"
+Use password 'x' to authenticate against socks5 server (optional).
 .TP
 .B "\-v"
 Verbose mode.
