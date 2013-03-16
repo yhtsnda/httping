@@ -1,17 +1,8 @@
-- keepalive
-
 - multiple threads!
-
-- emit results:
-	 - html
-	 - gnuplot script + data file
-         - iets parseables / sql? zoals bij clewarecontrol geconstrueerd?
 
 - koppelen aan iets externs? dus een thread die v/e ander programma eea opvangt en dan meeneemt in de logging? (gps bijv.)
 
 - http 302 volgen?
-
-- socks support
 
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
