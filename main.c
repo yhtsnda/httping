@@ -1420,15 +1420,22 @@ persistent_loop:
 				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
+				const char *i6_bs = "", *i6_be = "";
+				if (addr.sin6_family == AF_INET6)
+				{
+					i6_bs = "[";
+					i6_be = "]";
+				}
+
 				if (offset_red > 0.0 && ms >= offset_red)
 					ms_color = c_red;
 				else if (offset_yellow > 0.0 && ms >= offset_yellow)
 					ms_color = c_yellow;
 
 				if (persistent_connections && show_bytes_xfer)
-					printf("%s%s %s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_white, operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
+					printf("%s%s %s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
-					printf("%s%s %s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, current_host, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
+					printf("%s%s %s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
 					printf("time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
