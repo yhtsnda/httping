@@ -34,7 +34,7 @@ ssize_t read_to(int fd, char *whereto, size_t len, int timeout)
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
 
-			snprintf(last_error, sizeof last_error, "myread::select failed: %s\n", strerror(errno));
+			snprintf(last_error, sizeof last_error, "myread::select failed: %s", strerror(errno));
 			return RC_SHORTREAD;
 		}
 
@@ -66,7 +66,7 @@ ssize_t myread(int fd, char *whereto, size_t len, int timeout)
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
 
-			snprintf(last_error, sizeof last_error, "myread::select failed: %s\n", strerror(errno));
+			snprintf(last_error, sizeof last_error, "myread::select failed: %s", strerror(errno));
 			return RC_SHORTREAD;
 		}
 
@@ -78,7 +78,7 @@ ssize_t myread(int fd, char *whereto, size_t len, int timeout)
 			{
 				if (errno != EINTR && errno != EAGAIN)
 				{
-					snprintf(last_error, sizeof last_error, "myread::read failed: %s\n", strerror(errno));
+					snprintf(last_error, sizeof last_error, "myread::read failed: %s", strerror(errno));
 					return RC_SHORTREAD;
 				}
 			}
@@ -122,7 +122,7 @@ ssize_t mywrite(int fd, char *wherefrom, size_t len, int timeout)
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
 
-			snprintf(last_error, sizeof last_error, "mywrite::select failed: %s\n", strerror(errno));
+			snprintf(last_error, sizeof last_error, "mywrite::select failed: %s", strerror(errno));
 			return -1;
 		}
 
@@ -132,7 +132,7 @@ ssize_t mywrite(int fd, char *wherefrom, size_t len, int timeout)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				snprintf(last_error, sizeof last_error, "mywrite::write failed: %s\n", strerror(errno));
+				snprintf(last_error, sizeof last_error, "mywrite::write failed: %s", strerror(errno));
 				return -1;
 			}
 		}

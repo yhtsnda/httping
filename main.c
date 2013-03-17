@@ -210,7 +210,7 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 void emit_error(int seq, double start_ts, double cur_ts)
 {
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
-		printf("%s%s%s", c_error, last_error, c_normal);
+		printf("%s%s%s\n", c_error, last_error, c_normal);
 
 	if (json_output)
 		emit_json(0, seq, start_ts, cur_ts, -1, -1, last_error, -1, -1, -1, "", "", -1);
@@ -909,7 +909,7 @@ int main(int argc, char *argv[])
 		client_ctx = initialize_ctx(ask_compression);
 		if (!client_ctx)
 		{
-			snprintf(last_error, sizeof last_error, "problem creating SSL context\n");
+			snprintf(last_error, sizeof last_error, "problem creating SSL context");
 			goto error_exit;
 		}
 	}
@@ -947,7 +947,7 @@ int main(int argc, char *argv[])
 		ai_use = select_resolved_host(ai, use_ipv6);
 		if (!ai_use)
 		{
-			snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s\n", host);
+			snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", host);
 
 			if (abort_on_resolve_failure)
 				error_exit(last_error);
@@ -1015,7 +1015,7 @@ persistent_loop:
 				ai_use = select_resolved_host(ai, use_ipv6);
 				if (!ai_use)
 				{
-					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s\n", host);
+					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", host);
 					emit_error(curncount, dstart, get_ts());
 					err++;
 
@@ -1096,7 +1096,7 @@ persistent_loop:
 			if (fd < 0)
 			{
 				if (fd == RC_TIMEOUT)
-					snprintf(last_error, sizeof last_error, "timeout connecting to host\n");
+					snprintf(last_error, sizeof last_error, "timeout connecting to host");
 
 				emit_error(curncount, dstart, get_ts());
 				err++;
@@ -1132,13 +1132,13 @@ persistent_loop:
 				}
 
 				if (rc == -1)
-					snprintf(last_error, sizeof last_error, "error sending request to host\n");
+					snprintf(last_error, sizeof last_error, "error sending request to host");
 				else if (rc == RC_TIMEOUT)
-					snprintf(last_error, sizeof last_error, "timeout sending to host\n");
+					snprintf(last_error, sizeof last_error, "timeout sending to host");
 				else if (rc == RC_CTRLC)
 				{/* ^C */}
 				else if (rc == 0)
-					snprintf(last_error, sizeof last_error, "connection prematurely closed by peer\n");
+					snprintf(last_error, sizeof last_error, "connection prematurely closed by peer");
 
 				emit_error(curncount, dstart, get_ts());
 
@@ -1225,7 +1225,7 @@ persistent_loop:
 				char *length = strstr(reply, "\nContent-Length:");
 				if (!length)
 				{
-					snprintf(last_error, sizeof last_error, "'Content-Length'-header missing!\n");
+					snprintf(last_error, sizeof last_error, "'Content-Length'-header missing!");
 					emit_error(curncount, dstart, get_ts());
 					close(fd);
 					fd = -1;
@@ -1256,9 +1256,9 @@ persistent_loop:
 				}
 
 				if (rc == RC_SHORTREAD)
-					snprintf(last_error, sizeof last_error, "short read during receiving reply-headers from host\n");
+					snprintf(last_error, sizeof last_error, "short read during receiving reply-headers from host");
 				else if (rc == RC_TIMEOUT)
-					snprintf(last_error, sizeof last_error, "timeout while receiving reply-headers from host\n");
+					snprintf(last_error, sizeof last_error, "timeout while receiving reply-headers from host");
 
 				emit_error(curncount, dstart, get_ts());
 
@@ -1321,7 +1321,7 @@ persistent_loop:
 
 				if (close_ssl_connection(ssl_h, fd) == -1)
 				{
-					snprintf(last_error, sizeof last_error, "error shutting down ssl\n");
+					snprintf(last_error, sizeof last_error, "error shutting down ssl");
 					emit_error(curncount, dstart, get_ts());
 				}
 

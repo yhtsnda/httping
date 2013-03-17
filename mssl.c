@@ -64,7 +64,7 @@ int READ_SSL(SSL *ssl_h, char *whereto, int len)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				sprintf(last_error, "READ_SSL: io-error: %s\n", strerror(errno));
+				sprintf(last_error, "READ_SSL: io-error: %s", strerror(errno));
 				return -1;
 			}
 		}
@@ -95,7 +95,7 @@ int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				sprintf(last_error, "WRITE_SSL: io-error: %s\n", strerror(errno));
+				sprintf(last_error, "WRITE_SSL: io-error: %s", strerror(errno));
 				return -1;
 			}
 		}
@@ -141,7 +141,7 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int
 	dummy = SSL_connect(*ssl_h);
 	if (dummy <= 0)
 	{
-		sprintf(last_error, "problem starting SSL connection: %d\n", SSL_get_error(*ssl_h, dummy));
+		sprintf(last_error, "problem starting SSL connection: %d", SSL_get_error(*ssl_h, dummy));
 		return -1;
 	}
 
