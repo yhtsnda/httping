@@ -373,7 +373,7 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 	return request;
 }
 
-void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl)
+void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url)
 {
 	char in_use[65536] = { 0 }, *dummy = NULL;
 
@@ -398,6 +398,8 @@ void interpret_url(const char *in, char **path, char **hostname, int *portnr, ch
 	/* sanity check */
 	if (strncasecmp(in_use, "http://", 7) == 0 && use_ssl)
 		error_exit("using \"http://\" with SSL enabled (-l)");
+
+	*complete_url = strdup(in_use);
 
 	/* fetch hostname */
 	if (strncasecmp(in_use, "http://", 7) == 0)
@@ -503,7 +505,7 @@ int main(int argc, char *argv[])
 	char add_host_header = 1;
 	char *proxy_buster = NULL;
 	char proxy_is_socks5 = 0;
-	const char *url = NULL;
+	char *url = NULL, *complete_url = NULL;
 
 	static struct option long_options[] =
 	{
@@ -881,7 +883,7 @@ int main(int argc, char *argv[])
 	if (!machine_readable && !json_output)
 		printf("%s%s", c_normal, c_white);
 
-	interpret_url(url, &get, &hostname, &portnr, use_ipv6, use_ssl);
+	interpret_url(url, &get, &hostname, &portnr, use_ipv6, use_ssl, &complete_url);
 
 	if (verbose)
 		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
@@ -1518,7 +1520,7 @@ persistent_loop:
 	{
 		int dummy = count;
 
-		printf("--- %s ping statistics ---\n", get);
+		printf("--- %s ping statistics ---\n", complete_url);
 
 		if (curncount == 0 && err > 0)
 			fprintf(stderr, "internal error! (curncount)\n");
