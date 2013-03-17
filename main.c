@@ -853,8 +853,8 @@ int main(int argc, char *argv[])
 
 	last_error[0] = 0x00;
 
-	if (!get_instead_of_head && show_Bps)
-		error_exit("-b/-B can only be used when also using -G\n");
+	if (!(get_instead_of_head || use_ssl) && show_Bps)
+		error_exit("-b/-B can only be used when also using -G (GET instead of HEAD) or -l (use SSL)\n");
 
 	if (tfo && use_ssl)
 		error_exit("TCP Fast open and SSL not supported together\n");
