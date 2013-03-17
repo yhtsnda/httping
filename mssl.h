@@ -1,5 +1,6 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
+void shutdown_ssl(void);
 char close_ssl_connection(SSL *ssl_h, int socket_h);
 int READ_SSL(SSL *ssl_h, char *whereto, int len);
 int WRITE_SSL(SSL *ssl_h, const char *whereto, int len);

@@ -4,16 +4,32 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <openssl/ssl.h>
 #include <openssl/bio.h>
+#include <openssl/conf.h>
+#include <openssl/engine.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/x509.h>
 #include <openssl/md5.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
 
 #include "gen.h"
 #include "mssl.h"
 
-BIO *bio_err=0;
+BIO *bio_err = NULL;
+
+void shutdown_ssl(void)
+{
+	BIO_free(bio_err);
+
+	ERR_free_strings();
+
+	ERR_remove_state(0);
+	ENGINE_cleanup();
+	CONF_modules_free();
+	EVP_cleanup();
+	CRYPTO_cleanup_all_ex_data();
+}
 
 char close_ssl_connection(SSL *ssl_h, int socket_h)
 {
@@ -138,6 +154,7 @@ SSL_CTX * initialize_ctx(void)
 	{
 		SSL_library_init();
 		SSL_load_error_strings();
+		ERR_load_crypto_strings();
 
 		/* error write context */
 		bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);

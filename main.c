@@ -72,9 +72,9 @@ void help_long(void)
 	fprintf(stderr, "--nagios-mode-1        -n\n");
 	fprintf(stderr, "--nagios-mode-2        -n\n");
 	fprintf(stderr, "--no-cache             -Z\n");
-	fprintf(stderr, "--offset-red           from what ping offset to show the value in red (must be bigger than yellow)\n");
-	fprintf(stderr, "--offset-show          from what ping offset to show the results\n");
-	fprintf(stderr, "--offset-yellow        from what ping offset to show the value in yellow\n");
+	fprintf(stderr, "--threshold-red        from what ping value to show the value in red (must be bigger than yellow)\n");
+	fprintf(stderr, "--threshold-show       from what ping value to show the results\n");
+	fprintf(stderr, "--threshold-yellow     from what ping value to show the value in yellow\n");
 	fprintf(stderr, "--ok-result-codes      -o (only for -m)\n");
 	fprintf(stderr, "--parseable-output     -m\n");
 	fprintf(stderr, "--password             -P\n");
@@ -181,7 +181,7 @@ void usage(const char *me)
 		strcpy(host, "localhost");
 
 	fprintf(stderr, "Example:\n");
-	fprintf(stderr, "\t%s %s%s -s -Z", me, host, has_color ? " -Y" : "");
+	fprintf(stderr, "\t%s %s%s -s -Z\n\n", me, host, has_color ? " -Y" : "");
 }
 
 void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts)
@@ -479,6 +479,7 @@ int main(int argc, char *argv[])
 	int Bps_limit = -1;
 	char show_bytes_xfer = 0, show_fp = 0;
 	SSL *ssl_h = NULL;
+	BIO *s_bio = NULL;
 	struct sockaddr_in *bind_to = NULL;
 	struct sockaddr_in bind_to_4;
 	struct sockaddr_in6 bind_to_6;
@@ -486,7 +487,6 @@ int main(int argc, char *argv[])
 	char split = 0, use_ipv6 = 0;
 	char persistent_connections = 0, persistent_did_reconnect = 0;
 	char no_cache = 0;
-	char *getcopyorg = NULL;
 	char tfo = 0;
 	char abort_on_resolve_failure = 1;
 	const char *c_red = "";
@@ -1074,7 +1074,6 @@ persistent_loop:
 #ifndef NO_SSL
 				if (use_ssl && ssl_h == NULL)
 				{
-					BIO *s_bio = NULL;
 					int rc = connect_ssl(fd, client_ctx, &ssl_h, &s_bio, timeout);
 					if (rc != 0)
 					{
@@ -1317,10 +1316,8 @@ persistent_loop:
 #ifndef NO_SSL
 			if (use_ssl && !persistent_connections)
 			{
-				if (show_fp && ssl_h != NULL)
-				{
+				if ((show_fp || json_output) && ssl_h != NULL)
 					fp = get_fingerprint(ssl_h);
-				}
 
 				if (close_ssl_connection(ssl_h, fd) == -1)
 				{
@@ -1330,6 +1327,7 @@ persistent_loop:
 
 				SSL_free(ssl_h);
 				ssl_h = NULL;
+				s_bio = NULL;
 			}
 #endif
 
@@ -1357,6 +1355,8 @@ persistent_loop:
 					snprintf(&last_error[strlen(last_error)], sizeof last_error - 256, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
 				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts);
+
+				free(fp);
 			}
 			else if (machine_readable)
 			{
@@ -1575,7 +1575,18 @@ error_exit:
 	freeaddrinfo(ai);
 	free(request);
 	free(buffer);
-	free(getcopyorg);
+	free(get);
+	free(hostname);
+	free(complete_url);
+
+#ifndef NO_SSL
+	if (use_ssl)
+	{
+		SSL_CTX_free(client_ctx);
+
+		shutdown_ssl();
+	}
+#endif
 
 	if (!json_output && !machine_readable)
 		printf("%s", c_very_normal);
@@ -1588,6 +1599,3 @@ error_exit:
 	else
 		return 127;
 }
-
-
-
