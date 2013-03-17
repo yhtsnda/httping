@@ -148,7 +148,7 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int
 	return 0;
 }
 
-SSL_CTX * initialize_ctx(void)
+SSL_CTX * initialize_ctx(char ask_compression)
 {
 	if (!bio_err)
 	{
@@ -163,7 +163,12 @@ SSL_CTX * initialize_ctx(void)
 	/* create context */
 	const SSL_METHOD *meth = SSLv23_method();
 
-	return SSL_CTX_new(meth);
+	SSL_CTX *ctx = SSL_CTX_new(meth);
+
+	if (!ask_compression)
+		SSL_CTX_set_options(ctx, SSL_OP_NO_COMPRESSION);
+
+	return ctx;
 }
 
 char * get_fingerprint(SSL *ssl_h)

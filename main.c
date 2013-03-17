@@ -906,7 +906,7 @@ int main(int argc, char *argv[])
 	SSL_CTX *client_ctx = NULL;
 	if (use_ssl)
 	{
-		client_ctx = initialize_ctx();
+		client_ctx = initialize_ctx(ask_compression);
 		if (!client_ctx)
 		{
 			snprintf(last_error, sizeof last_error, "problem creating SSL context\n");

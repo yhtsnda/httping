@@ -5,5 +5,5 @@ char close_ssl_connection(SSL *ssl_h, int socket_h);
 int READ_SSL(SSL *ssl_h, char *whereto, int len);
 int WRITE_SSL(SSL *ssl_h, const char *whereto, int len);
 int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int timeout);
-SSL_CTX * initialize_ctx(void);
+SSL_CTX * initialize_ctx(char ask_compression);
 char * get_fingerprint(SSL *ssl_h);
