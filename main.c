@@ -375,15 +375,18 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 
 void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl)
 {
-	char in_use[4096] = { 0 }, *dummy = NULL;
+	char in_use[65536] = { 0 }, *dummy = NULL;
+
+	if (strlen(in) >= sizeof in_use)
+		error_exit("Url too big, HTTPing has a %d bytes limit", sizeof in_use - 1);
 
 	/* make url complete, if not already */
 	if (strncasecmp(in, "http://", 7) == 0 || strncasecmp(in, "https://", 8) == 0) /* complete url? */
 	{
+		snprintf(in_use, sizeof in_use - 1, "%s", in);
+
 		if (strchr(&in[8], '/') == NULL)
-			sprintf(in_use, "%s/", in);
-		else
-			strcpy(in_use, in);
+			in_use[strlen(in_use)] = '/';
 	}
 	else if (strchr(in, '/')) /* hostname + location without 'http://'? */
 		sprintf(in_use, "http://%s", in);
