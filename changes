@@ -1,1 +1,8 @@
-- added time offset
+- JSON output
+- added script for converting the JSON ping statistics into a graph
+- socks5 proxy support
+- implemented timeouts in SSL
+- added --no-host-header
+- react quicker on ctrl+c
+- added timestamps
+- added --threshold-show
