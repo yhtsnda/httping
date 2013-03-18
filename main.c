@@ -511,7 +511,7 @@ int main(int argc, char *argv[])
 	double wait = 1.0;
 	int audible = 0;
 	int ok = 0, err = 0;
-	double min = 999999999999999.0, avg = 0.0, max = 0.0;
+	double min = 999999999999999.0, avg = 0.0, max = 0.0, sd = 0.0;
 	int timeout=30;
 	char show_statuscodes = 0;
 	char use_ssl = 0;
@@ -1413,6 +1413,7 @@ persistent_loop:
 
 			ms = (dend - dstart) * 1000.0;
 			avg += ms;
+			sd += ms * ms;
 			min = min > ms ? ms : min;
 			max = max < ms ? ms : max;
 
@@ -1608,7 +1609,14 @@ persistent_loop:
 
 		if (ok > 0)
 		{
-			printf("round-trip min/avg/max = %s%.1f%s/%s%.1f%s/%s%.1f%s ms\n", c_bright, min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, max, c_normal);
+			double sd_final = ok ? sqrt((sd / (double)ok) - pow(avg_httping_time, 2.0)) : -1.0;
+
+			printf("round-trip min/avg/max%s = %s%.1f%s/%s%.1f%s/%s%.1f%s", verbose ? "/sd" : "", c_bright, min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, max, c_normal);
+
+			if (verbose)
+				printf("/%.1f", sd_final);
+
+			printf(" ms\n");
 
 			if (show_Bps)
 				printf("Transfer speed: min/avg/max = %s%f%s/%s%f%s/%s%f%s KB\n", c_bright, Bps_min / 1024, c_normal, c_bright, (Bps_avg / (double)ok) / 1024.0, c_normal, c_bright, Bps_max / 1024.0, c_normal);
