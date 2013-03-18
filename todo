@@ -17,3 +17,7 @@
 
 	Zeker als je -f gebruikt is de huidige log niet heel erg interessant,
 	het huidige scherm laat dan maar 10ms zien als requests < 1ms zijn.
+
+	> Ken je de MySQL slow query log?
+	> Met een slow log bedoel ik eigenlijk gewoon alle requests > X ms, iets
+	> wat je nu ook al kunt doen. Gewoon wat ik hierna beschreven heb.
