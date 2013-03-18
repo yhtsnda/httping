@@ -29,6 +29,7 @@ In sm cases this character is missing.
 
 
 Thanks to Thanatos for cookie and authentication support.
+Many thanks to Olaf van der Spek for lots of bug-reports, testing, ideas and suggestions.
 
 
 For everything more or less related to 'httping', please feel free
