@@ -6,3 +6,14 @@
 
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
+
+- ncurses output:
+	Ja, ook een log. ;)
+	Momenteel heb je 1 log, met line-based output kan het ook niet anders.
+	Met ncursus zou je 2+ logs tegelijk op het scherm kunnen hebben.
+	1 zoals nu
+	en 1 met bijvoorbeeld alle requests > 1000ms.
+	Of met de X traagste requests in de afgelopen Y minuten.
+
+	Zeker als je -f gebruikt is de huidige log niet heel erg interessant,
+	het huidige scherm laat dan maar 10ms zien als requests < 1ms zijn.
