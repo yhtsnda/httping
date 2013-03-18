@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <math.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -56,6 +57,7 @@ void version(void)
 
 void help_long(void)
 {
+	fprintf(stderr, "--aggregate x[,y[,z]]  show an aggregate each x[/y[/z[/etc]]] seconds\n");
 	fprintf(stderr, "--audible-ping         -a\n");
 	fprintf(stderr, "--basic-auth           -A\n");
 	fprintf(stderr, "--bind-to              -y\n");
@@ -168,6 +170,7 @@ void usage(const char *me)
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "-J             list long options\n");
+	fprintf(stderr, "               NOTE: not all functionality has a \"short\" switch, so not all are listed here! Please check -J too.\n");
 	fprintf(stderr, "\n");
 
 	dummy = getenv("TERM");
@@ -436,6 +439,64 @@ void interpret_url(const char *in, char **path, char **hostname, int *portnr, ch
 		*path = strdup("/");
 }
 
+typedef struct {
+	int interval, last_ts;
+	double value, sd;
+	int n_values;
+} aggregate_t;
+
+void set_aggregate(char *in, int *n_aggregates, aggregate_t **aggregates)
+{
+	char *dummy = in;
+
+	*n_aggregates = 0;
+
+	for(;dummy;)
+	{
+		(*n_aggregates)++;
+
+		*aggregates = (aggregate_t *)realloc(*aggregates, *n_aggregates * sizeof(aggregate_t));
+
+		memset(&(*aggregates)[*n_aggregates - 1], 0x00, sizeof(aggregate_t));
+
+		(*aggregates)[*n_aggregates - 1].interval = atoi(dummy);
+
+		dummy = strchr(dummy, ',');
+		if (dummy)
+			dummy++;
+	}
+}
+
+void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *aggregates)
+{
+	int index=0;
+
+	/* update measurements */
+	for(index=0; index<n_aggregates; index++)
+	{
+		aggregates[index].value += cur_ms;
+		aggregates[index].sd += cur_ms * cur_ms;
+		aggregates[index].n_values++;
+	}
+
+	/* emit */
+	for(index=0; index<n_aggregates && cur_ts > 0; index++)
+	{
+		if (cur_ts - aggregates[index].last_ts >= aggregates[index].interval)
+		{
+			double avg = aggregates[index].n_values ? aggregates[index].value / (double)aggregates[index].n_values : -1.0;
+			double sd = sqrt((aggregates[index].sd / (double)aggregates[index].n_values) - pow(avg, 2.0));
+
+			printf("AGG[%d]: %d values, average: %.3fms, std.dev.: %.3f\n", aggregates[index].interval, aggregates[index].n_values, avg, sd);
+
+			aggregates[index].value =
+			aggregates[index].sd    = 0.0;
+			aggregates[index].n_values = 0;
+			aggregates[index].last_ts = cur_ts;
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	char *hostname = NULL;
@@ -506,9 +567,12 @@ int main(int argc, char *argv[])
 	char *proxy_buster = NULL;
 	char proxy_is_socks5 = 0;
 	char *url = NULL, *complete_url = NULL;
+	int n_aggregates = 0;
+	aggregate_t *aggregates = NULL;
 
 	static struct option long_options[] =
 	{
+		{"aggregate",   1, NULL, 9 },
 		{"url",		1, NULL, 'g' },
 		{"hostname",	1, NULL, 'h' },
 		{"port",	1, NULL, 'p' },
@@ -615,6 +679,10 @@ int main(int argc, char *argv[])
 
 			case 8:
 				proxy_password = optarg;
+				break;
+
+			case 9:
+				set_aggregate(optarg, &n_aggregates, &aggregates);
 				break;
 
 			case 'Y':
@@ -822,7 +890,7 @@ int main(int argc, char *argv[])
 #ifdef TCP_TFO
 				tfo = 1;
 #else
-				printf("Warning: TCP TFO is not supported. Disabling.\n");
+				fprintf(stderr, "Warning: TCP TFO is not supported. Disabling.\n");
 #endif
 				break;
  
@@ -834,6 +902,9 @@ int main(int argc, char *argv[])
 			case '?':
 			default:
 				version();
+
+				fprintf(stderr, "Command not understood!\n\n");
+
 				usage(argv[0]);
 				return 1;
 		}
@@ -850,6 +921,9 @@ int main(int argc, char *argv[])
 
 	if (machine_readable && json_output)
 		error_exit("Cannot combine -m with -M");
+
+	if ((machine_readable || json_output) && n_aggregates > 0)
+		error_exit("Aggregates can only be used in non-machine/json output mode");
 
 	last_error[0] = 0x00;
 
@@ -1485,6 +1559,8 @@ persistent_loop:
 					putchar('\a');
 
 				printf("\n");
+
+				do_aggregates(ms, (int)(get_ts() - started_at), n_aggregates, aggregates);
 			}
 
 			if (show_statuscodes && ok_str != NULL && sc != NULL)
@@ -1572,12 +1648,20 @@ error_exit:
 		return nagios_exit_code;
 	}
 
+	if (!json_output && !machine_readable)
+		printf("%s", c_very_normal);
+
+	if (json_output)
+		printf("\n]\n");
+
 	freeaddrinfo(ai);
 	free(request);
 	free(buffer);
 	free(get);
 	free(hostname);
 	free(complete_url);
+
+	free(aggregates);
 
 #ifndef NO_SSL
 	if (use_ssl)
@@ -1587,12 +1671,6 @@ error_exit:
 		shutdown_ssl();
 	}
 #endif
-
-	if (!json_output && !machine_readable)
-		printf("%s", c_very_normal);
-
-	if (json_output)
-		printf("\n]\n");
 
 	if (ok)
 		return 0;
