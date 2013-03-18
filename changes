@@ -6,3 +6,5 @@
 - react quicker on ctrl+c
 - added timestamps
 - added --threshold-show
+- added standard deviation calculation
+- added aggregates
