@@ -31,6 +31,8 @@
 #include "error.h"
 #include "socks5.h"
 
+#define MI_MA 999999999.9
+
 static volatile int stop = 0;
 
 int quiet = 0;
@@ -441,7 +443,7 @@ void interpret_url(const char *in, char **path, char **hostname, int *portnr, ch
 
 typedef struct {
 	int interval, last_ts;
-	double value, sd;
+	double value, sd, min, max;
 	int n_values;
 } aggregate_t;
 
@@ -460,6 +462,8 @@ void set_aggregate(char *in, int *n_aggregates, aggregate_t **aggregates)
 		memset(&(*aggregates)[*n_aggregates - 1], 0x00, sizeof(aggregate_t));
 
 		(*aggregates)[*n_aggregates - 1].interval = atoi(dummy);
+		(*aggregates)[*n_aggregates - 1].max = -MI_MA;
+		(*aggregates)[*n_aggregates - 1].min =  MI_MA;
 
 		dummy = strchr(dummy, ',');
 		if (dummy)
@@ -467,7 +471,7 @@ void set_aggregate(char *in, int *n_aggregates, aggregate_t **aggregates)
 	}
 }
 
-void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *aggregates)
+void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *aggregates, int verbose)
 {
 	int index=0;
 
@@ -475,22 +479,41 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 	for(index=0; index<n_aggregates; index++)
 	{
 		aggregates[index].value += cur_ms;
+
+		if (cur_ms < aggregates[index].min)
+			aggregates[index].min = cur_ms;
+
+		if (cur_ms > aggregates[index].max)
+			aggregates[index].max = cur_ms;
+
 		aggregates[index].sd += cur_ms * cur_ms;
+
 		aggregates[index].n_values++;
 	}
 
 	/* emit */
 	for(index=0; index<n_aggregates && cur_ts > 0; index++)
 	{
-		if (cur_ts - aggregates[index].last_ts >= aggregates[index].interval)
-		{
-			double avg = aggregates[index].n_values ? aggregates[index].value / (double)aggregates[index].n_values : -1.0;
-			double sd = sqrt((aggregates[index].sd / (double)aggregates[index].n_values) - pow(avg, 2.0));
+		aggregate_t *a = &aggregates[index];
 
-			printf("AGG[%d]: %d values, average: %.3fms, std.dev.: %.3f\n", aggregates[index].interval, aggregates[index].n_values, avg, sd);
+		if (cur_ts - a -> last_ts >= a -> interval)
+		{
+			double avg = a -> n_values ? a -> value / (double)a -> n_values : -1.0;
+
+			printf("AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
+
+			if (verbose)
+			{
+				double sd = sqrt((a -> sd / (double)a -> n_values) - pow(avg, 2.0));
+				printf("/%.1f", sd);
+			}
+
+			printf(" ms\n");
 
 			aggregates[index].value =
 			aggregates[index].sd    = 0.0;
+			aggregates[index].min =  MI_MA;
+			aggregates[index].max = -MI_MA;
 			aggregates[index].n_values = 0;
 			aggregates[index].last_ts = cur_ts;
 		}
@@ -1561,7 +1584,7 @@ persistent_loop:
 
 				printf("\n");
 
-				do_aggregates(ms, (int)(get_ts() - started_at), n_aggregates, aggregates);
+				do_aggregates(ms, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose);
 			}
 
 			if (show_statuscodes && ok_str != NULL && sc != NULL)
@@ -1609,12 +1632,13 @@ persistent_loop:
 
 		if (ok > 0)
 		{
-			double sd_final = ok ? sqrt((sd / (double)ok) - pow(avg_httping_time, 2.0)) : -1.0;
-
 			printf("round-trip min/avg/max%s = %s%.1f%s/%s%.1f%s/%s%.1f%s", verbose ? "/sd" : "", c_bright, min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, max, c_normal);
 
 			if (verbose)
+			{
+				double sd_final = ok ? sqrt((sd / (double)ok) - pow(avg_httping_time, 2.0)) : -1.0;
 				printf("/%.1f", sd_final);
+			}
 
 			printf(" ms\n");
 
