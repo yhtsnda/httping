@@ -504,7 +504,11 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 
 			if (verbose)
 			{
-				double sd = sqrt((a -> sd / (double)a -> n_values) - pow(avg, 2.0));
+				double sd = -1.0;
+
+				if (a -> n_values)
+					sd = sqrt((a -> sd / (double)a -> n_values) - pow(avg, 2.0));
+
 				printf("/%.1f", sd);
 			}
 
