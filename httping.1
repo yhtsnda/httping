@@ -24,9 +24,6 @@ lets you measure the latency of a webserver. Since version 1.0.6 also the throug
 .B "\-5"
 The proxy server selected is a SOCKS5 server.
 .TP
-.B "\-A,U,P"
-Activate the basic authentication, Username follow the -U, Password the -P.
-.TP
 .B "\-a"
 Audible ping
 .TP
@@ -105,6 +102,9 @@ Read the password from file 'x' (instead of entering it on the command line).
 .B "\-t timeout"
 How long to wait for answer from the other side.
 .TP
+.B "\-U,P"
+Activate the basic authentication. Set username with -U, set password with -P.
+.TP
 .B "\-v"
 Increase verbosity mode. To show standard deviation and dates in output.
 .TP
@@ -164,7 +164,7 @@ Ping the webserver on host 'localhost' and portnumber 1000.
 .B "httping \-l \-g https://localhost/"
 Ping the webserver on host 'localhost' using an SSL connection.
 .TP
-.B "httping \-g http://localhost/ -A -U username -P password"
+.B "httping \-g http://localhost/ -U username -P password"
 Ping the webserver on host 'localhost' using the Basic HTTP Authentication.
 .SH BUGS
 None. This program is totally bug-free.

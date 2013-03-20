@@ -21,3 +21,6 @@
 	> Ken je de MySQL slow query log?
 	> Met een slow log bedoel ik eigenlijk gewoon alle requests > X ms, iets
 	> wat je nu ook al kunt doen. Gewoon wat ik hierna beschreven heb.
+
+- proxy settings uit environment
+- proxy authentication

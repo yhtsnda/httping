@@ -552,9 +552,8 @@ int main(int argc, char *argv[])
 	const char *cookie = NULL;
 	int port = 0;
 	char resolve_once = 0;
-	char auth_mode = 0;
 	char have_resolved = 0;
-	int  req_sent = 0;
+	int req_sent = 0;
 	double nagios_warn=0.0, nagios_crit=0.0;
 	int nagios_exit_code = 2;
 	double avg_httping_time = -1.0;
@@ -633,7 +632,6 @@ int main(int argc, char *argv[])
 		{"nagios-mode-2",	1, NULL, 'n' },
 		{"bind-to",	1, NULL, 'y' },
 		{"quiet",	0, NULL, 'q' },
-		{"basic-auth",	0, NULL, 'A' },
 		{"username",	1, NULL, 'U' },
 		{"password",	1, NULL, 'P' },
 		{"cookie",	1, NULL, 'C' },
@@ -660,7 +658,7 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:AP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:P:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
@@ -894,21 +892,23 @@ int main(int argc, char *argv[])
 						error_exit("-n: missing parameter\n");
 					nagios_warn = atof(optarg);
 					nagios_crit = atof(dummy + 1);
-				} break;
+				}
+				break;
+
 			case 'N':
 				if (nagios_mode) error_exit("-n and -N are mutual exclusive\n");
 				nagios_mode = 2;
 				nagios_exit_code = atoi(optarg);
 				break;
-			case 'A': 
-				auth_mode = 1; 
-				break;
+
 			case 'P':
 				auth_pwd = optarg;
 				break;
+
 			case 'U':
 				auth_usr = optarg;
 				break;
+
 			case 'C':
 				cookie = optarg;
 				break;
@@ -959,9 +959,6 @@ int main(int argc, char *argv[])
 
 	if (tfo && use_ssl)
 		error_exit("TCP Fast open and SSL not supported together\n");
-
-	if (auth_mode && (auth_usr == NULL || auth_pwd == NULL))
-		error_exit("Basic Authnetication (-A) can only be used with a username and/or password (-U -P) ");
 
 	if (colors)
 	{
