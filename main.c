@@ -658,10 +658,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:P:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "A5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:P:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'A':
+				fprintf(stderr, "\n *** -A is no longer required ***\n\n");
+				break;
+
 			case 'M':
 				json_output = 1;
 				break;
