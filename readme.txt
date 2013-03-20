@@ -5,10 +5,13 @@ make install
 to build without SSL support:
 	make -f Makefile.nossl install
 
-to build with "tcp fast open" support, add the following to the makefile:
+to build with "tcp fast open" support, add the following line to the makefile:
 	TFO=yes
 Please note that TCP fast open requires a Linux kernel of version 3.7 or more
 recent.
+
+to build without SSL support, add the following line to the makefile:
+	SSL=no
 
 
 Usage:

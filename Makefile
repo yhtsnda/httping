@@ -12,6 +12,14 @@
 # version.  If you delete this exception statement from all source
 # files in the program, then also delete it here.
 
+# support for tcp fast open?
+# TFO=yes
+
+# disable SSL?
+# SSL=no
+
+############# do not change anything below here #############
+
 include version
 
 TARGET=httping
@@ -44,9 +52,6 @@ OBJS=http.o io.o str.o error.o utils.o main.o tcp.o res.o socks5.o
 MANS=httping.1
 
 DOCS=license.txt license.OpenSSL readme.txt
-
-# support for tcp fast open?
-# TFO=yes
 
 ifeq ($(SSL),no)
 CFLAGS+=-DNO_SSL
