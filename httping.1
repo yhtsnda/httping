@@ -5,7 +5,7 @@
 .\" that can be found on the website of the free software
 .\" foundation.
 .\"
-.TH HTTPING 1 2013-11 "httping"
+.TH HTTPING 1 2013-03 "httping"
 .SH NAME
 httping - measure the lateceny and throughput of a webserver
 .SH SYNOPSIS
@@ -21,35 +21,14 @@ lets you measure the latency of a webserver. Since version 1.0.6 also the throug
 .PP
 .SH OPTIONS
 .TP
-.B "\-g url"
-This selects the url to probe. E.g.: http://localhost/
+.B "\-5"
+The proxy server selected is a SOCKS5 server.
 .TP
-.B "\-h hostname"
-Instead of '-g' one can also set a hostname to probe with -h: -h localhost
+.B "\-A,U,P"
+Activate the basic authentication, Username follow the -U, Password the -P.
 .TP
-.B "\-p portnumber"
--p can be used together with -h. -p selects the portnumber to probe.
-.TP
-.B "\-x proxyhost:port]
-Probe using a proxyserver. Note that you're also measuring the latency of the proxyserver!
-.TP
-.B "\-c count"
-How many probes to send before exiting.
-.TP
-.B "\-i interval"
-How many seconds to sleep between every probe sent.
-.TP
-.B "\-t timeout"
-How long to wait for answer from the other side.
-.TP
-.B "\-S"
-Split measured latency in time to connect and time to exchange a request with the HTTP server.
-.TP
-.B "\-s"
-When a successfull transaction was done, show the HTTP statuscode (200, 404, etc.).
-.TP
-.B "\-G"
-Do a GET request instead of a HEAD request: this means that also the complete page/file must be transferred. Note that in this case you're no longer measuring the latency!
+.B "\-a"
+Audible ping
 .TP
 .B "\-b"
 Use this switch together with '-G'. When this option is used, the transferspeed (in KB/s) is shown.
@@ -57,35 +36,56 @@ Use this switch together with '-G'. When this option is used, the transferspeed 
 .B "\-B"
 Use this switch together with '-G'. Ask the HTTP server to compress the returned data: this will reduce the influence of the bandwidth of your connection while increasing the influence of the processorpower of the HTTP server.
 .TP
-.B "\-L x"
-Use this switch together with '-G'. Limit the amount of data transferred to 'x'. Note that this only affects the content of the page/file and not the headerdata.
-.TP
-.B "\-X"
-Use this switch together with '-G'. For each "ping" show the amount of data transferred (excluding the headers).
-.TP
-.B "\-l"
-Connect using SSL: for this to work you need to give a 'https'-url or a 443 portnumber.
-.TP
-.B "\-z"
-When connecting using SSL, display the fingerprint of the X509 certificate(s) of the peer.
-.TP
-.B "\-a"
-Audible ping
-.TP
-.B "\-f"
-Flood ping: do not sit idle between each ping but ping as fast as the computer and network allow you to.
-.TP
-.B "\-m"
-Show machine readable output (also check '-o' and '-e').
-.TP
-.B "\-o x,x,..."
-This selects the HTTP status-codes which are regarded as an OK-state (only with '-m').
+.B "\-c count"
+How many probes to send before exiting.
 .TP
 .B "\-e str"
 When the status-code differs from the ones selected with '-o', the given string is displayed.
 .TP
+.B "\-F"
+Attempt TCP Fast Open while trying to connect to a server (for Linux, version 3.7 onwards of the kernel)   
+.TP
+.B "\-f"
+Flood ping: do not sit idle between each ping but ping as fast as the computer and network allow you to.
+.TP
+.B "\-G"
+Do a GET request instead of a HEAD request: this means that also the complete page/file must be transferred. Note that in this case you're no longer measuring the latency!
+.TP
+.B "\-g url"
+This selects the url to probe. E.g.: http://localhost/
+.TP
+.B "\-h hostname"
+Instead of '-g' one can also set a hostname to probe with -h: -h localhost
+.TP
 .B "\-I str"
 UserAgent-string to send to the webserver (instead of 'HTTPing <version>').
+.TP
+.B "\-i interval"
+How many seconds to sleep between every probe sent.
+.TP
+.B "\-L x"
+Use this switch together with '-G'. Limit the amount of data transferred to 'x'. Note that this only affects the content of the page/file and not the headerdata.
+.TP
+.B "\-l"
+Connect using SSL: for this to work you need to give a 'https'-url or a 443 portnumber.
+.TP
+.B "\-m"
+Show machine readable output (also check '-o' and '-e').
+.TP
+.B "\-N x"
+Switches HTTPing to Nagios-plugin mode 2: return 0 when everything is fine, 'x' when anything fails. E.g.: 1 => Nagios warning state, 2 => Nagios critical state.
+.TP
+.B "\-n warn,crit"
+Switches HTTPing to Nagios-plugin mode 1: return exitcode '1' when the average response time is bigger then 'warn', return exitcode '2' when the the average response time is bigger then 'crit'. In all other cases return exitcode '0'.
+.TP
+.B "\-o x,x,..."
+This selects the HTTP status-codes which are regarded as an OK-state (only with '-m').
+.TP
+.B "\-p portnumber"
+-p can be used together with -h. -p selects the portnumber to probe.
+.TP
+.B "\-q"
+Be quiet, only return an exit-code.
 .TP
 .B "\-R str"
 Referer-string to send to the webserver.
@@ -93,26 +93,35 @@ Referer-string to send to the webserver.
 .B "\-r"
 Only resolve the hostname once: this takes the resolving out of the loop so that the latency of the DNS is not measured. Also usefull when you want to measure only 1 webserver while the DNS returns a different ip-address for each resolve ('roundrobin').
 .TP
-.B "\-n warn,crit"
-Switches HTTPing to Nagios-plugin mode 1: return exitcode '1' when the average response time is bigger then 'warn', return exitcode '2' when the the average response time is bigger then 'crit'. In all other cases return exitcode '0'.
+.B "\-S"
+Split measured latency in time to connect and time to exchange a request with the HTTP server.
 .TP
-.B "\-N x"
-Switches HTTPing to Nagios-plugin mode 2: return 0 when everything is fine, 'x' when anything fails. E.g.: 1 => Nagios warning state, 2 => Nagios critical state.
-.TP
-.B "\-q"
-Be quiet, only return an exit-code.
-.TP
-.B "\-A,U,P"
-Activate the basic authentication, Username follow the -U, Password the -P.
+.B "\-s"
+When a successfull transaction was done, show the HTTP statuscode (200, 404, etc.).
 .TP
 .B "\-T x"
 Read the password from file 'x' (instead of entering it on the command line).
 .TP
-.B "\-F"
-Attempt TCP Fast Open while trying to connect to a server (for Linux, version 3.7 onwards of the kernel)   
+.B "\-t timeout"
+How long to wait for answer from the other side.
+.TP
+.B "\-v"
+Increase verbosity mode. To show standard deviation and dates in output.
+.TP
+.B "\-W"
+Do not abort program if resolving fails.
+.TP
+.B "\-X"
+Use this switch together with '-G'. For each "ping" show the amount of data transferred (excluding the headers).
+.TP
+.B "\-x proxyhost:port]
+Probe using a proxyserver. Note that you're also measuring the latency of the proxyserver!
 .TP
 .B "\-Y"
 Enable colors
+.TP
+.B "\-z"
+When connecting using SSL, display the fingerprint of the X509 certificate(s) of the peer.
 .TP
 .B "\-\-threshold\-red x"
 If the measured threshold is higher than x (and -Y is given), then the shown value is colored red. If you also use --threshold-yellow, then this value must be bigger.
@@ -129,12 +138,6 @@ Put a timestamp before the result-lines. Use -v to also show a date.
 .B "\-\-no-host-header"
 Do not put a "Host:"-header in the request header.
 .TP
-.B "\-5"
-The proxy server selected is a SOCKS5 server.
-.TP
-.B "\-W"
-Do not abort program if resolving fails.
-.TP
 .B "\-\-socks5-user x"
 Use username 'x' to authenticate against socks5 server (optional).
 .TP
@@ -143,9 +146,6 @@ Use password 'x' to authenticate against socks5 server (optional).
 .TP
 .B "\-\-aggregates x[,y[,z[,etc.]]]"
 Show aggregates every x[/y[/z[/etc]]] seconds.
-.TP
-.B "\-v"
-Increase verbosity mode. To show standard deviation and dates in output.
 .TP
 .B "\-V"
 Show the version and exit.
@@ -175,7 +175,7 @@ None. This program is totally bug-free.
 .SH NOTES
 This page describes
 .B httping
-as found in the httping-1.5.8 package; other versions may differ slightly.
+as found in the httping-2.0 package; other versions may differ slightly.
 Please mail corrections and additions to folkert@vanheusden.com.
 Report bugs in the program to folkert@vanheusden.com.
 Please consider sending bitcoins to 1N5Sn4jny4xVwTwSYLnf7WnFQEGoVRmTQF
