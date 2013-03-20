@@ -524,6 +524,12 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 	}
 }
 
+void fetch_proxy_settings(&proxy_user, &proxy_password, &proxyhost, &proxyport)
+{
+	// getenv
+	// interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url)
+}
+
 int main(int argc, char *argv[])
 {
 	char *hostname = NULL;
@@ -658,10 +664,14 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "A5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:P:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "EA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:P:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+			case 'E':
+				fetch_proxy_settings(&proxy_user, &proxy_password, &proxyhost, &proxyport);
+				break;
+
 			case 'A':
 				fprintf(stderr, "\n *** -A is no longer required ***\n\n");
 				break;
