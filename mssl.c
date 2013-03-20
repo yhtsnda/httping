@@ -165,7 +165,7 @@ SSL_CTX * initialize_ctx(char ask_compression)
 
 	SSL_CTX *ctx = SSL_CTX_new(meth);
 
-#if ! defined(__FreeBSD__)
+#ifdef SSL_OP_NO_COMPRESSION
 	if (!ask_compression)
 		SSL_CTX_set_options(ctx, SSL_OP_NO_COMPRESSION);
 #endif
