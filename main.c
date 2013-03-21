@@ -85,6 +85,9 @@ void help_long(void)
 	fprintf(stderr, "--persistent-connections  -Q\n");
 	fprintf(stderr, "--port                 -p\n");
 	fprintf(stderr, "--proxy-buster x       adds \"&x=[random value]\" to the request URL\n");
+	fprintf(stderr, "--proxy-user           \n");
+	fprintf(stderr, "--proxy-password       \n");
+	fprintf(stderr, "--proxy-password-file  \n");
 	fprintf(stderr, "--quiet                -q\n");
 	fprintf(stderr, "--referer              -R\n");
 	fprintf(stderr, "--resolve-once         -r\n");
@@ -93,8 +96,6 @@ void help_long(void)
 	fprintf(stderr, "--show-statusodes      -s\n");
 	fprintf(stderr, "--show-transfer-speed  -b\n");
 	fprintf(stderr, "--show-xfer-speed-compressed  -B\n");
-	fprintf(stderr, "--socks5-user          \n");
-	fprintf(stderr, "--socks5-password      \n");
 	fprintf(stderr, "--split-time           -S\n");
 	fprintf(stderr, "--tcp-fast-open        -F\n");
 	fprintf(stderr, "--timeout              -t\n");
@@ -1212,7 +1213,7 @@ persistent_loop:
 			req_sent = 0;
 
 			free(request);
-			request = create_request_header(get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
+			request = create_request_header(proxyhost ? complete_url : get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
