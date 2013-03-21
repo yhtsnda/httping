@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -19,6 +20,9 @@
 #include "error.h"
 #include "gen.h"
 #include "mssl.h"
+#include "tcp.h"
+#include "io.h"
+#include "http.h"
 
 BIO *bio_err = NULL;
 
@@ -215,11 +219,26 @@ char * get_fingerprint(SSL *ssl_h)
 
 int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, int timeout, const char *proxy_user, const char *proxy_password, const char *hostname, int portnr, char *tfo)
 {
-	int fd = -1;
-/*
-	char *request_headers = ...;
-	int request_headers_len = ...;
+	int fd = -1, rc = -1;
+	char request_headers[4096] = { 0 };
+	int request_headers_len = -1;
 	char rh_sent = 0;
+	char *response_headers = NULL, *code = NULL, *term = NULL;
+
+	request_headers_len = snprintf(request_headers, sizeof request_headers, "CONNECT %s:%d HTTP/1.1\r\nUser-Agent: HTTPing v" VERSION \
+			"\r\nProxy-Connection: keep-alive\r\nConnection: keep-alive\r\nHost: %s\r\n", hostname, portnr, hostname);
+
+        if (proxy_user)
+        {
+                char ppa_string[256] = { 0 };
+                char b64_ppa_string[512] = { 0 };
+
+                sprintf(ppa_string, "%s:%s", proxy_user, proxy_password);
+                enc_b64(ppa_string, strlen(ppa_string), b64_ppa_string);
+                request_headers_len += snprintf(&request_headers[request_headers_len], sizeof request_headers - request_headers_len, "Proxy-Authorization: Basic %s\r\n", b64_ppa_string);
+        }
+
+	request_headers_len += snprintf(&request_headers[request_headers_len], sizeof request_headers - request_headers_len, "\r\n");
 
 	fd = connect_to(bind_to, ai_use_proxy, timeout, tfo, request_headers, request_headers_len, &rh_sent);
 	if (fd == -1)
@@ -227,14 +246,47 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, i
 
 	if (!rh_sent)
 	{
-		if (mywrite(fd, request_headers, request_headers_len, timeout) == -1)
+		if ((rc = mywrite(fd, request_headers, request_headers_len, timeout)) < RC_OK)
 		{
+			close(fd);
 			set_error("Problem sending request to proxy");
-			return -1;
+			return rc;
 		}
 	}
 
-	// FIXME get response, fail if != 200
-*/
+	rc = dumb_get_HTTP_headers(fd, &response_headers, timeout);
+	if (rc != RC_OK)
+	{
+		free(response_headers);
+		close(fd);
+		set_error("Problem retrieving proxy response");
+		return rc;
+	}
+
+	term = strchr(response_headers, '\r');
+	if (!term)
+		term = strchr(response_headers, '\n');
+	if (term)
+		*term = 0x00;
+
+	code = strchr(response_headers, ' ');
+	if (!code)
+	{
+		free(response_headers);
+		close(fd);
+		set_error("Invalid proxy response headers");
+		return RC_INVAL;
+	}
+
+	if (atoi(code + 1) != 200)
+	{
+		free(response_headers);
+		close(fd);
+		set_error("Proxy indicated error: %s", code + 1);
+		return RC_INVAL;
+	}
+
+	free(response_headers);
+
 	return fd;
 }

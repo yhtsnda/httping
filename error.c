@@ -28,7 +28,7 @@ void set_error(const char *fmt, ...)
 	int buffer_size = sizeof last_error;
 
 	if (last_error[0])
-		fprintf(stderr, "[OVERWRITING] %s\n", last_error);
+		fprintf(stderr, "%s\n", last_error);
 
 	va_list ap;
 

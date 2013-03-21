@@ -2,8 +2,10 @@
 
 #define RC_OK		0
 #define RC_SHORTREAD	-1
+#define RC_SHORTWRITE	-1
 #define RC_TIMEOUT	-2
 #define RC_CTRLC	-3
+#define RC_INVAL	-4
 
 #ifdef NO_SSL
 	#define SSL	void
@@ -23,3 +25,5 @@
 		#define TCPI_OPT_SYN_DATA	32
 	#endif
 #endif
+
+int enc_b64(char *source, int source_lenght, char *target);

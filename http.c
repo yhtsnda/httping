@@ -69,3 +69,45 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 
 	return rc;
 }
+
+int dumb_get_HTTP_headers(int socket_h, char **headers, int timeout)
+{
+	int len_in=0, len=4096;
+	char *buffer = (char *)malloc(len);
+	int rc = RC_OK;
+
+	*headers = NULL;
+
+	for(;;)
+	{
+		int rrc = read_to(socket_h, &buffer[len_in], 1, timeout);
+		if (rrc == 0 || rrc == RC_SHORTREAD)	/* socket closed before request was read? */
+		{
+			rc = RC_SHORTREAD;
+			break;
+		}
+		else if (rrc == RC_TIMEOUT)		/* timeout */
+		{
+			free(buffer);
+			return RC_TIMEOUT;
+		}
+
+		len_in += rrc;
+
+		buffer[len_in] = 0x00;
+		if (memcmp(&buffer[len_in - 4], "\r\n\r\n", 4) == 0)
+			break;
+		if (memcmp(&buffer[len_in - 2], "\n\n", 2) == 0) /* broken proxies */
+			break;
+
+		if (len_in == (len - 1))
+		{
+			len <<= 1;
+			buffer = (char *)realloc(buffer, len);
+		}
+	}
+
+	*headers = buffer;
+
+	return rc;
+}

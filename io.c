@@ -33,8 +33,10 @@ ssize_t read_to(int fd, char *whereto, size_t len, int timeout)
 			return RC_TIMEOUT;
 		else if (rc == -1)
 		{
-			if (errno == EINTR || errno == EAGAIN)
+			if (errno == EAGAIN)
 				continue;
+			if (errno == EINTR)
+				return RC_CTRLC;
 
 			set_error("myread::select failed: %s", strerror(errno));
 
@@ -66,10 +68,13 @@ ssize_t myread(int fd, char *whereto, size_t len, int timeout)
 			return RC_TIMEOUT;
 		else if (rc == -1)
 		{
-			if (errno == EINTR || errno == EAGAIN)
+			if (errno == EAGAIN)
 				continue;
+			if (errno == EINTR)
+				return RC_CTRLC;
 
 			set_error("myread::select failed: %s", strerror(errno));
+
 			return RC_SHORTREAD;
 		}
 
@@ -79,16 +84,17 @@ ssize_t myread(int fd, char *whereto, size_t len, int timeout)
 
 			if (rc == -1)
 			{
-				if (errno != EINTR && errno != EAGAIN)
-				{
-					set_error("myread::read failed: %s", strerror(errno));
-					return RC_SHORTREAD;
-				}
+				if (errno == EAGAIN)
+					continue;
+				if (errno == EINTR)
+					return RC_CTRLC;
+
+				set_error("myread::read failed: %s", strerror(errno));
+
+				return RC_SHORTREAD;
 			}
 			else if (rc == 0)
-			{
 				break;
-			}
 			else
 			{
 				whereto += rc;
@@ -119,30 +125,34 @@ ssize_t mywrite(int fd, char *wherefrom, size_t len, int timeout)
 
 		rc = select(fd + 1, NULL, &wfds, NULL, &to);
 		if (rc == 0)
-			return -2;
+			return RC_TIMEOUT;
 		else if (rc == -1)
 		{
-			if (errno == EINTR || errno == EAGAIN)
+			if (errno == EAGAIN)
 				continue;
+			if (errno == EINTR)
+				return RC_CTRLC;
 
 			set_error("mywrite::select failed: %s", strerror(errno));
-			return -1;
+
+			return RC_SHORTWRITE;
 		}
 
 		rc = write(fd, wherefrom, len);
 
 		if (rc == -1)
 		{
-			if (errno != EINTR && errno != EAGAIN)
-			{
-				set_error("mywrite::write failed: %s", strerror(errno));
-				return -1;
-			}
+			if (errno == EAGAIN)
+				continue;
+			if (errno == EINTR)
+				return RC_CTRLC;
+
+			set_error("mywrite::write failed: %s", strerror(errno));
+
+			return RC_SHORTWRITE;
 		}
 		else if (rc == 0)
-		{
 			break;
-		}
 		else
 		{
 			wherefrom += rc;

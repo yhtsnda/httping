@@ -237,58 +237,8 @@ void handler(int sig)
 	if (!json_output)
 		fprintf(stderr, "Got signal %d\n", sig);
 
-	if (fd != -1)
-	{
-		close(fd);
-		fd = -1;
-	}
-
 	stop = 1;
 }
-
-/* Base64 encoding start */  
-const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-void encode_tryptique(char source[3], char result[4])
-/* Encode 3 char in B64, result give 4 Char */
- {
-    int tryptique, i;
-    tryptique = source[0];
-    tryptique *= 256;
-    tryptique += source[1];
-    tryptique *= 256;
-    tryptique += source[2];
-    for (i=0; i<4; i++)
-    {
- 	result[3-i] = alphabet[tryptique%64];
-	tryptique /= 64;
-    }
-} 
-
-
-int enc_b64(char *source, size_t source_lenght, char *target)
-{
-	/* Divide string /3 and encode trio */
-	while (source_lenght >= 3) {
-		encode_tryptique(source, target);
-		source_lenght -= 3;
-		source += 3;
-		target += 4;
-	}
-	/* Add padding to the rest */
-	if (source_lenght > 0) {
-		char pad[3];
-	 	memset(pad, 0, sizeof pad);
-		memcpy(pad, source, source_lenght);
-		encode_tryptique(pad, target);
-		target[3] = '=';
-		if (source_lenght == 1) target[2] = '=';
-		target += 4;
-	}
-	target[0] = 0;
-	return 1;
-} 
-/* Base64 encoding END */
 
 char * read_file(const char *file)
 {
@@ -864,7 +814,7 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "EA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:z:P:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "EA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
@@ -1413,6 +1363,8 @@ persistent_loop:
 					set_error("error sending request to host");
 				else if (rc == RC_TIMEOUT)
 					set_error("timeout sending to host");
+				else if (rc == RC_INVAL)
+					set_error("retrieved invalid data from host");
 				else if (rc == RC_CTRLC)
 				{/* ^C */}
 				else if (rc == 0)
