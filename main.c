@@ -312,7 +312,7 @@ char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxyhost, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, const char *cookie, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
+char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, const char *cookie, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
 {
 	char *request = (char *)malloc(strlen(get) + 8192);
 	char pb[128] = { 0 };
@@ -327,7 +327,7 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 		snprintf(pb + 1, sizeof pb - 1, "%s=%ld", proxy_buster, lrand48());
 	}
 
-	if (use_proxyhost)
+	if (use_proxy_host)
 		sprintf(request, "%s %s%s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", get, pb, persistent_connections?'1':'0');
 	else
 	{
@@ -576,7 +576,7 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 	}
 }
 
-void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxyhost, int *proxyport, char use_ssl, char use_ipv6)
+void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxy_host, int *proxy_port, char use_ssl, char use_ipv6)
 {
 	char *str = getenv(use_ssl ? "https_proxy" : "http_proxy");
 
@@ -589,7 +589,7 @@ void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxy
 	{
 		char *path = NULL, *url = NULL;
 
-		interpret_url(str, &path, proxyhost, proxyport, use_ipv6, use_ssl, &url, proxy_user, proxy_password);
+		interpret_url(str, &path, proxy_host, proxy_port, use_ipv6, use_ssl, &url, proxy_user, proxy_password);
 	}
 }
 
@@ -728,13 +728,25 @@ int nagios_result(int ok, int nagios_mode, int nagios_exit_code, double avg_http
 	return -1;
 }
 
+void proxy_to_host_and_port(char *in, char **proxy_host, int *proxy_port)
+{
+	char *dummy = strchr(in, ':');
+
+	*proxy_host = in;
+
+	if (dummy)
+	{
+		*dummy=0x00;
+		*proxy_port = atoi(dummy + 1);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	char do_fetch_proxy_settings = 0;
 	char *hostname = NULL;
-	char *proxy = NULL, *proxyhost = NULL;
-	char *proxy_user = NULL, *proxy_password = NULL;
-	int proxyport = 8080;
+	char *proxy_host = NULL, *proxy_user = NULL, *proxy_password = NULL;
+	int proxy_port = 8080;
 	int portnr = 80;
 	char *get = NULL, *request = NULL;
 	int req_len = 0;
@@ -751,11 +763,9 @@ int main(int argc, char *argv[])
 	const char *err_str = "-1";
 	const char *useragent = NULL;
 	const char *referer = NULL;
-	const char *host = NULL;
 	const char *auth_password = NULL;
 	const char *auth_usr = NULL;
 	const char *cookie = NULL;
-	int port = 0;
 	char resolve_once = 0;
 	char have_resolved = 0;
 	int req_sent = 0;
@@ -775,7 +785,6 @@ int main(int argc, char *argv[])
 	struct sockaddr_in *bind_to = NULL;
 	struct sockaddr_in bind_to_4;
 	struct sockaddr_in6 bind_to_6;
-	char bind_to_valid = 0;
 	char split = 0, use_ipv6 = 0;
 	char persistent_connections = 0, persistent_did_reconnect = 0;
 	char no_cache = 0;
@@ -955,7 +964,6 @@ int main(int argc, char *argv[])
 
 			case 'y':
 				parse_bind_to(optarg, &bind_to_4, &bind_to_6, &bind_to);
-				bind_to_valid = 1;
 				break;
 
 			case 'z':
@@ -988,7 +996,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'x':
-				proxy = optarg;
+				proxy_to_host_and_port(optarg, &proxy_host, &proxy_port);
 				break;
 
 			case 'g':
@@ -1003,7 +1011,7 @@ int main(int argc, char *argv[])
 				{
 					char dummy_buffer[4096] = { 0 };
 					snprintf(dummy_buffer, sizeof dummy_buffer, "http://%s/", optarg);
-					hostname = strdup(dummy_buffer);
+					url = strdup(dummy_buffer);
 				}
 				break;
 
@@ -1119,7 +1127,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (do_fetch_proxy_settings)
-		fetch_proxy_settings(&proxy_user, &proxy_password, &proxyhost, &proxyport, use_ssl, use_ipv6);
+		fetch_proxy_settings(&proxy_user, &proxy_password, &proxy_host, &proxy_port, use_ssl, use_ipv6);
 
 	if (optind < argc)
 		url = argv[optind];
@@ -1159,19 +1167,8 @@ int main(int argc, char *argv[])
 	if (verbose)
 		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
 
-	if (proxy)
-	{
-		char *dummy = strchr(proxy, ':');
-		proxyhost = proxy;
-		if (dummy)
-		{
-			*dummy=0x00;
-			proxyport = atoi(dummy + 1);
-		}
-
-		if (!quiet && !nagios_mode)
-			fprintf(stderr, "Using proxyserver: %s:%d\n", proxyhost, proxyport);
-	}
+	if (verbose && proxy_host)
+		fprintf(stderr, "Using proxyserver: %s:%d\n", proxy_host, proxy_port);
 
 #ifndef NO_SSL
 	SSL_CTX *client_ctx = NULL;
@@ -1197,16 +1194,23 @@ int main(int argc, char *argv[])
 
 	timeout *= 1000;	/* change to ms */
 
-	host = proxyhost ? proxyhost : hostname;
-	port = proxyhost ? proxyport : portnr;
-
 	struct sockaddr_in6 addr;
 	struct addrinfo *ai = NULL, *ai_use = NULL;
+	struct addrinfo *ai_proxy = NULL, *ai_use_proxy = NULL;
 
 	double started_at = get_ts();
-	if (resolve_once)
+	if (proxy_host)
 	{
-		if (resolve_host(host, &ai, use_ipv6, port) == -1)
+		if (resolve_host(proxy_host, &ai_proxy, use_ipv6, proxy_port) == -1)
+			error_exit(last_error);
+
+		ai_use_proxy = select_resolved_host(ai_proxy, use_ipv6);
+		if (!ai_use_proxy)
+			error_exit(last_error, "No valid IPv4 or IPv6 address found for %s", proxy_host);
+	}
+	else if (resolve_once)
+	{
+		if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 		{
 			err++;
 			emit_error(-1, started_at, get_ts());
@@ -1218,7 +1222,7 @@ int main(int argc, char *argv[])
 		ai_use = select_resolved_host(ai, use_ipv6);
 		if (!ai_use)
 		{
-			snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", host);
+			snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", hostname);
 
 			if (abort_on_resolve_failure)
 				error_exit(last_error);
@@ -1262,7 +1266,7 @@ int main(int argc, char *argv[])
 			curncount++;
 
 persistent_loop:
-			if ((!resolve_once || (resolve_once == 1 && have_resolved == 0)) && fd == -1)
+			if ((!resolve_once || (resolve_once == 1 && have_resolved == 0)) && fd == -1 && proxy_host == NULL)
 			{
 				memset(&addr, 0x00, sizeof addr);
 
@@ -1273,7 +1277,7 @@ persistent_loop:
 					ai_use = ai = NULL;
 				}
 
-				if (resolve_host(host, &ai, use_ipv6, port) == -1)
+				if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 				{
 					err++;
 					emit_error(curncount, dstart, get_ts());
@@ -1286,7 +1290,7 @@ persistent_loop:
 				ai_use = select_resolved_host(ai, use_ipv6);
 				if (!ai_use)
 				{
-					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", host);
+					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", hostname);
 					emit_error(curncount, dstart, get_ts());
 					err++;
 
@@ -1304,15 +1308,21 @@ persistent_loop:
 			req_sent = 0;
 
 			free(request);
-			request = create_request_header(proxyhost ? complete_url : get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
+			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
 				if (proxy_is_socks5)
-					fd = socks5connect(ai_use, timeout, proxy_user, proxy_password, hostname, portnr);
+					fd = socks5connect(ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr);
+#ifndef NO_SSL
+//				else if (proxy_host && use_ssl)
+//					fd = connect_ssl_proxy(
+#endif
+				else if (proxy_host)
+					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &tfo, request, req_len, &req_sent);
 				else
-					fd = connect_to((struct sockaddr *)(bind_to_valid?bind_to:NULL), ai_use, timeout, &tfo, request, req_len, &req_sent);
+					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &tfo, request, req_len, &req_sent);
 			}
 
 			if (fd == RC_CTRLC)	/* ^C pressed */
@@ -1594,11 +1604,12 @@ persistent_loop:
 
 			if (json_output)
 			{
-				char current_host[1024];
+				char current_host[1024] = "?";
 
-
-				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
-					snprintf(&last_error[strlen(last_error)], sizeof last_error - 256, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
+				if (proxy_host)
+					snprintf(current_host, sizeof current_host, "%s", hostname);
+				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
+					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
 				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts);
 
@@ -1637,7 +1648,7 @@ persistent_loop:
 			else if (!quiet && !nagios_mode && ms >= offset_show)
 			{
 				const char *ms_color = c_green;
-				char current_host[1024];
+				char current_host[1024] = "?";
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 				const char *sep = c_bright, *unsep = c_normal;
 
@@ -1665,7 +1676,9 @@ persistent_loop:
 					unsep = c_bright;
 				}
 
-				if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
+				if (proxy_host)
+					snprintf(current_host, sizeof current_host, "%s", hostname);
+				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
 				const char *i6_bs = "", *i6_be = "";
