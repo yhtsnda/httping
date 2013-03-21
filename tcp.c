@@ -12,11 +12,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "error.h"
 #include "gen.h"
 #include "io.h"
 #include "tcp.h"
 
-int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, int *msg_accepted)
+int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, char *msg_accepted)
 {
 	int     fd;
 	int 	rc;
@@ -27,7 +28,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (fd == -1)
 	{
-		snprintf(last_error, sizeof last_error, "problem creating socket (%s)", strerror(errno));
+		set_error("problem creating socket (%s)", strerror(errno));
 		return -1;
 	}
 
@@ -40,14 +41,14 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof set) == -1)
 		{
 			close(fd);
-			snprintf(last_error, sizeof last_error, "error setting sockopt to interface (%s)", strerror(errno));
+			set_error("error setting sockopt to interface (%s)", strerror(errno));
 			return -1;
 		}
 
 		if (bind(fd, bind_to, sizeof *bind_to) == -1)
 		{
 			close(fd);
-			snprintf(last_error, sizeof last_error, "error binding to interface (%s)", strerror(errno));
+			set_error("error binding to interface (%s)", strerror(errno));
 			return -1;
 		}
 	}
@@ -104,7 +105,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 			// problem connecting
 			if (errno != EINPROGRESS)
 			{
-				snprintf(last_error, sizeof last_error, "problem connecting to host: %s", strerror(errno));
+				set_error("problem connecting to host: %s", strerror(errno));
 				close(fd);
 				return -1;
 			}
@@ -115,7 +116,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	rc = select(fd + 1, NULL, &wfds, NULL, &to);
 	if (rc == 0)
 	{
-		snprintf(last_error, sizeof last_error, "connect time out");
+		set_error("connect time out");
 		close(fd);
 		return RC_TIMEOUT;	/* timeout */
 	}
@@ -126,7 +127,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		if (errno == EINTR)
 			return RC_CTRLC;/* ^C pressed */
 
-		snprintf(last_error, sizeof last_error, "select() failed: %s", strerror(errno));
+		set_error("select() failed: %s", strerror(errno));
 
 		return -1;	/* error */
 	}
@@ -138,7 +139,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		/* see if the connect succeeded or failed */
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optvallen) == -1)
 		{
-			snprintf(last_error, sizeof last_error, "getsockopt failed (%s)", strerror(errno));
+			set_error("getsockopt failed (%s)", strerror(errno));
 			close(fd);
 			return -1;
 		}
@@ -153,7 +154,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 
 	close(fd);
 
-	snprintf(last_error, sizeof last_error, "could not connect (%s)", strerror(errno));
+	set_error("could not connect (%s)", strerror(errno));
 
 	return -1;
 }
@@ -164,7 +165,7 @@ int set_tcp_low_latency(int sock)
 
 	if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
 	{
-		snprintf(last_error, sizeof last_error, "could not set TCP_NODELAY on socket (%s)", strerror(errno));
+		set_error("could not set TCP_NODELAY on socket (%s)", strerror(errno));
 		return -1;
 	}
 

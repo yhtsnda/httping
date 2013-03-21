@@ -53,8 +53,6 @@ const char *c_bright = "";
 
 char nagios_mode = 0;
 
-char last_error[ERROR_BUFFER_SIZE];
-
 int fd = -1;
 
 void version(void)
@@ -224,13 +222,12 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 void emit_error(int seq, double start_ts, double cur_ts)
 {
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
-		printf("%s%s%s\n", c_error, last_error, c_normal);
+		printf("%s%s%s\n", c_error, get_error(), c_normal);
 
 	if (json_output)
-		emit_json(0, seq, start_ts, cur_ts, -1, -1, last_error, -1, -1, -1, "", "", -1);
+		emit_json(0, seq, start_ts, cur_ts, -1, -1, get_error(), -1, -1, -1, "", "", -1);
 
-	if (!nagios_mode)
-		last_error[0] = 0x00;
+	clear_error();
 
 	fflush(NULL);
 }
@@ -695,7 +692,7 @@ int nagios_result(int ok, int nagios_mode, int nagios_exit_code, double avg_http
 	{
 		if (ok == 0)
 		{
-			printf("CRITICAL - connecting failed: %s", last_error);
+			printf("CRITICAL - connecting failed: %s", get_error());
 			return 2;
 		}
 		else if (avg_httping_time >= nagios_crit)
@@ -709,19 +706,21 @@ int nagios_result(int ok, int nagios_mode, int nagios_exit_code, double avg_http
 			return 1;
 		}
 
-		printf("OK - average httping-time is %.1f (%s)|ping=%f\n", avg_httping_time, last_error, avg_httping_time);
+		printf("OK - average httping-time is %.1f (%s)|ping=%f\n", avg_httping_time, get_error(), avg_httping_time);
 
 		return 0;
 	}
 	else if (nagios_mode == 2)
 	{
-		if (ok && last_error[0] == 0x00)
+		const char *err = get_error();
+
+		if (ok && err[0] == 0x00)
 		{
 			printf("OK - all fine, avg httping time is %.1f|ping=%f\n", avg_httping_time, avg_httping_time);
 			return 0;
 		}
 
-		printf("%s: - failed: %s", nagios_exit_code == 1?"WARNING":(nagios_exit_code == 2?"CRITICAL":"ERROR"), last_error);
+		printf("%s: - failed: %s", nagios_exit_code == 1?"WARNING":(nagios_exit_code == 2?"CRITICAL":"ERROR"), err);
 		return nagios_exit_code;
 	}
 
@@ -768,7 +767,6 @@ int main(int argc, char *argv[])
 	const char *cookie = NULL;
 	char resolve_once = 0;
 	char have_resolved = 0;
-	int req_sent = 0;
 	double nagios_warn=0.0, nagios_crit=0.0;
 	int nagios_exit_code = 2;
 	double avg_httping_time = -1.0;
@@ -788,7 +786,7 @@ int main(int argc, char *argv[])
 	char split = 0, use_ipv6 = 0;
 	char persistent_connections = 0, persistent_did_reconnect = 0;
 	char no_cache = 0;
-	char tfo = 0;
+	char use_tfo = 0;
 	char abort_on_resolve_failure = 1;
 	double offset_yellow = -1, offset_red = -1;
 	char colors = 0;
@@ -1104,7 +1102,7 @@ int main(int argc, char *argv[])
 
 			case 'F':
 #ifdef TCP_TFO
-				tfo = 1;
+				use_tfo = 1;
 #else
 				fprintf(stderr, "Warning: TCP TFO is not supported. Disabling.\n");
 #endif
@@ -1144,12 +1142,12 @@ int main(int argc, char *argv[])
 	if ((machine_readable || json_output) && n_aggregates > 0)
 		error_exit("Aggregates can only be used in non-machine/json output mode");
 
-	last_error[0] = 0x00;
+	clear_error();
 
 	if (!(get_instead_of_head || use_ssl) && show_Bps)
 		error_exit("-b/-B can only be used when also using -G (GET instead of HEAD) or -l (use SSL)\n");
 
-	if (tfo && use_ssl)
+	if (use_tfo && use_ssl)
 		error_exit("TCP Fast open and SSL not supported together\n");
 
 	if (colors)
@@ -1177,7 +1175,7 @@ int main(int argc, char *argv[])
 		client_ctx = initialize_ctx(ask_compression);
 		if (!client_ctx)
 		{
-			snprintf(last_error, sizeof last_error, "problem creating SSL context");
+			set_error("problem creating SSL context");
 			goto error_exit;
 		}
 	}
@@ -1202,11 +1200,11 @@ int main(int argc, char *argv[])
 	if (proxy_host)
 	{
 		if (resolve_host(proxy_host, &ai_proxy, use_ipv6, proxy_port) == -1)
-			error_exit(last_error);
+			error_exit(get_error());
 
 		ai_use_proxy = select_resolved_host(ai_proxy, use_ipv6);
 		if (!ai_use_proxy)
-			error_exit(last_error, "No valid IPv4 or IPv6 address found for %s", proxy_host);
+			error_exit("No valid IPv4 or IPv6 address found for %s", proxy_host);
 	}
 	else if (resolve_once)
 	{
@@ -1216,16 +1214,16 @@ int main(int argc, char *argv[])
 			emit_error(-1, started_at, get_ts());
 			have_resolved = 0;
 			if (abort_on_resolve_failure)
-				error_exit(last_error);
+				error_exit(get_error());
 		}
 
 		ai_use = select_resolved_host(ai, use_ipv6);
 		if (!ai_use)
 		{
-			snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", hostname);
+			set_error("No valid IPv4 or IPv6 address found for %s", hostname);
 
 			if (abort_on_resolve_failure)
-				error_exit(last_error);
+				error_exit(get_error());
 
 			/* do not emit the resolve-error here: as 'have_resolved' is set to 0
 			   next, the program will try to resolve again anyway
@@ -1262,6 +1260,7 @@ int main(int argc, char *argv[])
 			char *sc = NULL, *scdummy = NULL;
 			int persistent_tries = 0;
 			int len = 0, overflow = 0, headers_len = 0;
+			char req_sent = 0;
 
 			curncount++;
 
@@ -1283,19 +1282,19 @@ persistent_loop:
 					emit_error(curncount, dstart, get_ts());
 
 					if (abort_on_resolve_failure)
-						error_exit(last_error);
+						error_exit(get_error());
 					break;
 				}
 
 				ai_use = select_resolved_host(ai, use_ipv6);
 				if (!ai_use)
 				{
-					snprintf(last_error, sizeof last_error, "No valid IPv4 or IPv6 address found for %s", hostname);
+					set_error("No valid IPv4 or IPv6 address found for %s", hostname);
 					emit_error(curncount, dstart, get_ts());
 					err++;
 
 					if (abort_on_resolve_failure)
-						error_exit(last_error);
+						error_exit(get_error());
 
 					break;
 				}
@@ -1304,8 +1303,6 @@ persistent_loop:
 
 				have_resolved = 1;
 			}
-
-			req_sent = 0;
 
 			free(request);
 			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
@@ -1316,13 +1313,13 @@ persistent_loop:
 				if (proxy_is_socks5)
 					fd = socks5connect(ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr);
 #ifndef NO_SSL
-//				else if (proxy_host && use_ssl)
-//					fd = connect_ssl_proxy(
+				else if (proxy_host && use_ssl)
+					fd = connect_ssl_proxy((struct sockaddr *)bind_to, ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, &use_tfo);
 #endif
 				else if (proxy_host)
-					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &tfo, request, req_len, &req_sent);
+					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &use_tfo, request, req_len, &req_sent);
 				else
-					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &tfo, request, req_len, &req_sent);
+					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &use_tfo, request, req_len, &req_sent);
 			}
 
 			if (fd == RC_CTRLC)	/* ^C pressed */
@@ -1377,7 +1374,7 @@ persistent_loop:
 			if (fd < 0)
 			{
 				if (fd == RC_TIMEOUT)
-					snprintf(last_error, sizeof last_error, "timeout connecting to host");
+					set_error("timeout connecting to host");
 
 				emit_error(curncount, dstart, get_ts());
 				err++;
@@ -1413,13 +1410,13 @@ persistent_loop:
 				}
 
 				if (rc == -1)
-					snprintf(last_error, sizeof last_error, "error sending request to host");
+					set_error("error sending request to host");
 				else if (rc == RC_TIMEOUT)
-					snprintf(last_error, sizeof last_error, "timeout sending to host");
+					set_error("timeout sending to host");
 				else if (rc == RC_CTRLC)
 				{/* ^C */}
 				else if (rc == 0)
-					snprintf(last_error, sizeof last_error, "connection prematurely closed by peer");
+					set_error("connection prematurely closed by peer");
 
 				emit_error(curncount, dstart, get_ts());
 
@@ -1480,7 +1477,7 @@ persistent_loop:
 				char *length = strstr(reply, "\nContent-Length:");
 				if (!length)
 				{
-					snprintf(last_error, sizeof last_error, "'Content-Length'-header missing!");
+					set_error("'Content-Length'-header missing!");
 					emit_error(curncount, dstart, get_ts());
 					close(fd);
 					fd = -1;
@@ -1511,9 +1508,9 @@ persistent_loop:
 				}
 
 				if (rc == RC_SHORTREAD)
-					snprintf(last_error, sizeof last_error, "short read during receiving reply-headers from host");
+					set_error("short read during receiving reply-headers from host");
 				else if (rc == RC_TIMEOUT)
-					snprintf(last_error, sizeof last_error, "timeout while receiving reply-headers from host");
+					set_error("timeout while receiving reply-headers from host");
 
 				emit_error(curncount, dstart, get_ts());
 
@@ -1576,7 +1573,7 @@ persistent_loop:
 
 				if (close_ssl_connection(ssl_h, fd) == -1)
 				{
-					snprintf(last_error, sizeof last_error, "error shutting down ssl");
+					set_error("error shutting down ssl");
 					emit_error(curncount, dstart, get_ts());
 				}
 
@@ -1620,17 +1617,13 @@ persistent_loop:
 				if (sc)
 				{
 					char *dummy = strchr(sc, ' ');
-
-					if (dummy) *dummy = 0x00;
+					if (dummy)
+						*dummy = 0x00;
 
 					if (strstr(ok_str, sc))
-					{
 						printf("%f", ms);
-					}
 					else
-					{
 						printf("%s", err_str);
-					}
 
 					if (show_statuscodes)
 						printf(" %s", sc);

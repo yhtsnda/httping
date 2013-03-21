@@ -63,23 +63,23 @@ int resolve_host_ipv4(const char *host, struct sockaddr_in *addr)
 		switch(h_errno)
 		{
 			case HOST_NOT_FOUND:
-				sprintf(last_error, "The specified host is unknown.");
+				set_error("The specified host is unknown.");
 				break;
 
 			case NO_ADDRESS:
-				sprintf(last_error, "The requested name is valid but does not have an IP address.");
+				set_error("The requested name is valid but does not have an IP address.");
 				break;
 
 			case NO_RECOVERY:
-				sprintf(last_error, "A non-recoverable name server error occurred.");
+				set_error("A non-recoverable name server error occurred.");
 				break;
 
 			case TRY_AGAIN:
-				sprintf(last_error, "A temporary error occurred on an authoritative name server. Try again later.");
+				set_error("A temporary error occurred on an authoritative name server. Try again later.");
 				break;
 
 			default:
-				sprintf(last_error, "Could not resolve %s for an unknown reason (%d)", host, h_errno);
+				set_error("Could not resolve %s for an unknown reason (%d)", host, h_errno);
 		}
 
 		return -1;

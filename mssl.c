@@ -1,9 +1,16 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
 #include <errno.h>
+#include <netdb.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <openssl/bio.h>
 #include <openssl/conf.h>
 #include <openssl/engine.h>
@@ -13,6 +20,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 
+#include "error.h"
 #include "gen.h"
 #include "mssl.h"
 
@@ -64,7 +72,7 @@ int READ_SSL(SSL *ssl_h, char *whereto, int len)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				sprintf(last_error, "READ_SSL: io-error: %s", strerror(errno));
+				set_error("READ_SSL: io-error: %s", strerror(errno));
 				return -1;
 			}
 		}
@@ -95,7 +103,7 @@ int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				sprintf(last_error, "WRITE_SSL: io-error: %s", strerror(errno));
+				set_error("WRITE_SSL: io-error: %s", strerror(errno));
 				return -1;
 			}
 		}
@@ -123,13 +131,13 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int
 
 	if (setsockopt(socket_h, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv) == -1)
 	{
-		sprintf(last_error, "problem setting receive timeout (%s)", strerror(errno));
+		set_error("problem setting receive timeout (%s)", strerror(errno));
 		return -1;
 	}
 
 	if (setsockopt(socket_h, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv) == -1)
 	{
-		sprintf(last_error, "problem setting transmit timeout (%s)", strerror(errno));
+		set_error("problem setting transmit timeout (%s)", strerror(errno));
 		return -1;
 	}
 
@@ -141,7 +149,7 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int
 	dummy = SSL_connect(*ssl_h);
 	if (dummy <= 0)
 	{
-		sprintf(last_error, "problem starting SSL connection: %d", SSL_get_error(*ssl_h, dummy));
+		set_error("problem starting SSL connection: %d", SSL_get_error(*ssl_h, dummy));
 		return -1;
 	}
 
@@ -207,4 +215,30 @@ char * get_fingerprint(SSL *ssl_h)
 	}
 
 	return string;
+}
+
+int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, int timeout, const char *proxy_user, const char *proxy_password, const char *hostname, int portnr, char *tfo)
+{
+	int fd = -1;
+/*
+	char *request_headers = ...;
+	int request_headers_len = ...;
+	char rh_sent = 0;
+
+	fd = connect_to(bind_to, ai_use_proxy, timeout, tfo, request_headers, request_headers_len, &rh_sent);
+	if (fd == -1)
+		return -1;
+
+	if (!rh_sent)
+	{
+		if (mywrite(fd, request_headers, request_headers_len, timeout) == -1)
+		{
+			set_error("Problem sending request to proxy");
+			return -1;
+		}
+	}
+
+	// FIXME get response, fail if != 200
+*/
+	return fd;
 }
