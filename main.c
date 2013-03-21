@@ -303,7 +303,7 @@ const char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxyhost, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_pwd, const char *cookie, const char *proxy_buster)
+char * create_request_header(const char *get, char use_proxyhost, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_pwd, const char *cookie, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
 {
 	char *request = (char *)malloc(strlen(get) + 8192);
 	char pb[128] = { 0 };
@@ -358,12 +358,23 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 	/* Basic Authentification */
 	if (auth_usr)
 	{ 
-		char auth_string[255] = { 0 };
-		char b64_auth_string[255] = { 0 };
+		char auth_string[256] = { 0 };
+		char b64_auth_string[512] = { 0 };
 
 		sprintf(auth_string, "%s:%s", auth_usr, auth_pwd); 
 		enc_b64(auth_string, strlen(auth_string), b64_auth_string);
 		sprintf(&request[strlen(request)], "Authorization: Basic %s\r\n", b64_auth_string);
+	}
+
+	/* proxy authentication */
+	if (proxy_user)
+	{ 
+		char ppa_string[256] = { 0 };
+		char b64_ppa_string[512] = { 0 };
+
+		sprintf(ppa_string, "%s:%s", proxy_user, proxy_password); 
+		enc_b64(ppa_string, strlen(ppa_string), b64_ppa_string);
+		sprintf(&request[strlen(request)], "Proxy-Authorization: Basic %s\r\n", b64_ppa_string);
 	}
 
 	/* Cookie Insertion */
@@ -378,7 +389,7 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 	return request;
 }
 
-void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url)
+void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url, char **auth_user, char **auth_pass)
 {
 	char in_use[65536] = { 0 }, *dummy = NULL;
 
@@ -424,12 +435,44 @@ void interpret_url(const char *in, char **path, char **hostname, int *portnr, ch
 
 	if (!use_ipv6)
 	{
+		char *at = strchr(*hostname, '@');
 		char *colon = strchr(*hostname, ':');
+		char *colon2 = colon ? strchr(colon + 1, ':') : NULL;
 
-		if (colon)
+		if (colon2)
 		{
-			*colon = 0x00;
-			*portnr = atoi(colon + 1);
+			*colon2 = 0x00;
+			*portnr = atoi(colon2 + 1);
+
+			if (at)
+			{
+				*colon = 0x00;
+				*at = 0x00;
+
+				*auth_user = strdup(*hostname);
+				*auth_password = strdup(colon + 1);
+			}
+		}
+		else if (colon)
+		{
+			if (colon < at)
+			{
+				*colon = 0x00;
+				*at = 0x00;
+
+				*auth_user = strdup(*hostname);
+				*auth_password = strdup(colon + 1);
+			}
+			else if (at)
+			{
+				*at = 0x00;
+				*auth_user = strdup(*hostname);
+			}
+			else
+			{
+				*colon = 0x00;
+				*portnr = atoi(colon + 1);
+			}
 		}
 	}
 
@@ -524,10 +567,20 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 	}
 }
 
-void fetch_proxy_settings(&proxy_user, &proxy_password, &proxyhost, &proxyport)
+void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxyhost, int *proxyport, char use_ssl, char use_ipv6)
 {
-	// getenv
-	// interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url)
+	char *str = getenv(use_ssl ? "https_proxy" : "http_proxy");
+
+	if (!str)
+	{
+	}
+
+	if (str)
+	{
+		char *path = NULL, *url = NULL;
+
+		interpret_url(str, &path, proxyhost, proxyport, use_ipv6, use_ssl, &url, proxy_user, proxy_password);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -601,6 +654,7 @@ int main(int argc, char *argv[])
 	char *url = NULL, *complete_url = NULL;
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
+	char *au_dummy = NULL, *ap_dummy = NULL;
 
 	static struct option long_options[] =
 	{
@@ -995,7 +1049,11 @@ int main(int argc, char *argv[])
 	if (!machine_readable && !json_output)
 		printf("%s%s", c_normal, c_white);
 
-	interpret_url(url, &get, &hostname, &portnr, use_ipv6, use_ssl, &complete_url);
+	interpret_url(url, &get, &hostname, &portnr, use_ipv6, use_ssl, &complete_url, &au_dummy, &ap_dummy);
+	if (!auth_usr)
+		auth_usr = au_dummy;
+	if (!auth_pw)
+		auth_pw = ap_dummy;
 
 	if (verbose)
 		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
@@ -1145,7 +1203,7 @@ persistent_loop:
 			req_sent = 0;
 
 			free(request);
-			request = create_request_header(get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_pwd, cookie, proxy_buster);
+			request = create_request_header(get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_pwd, cookie, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
