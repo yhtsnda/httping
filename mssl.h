@@ -1,5 +1,10 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
+#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+
 void shutdown_ssl(void);
 char close_ssl_connection(SSL *ssl_h, int socket_h);
 int READ_SSL(SSL *ssl_h, char *whereto, int len);

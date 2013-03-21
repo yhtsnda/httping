@@ -1,16 +1,12 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
 #include <errno.h>
-#include <netdb.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
 #include <openssl/bio.h>
 #include <openssl/conf.h>
 #include <openssl/engine.h>
