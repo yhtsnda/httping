@@ -574,6 +574,7 @@ void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxy
 
 	if (!str)
 	{
+		/* FIXME from wgetrc/curlrc? */
 	}
 
 	if (str)
@@ -581,6 +582,41 @@ void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxy
 		char *path = NULL, *url = NULL;
 
 		interpret_url(str, &path, proxyhost, proxyport, use_ipv6, use_ssl, &url, proxy_user, proxy_password);
+	}
+}
+
+void parse_nagios_settings(const char *in, double *nagios_warn, double *nagios_crit)
+{
+	char *dummy = strchr(in, ',');
+	if (!dummy)
+		error_exit("-n: missing parameter\n");
+
+	*nagios_warn = atof(in);
+
+	*nagios_crit = atof(dummy + 1);
+}
+
+void parse_bind_to(const char *in, struct sockaddr_in *bind_to_4, struct sockaddr_in6 *bind_to_6, struct sockaddr_in **bind_to)
+{
+	char *dummy = strchr(in, ':');
+
+	if (dummy)
+	{
+		*bind_to = (struct sockaddr_in *)bind_to_6;
+		memset(bind_to_6, 0x00, sizeof bind_to_6);
+		bind_to_6 -> sin6_family = AF_INET6;
+
+		if (inet_pton(AF_INET6, in, &bind_to_6 -> sin6_addr) != 1)
+			error_exit("cannot convert ip address '%s' (for -y)\n", in);
+	}
+	else
+	{
+		*bind_to = (struct sockaddr_in *)bind_to_4;
+		memset(bind_to_4, 0x00, sizeof bind_to_4);
+		bind_to_4 -> sin_family = AF_INET;
+
+		if (inet_pton(AF_INET, in, &bind_to_4 -> sin_addr) != 1)
+			error_exit("cannot convert ip address '%s' (for -y)\n", in);
 	}
 }
 
@@ -818,34 +854,8 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'y':
-				{
-					char *dummy = strchr(optarg, ':');
-
-					bind_to_valid = 1;
-
-					if (dummy)
-					{
-						bind_to = (struct sockaddr_in *)&bind_to_6;
-						memset(&bind_to_6, 0x00, sizeof bind_to_6);
-						bind_to_6.sin6_family = AF_INET6;
-
-						if (inet_pton(AF_INET6, optarg, &(bind_to_6.sin6_addr)) != 1)
-						{
-							error_exit("cannot convert ip address '%s' (for -y)\n", optarg);
-						}
-					}
-					else
-					{
-						bind_to = (struct sockaddr_in *)&bind_to_4;
-						memset(&bind_to_4, 0x00, sizeof bind_to_4);
-						bind_to_4.sin_family = AF_INET;
-
-						if (inet_pton(AF_INET, optarg, &(bind_to_4.sin_addr)) != 1)
-						{
-							error_exit("cannot convert ip address '%s' (for -y)\n", optarg);
-						}
-					}
-				}
+				parse_bind_to(optarg, &bind_to_4, &bind_to_6, &bind_to);
+				bind_to_valid = 1;
 				break;
 
 			case 'z':
@@ -959,15 +969,12 @@ int main(int argc, char *argv[])
 				return 0;
 
 			case 'n':
-				{
-					char *dummy = strchr(optarg, ',');
-					if (nagios_mode) error_exit("-n and -N are mutual exclusive\n");
+				if (nagios_mode)
+					error_exit("-n and -N are mutual exclusive\n");
+				else
 					nagios_mode = 1;
-					if (!dummy)
-						error_exit("-n: missing parameter\n");
-					nagios_warn = atof(optarg);
-					nagios_crit = atof(dummy + 1);
-				}
+
+				parse_nagios_settings(optarg, &nagios_warn, &nagios_crit);
 				break;
 
 			case 'N':
