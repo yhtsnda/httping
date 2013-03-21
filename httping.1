@@ -100,13 +100,13 @@ Split measured latency in time to connect and time to exchange a request with th
 When a successfull transaction was done, show the HTTP statuscode (200, 404, etc.).
 .TP
 .B "\-T x"
-Read the password from file 'x' (instead of entering it on the command line).
+Read the password for website authentication from file 'x' (instead of entering it on the command line).
 .TP
 .B "\-t timeout"
 How long to wait for answer from the other side.
 .TP
-.B "\-U,P"
-Activate the basic authentication. Set username with -U, set password with -P.
+.B "\-U"
+Enable authentication against website. Set username with -U, set password with -P (or -T to read the password from a file).
 .TP
 .B "\-v"
 Increase verbosity mode. To show standard deviation and dates in output.
@@ -141,11 +141,14 @@ Put a timestamp before the result-lines. Use -v to also show a date.
 .B "\-\-no-host-header"
 Do not put a "Host:"-header in the request header.
 .TP
-.B "\-\-socks5-user x"
-Use username 'x' to authenticate against socks5 server (optional).
+.B "\-\-proxy-user x"
+Use username 'x' to authenticate against proxy (http/socks5) server (optional).
 .TP
-.B "\-\-socks5-password x"
-Use password 'x' to authenticate against socks5 server (optional).
+.B "\-\-proxy-password x"
+Use password 'x' to authenticate against proxy (http/socks5) server (optional).
+.TP
+.B "\-\-proxy-password-file x"
+Read password from file 'x' to authenticate against proxy (http/socks5) server (optional).
 .TP
 .B "\-\-aggregates x[,y[,z[,etc.]]]"
 Show aggregates every x[/y[/z[/etc]]] seconds.

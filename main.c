@@ -284,7 +284,7 @@ int enc_b64(char *source, size_t source_lenght, char *target)
 } 
 /* Base64 encoding END */
 
-const char * read_file(const char *file)
+char * read_file(const char *file)
 {
 	char buffer[4096] = { 0 }, *lf = NULL;
 	FILE *fh = fopen(file, "rb");
@@ -303,7 +303,7 @@ const char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxyhost, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_pwd, const char *cookie, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
+char * create_request_header(const char *get, char use_proxyhost, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, const char *cookie, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
 {
 	char *request = (char *)malloc(strlen(get) + 8192);
 	char pb[128] = { 0 };
@@ -361,7 +361,7 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 		char auth_string[256] = { 0 };
 		char b64_auth_string[512] = { 0 };
 
-		sprintf(auth_string, "%s:%s", auth_usr, auth_pwd); 
+		sprintf(auth_string, "%s:%s", auth_usr, auth_password); 
 		enc_b64(auth_string, strlen(auth_string), b64_auth_string);
 		sprintf(&request[strlen(request)], "Authorization: Basic %s\r\n", b64_auth_string);
 	}
@@ -389,7 +389,7 @@ char * create_request_header(const char *get, char use_proxyhost, char get_inste
 	return request;
 }
 
-void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url, char **auth_user, char **auth_pass)
+void interpret_url(const char *in, char **path, char **hostname, int *portnr, char use_ipv6, char use_ssl, char **complete_url, char **auth_user, char **auth_password)
 {
 	char in_use[65536] = { 0 }, *dummy = NULL;
 
@@ -585,9 +585,10 @@ void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxy
 
 int main(int argc, char *argv[])
 {
+	char do_fetch_proxy_settings = 0;
 	char *hostname = NULL;
-	const char *proxy = NULL, *proxyhost = NULL;
-	const char *proxy_user = NULL, *proxy_password = NULL;
+	char *proxy = NULL, *proxyhost = NULL;
+	char *proxy_user = NULL, *proxy_password = NULL;
 	int proxyport = 8080;
 	int portnr = 80;
 	char *get = NULL, *request = NULL;
@@ -606,7 +607,7 @@ int main(int argc, char *argv[])
 	const char *useragent = NULL;
 	const char *referer = NULL;
 	const char *host = NULL;
-	const char *auth_pwd = NULL;
+	const char *auth_password = NULL;
 	const char *auth_usr = NULL;
 	const char *cookie = NULL;
 	int port = 0;
@@ -709,6 +710,7 @@ int main(int argc, char *argv[])
 		{"proxy-buster",	1, NULL, 6 },
 		{"proxy-user",	1, NULL, 7 },
 		{"proxy-password",	1, NULL, 8 },
+		{"proxy-password-file",	1, NULL, 10 },
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -723,7 +725,7 @@ int main(int argc, char *argv[])
 		switch(c)
 		{
 			case 'E':
-				fetch_proxy_settings(&proxy_user, &proxy_password, &proxyhost, &proxyport);
+				do_fetch_proxy_settings = 1;
 				break;
 
 			case 'A':
@@ -778,6 +780,10 @@ int main(int argc, char *argv[])
 				set_aggregate(optarg, &n_aggregates, &aggregates);
 				break;
 
+			case 10:
+				proxy_password = read_file(optarg);
+				break;
+
 			case 'Y':
 				colors = 1;
 				break;
@@ -787,7 +793,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'T':
-				auth_pwd = read_file(optarg);
+				auth_password = read_file(optarg);
 				break;
 
 			case 'J':
@@ -970,7 +976,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'P':
-				auth_pwd = optarg;
+				auth_password = optarg;
 				break;
 
 			case 'U':
@@ -1004,6 +1010,9 @@ int main(int argc, char *argv[])
 				return 1;
 		}
 	}
+
+	if (do_fetch_proxy_settings)
+		fetch_proxy_settings(&proxy_user, &proxy_password, &proxyhost, &proxyport, use_ssl, use_ipv6);
 
 	if (optind < argc)
 		url = argv[optind];
@@ -1052,8 +1061,8 @@ int main(int argc, char *argv[])
 	interpret_url(url, &get, &hostname, &portnr, use_ipv6, use_ssl, &complete_url, &au_dummy, &ap_dummy);
 	if (!auth_usr)
 		auth_usr = au_dummy;
-	if (!auth_pw)
-		auth_pw = ap_dummy;
+	if (!auth_password)
+		auth_password = ap_dummy;
 
 	if (verbose)
 		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
@@ -1203,7 +1212,7 @@ persistent_loop:
 			req_sent = 0;
 
 			free(request);
-			request = create_request_header(get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_pwd, cookie, proxy_buster, proxy_user, proxy_password);
+			request = create_request_header(get, proxyhost ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
