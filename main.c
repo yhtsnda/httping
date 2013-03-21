@@ -42,6 +42,14 @@ char json_output = 0;
 const char *c_error = "";
 const char *c_normal = "";
 const char *c_very_normal = "";
+const char *c_red = "";
+const char *c_blue = "";
+const char *c_green = "";
+const char *c_yellow = "";
+const char *c_magenta = "";
+const char *c_cyan = "";
+const char *c_white = "";
+const char *c_bright = "";
 
 char nagios_mode = 0;
 
@@ -603,7 +611,7 @@ void parse_bind_to(const char *in, struct sockaddr_in *bind_to_4, struct sockadd
 	if (dummy)
 	{
 		*bind_to = (struct sockaddr_in *)bind_to_6;
-		memset(bind_to_6, 0x00, sizeof bind_to_6);
+		memset(bind_to_6, 0x00, sizeof *bind_to_6);
 		bind_to_6 -> sin6_family = AF_INET6;
 
 		if (inet_pton(AF_INET6, in, &bind_to_6 -> sin6_addr) != 1)
@@ -612,12 +620,112 @@ void parse_bind_to(const char *in, struct sockaddr_in *bind_to_4, struct sockadd
 	else
 	{
 		*bind_to = (struct sockaddr_in *)bind_to_4;
-		memset(bind_to_4, 0x00, sizeof bind_to_4);
+		memset(bind_to_4, 0x00, sizeof *bind_to_4);
 		bind_to_4 -> sin_family = AF_INET;
 
 		if (inet_pton(AF_INET, in, &bind_to_4 -> sin_addr) != 1)
 			error_exit("cannot convert ip address '%s' (for -y)\n", in);
 	}
+}
+
+void set_colors(void)
+{
+	c_red = "\033[31;40m";
+	c_blue = "\033[34;40m";
+	c_green = "\033[32;40m";
+	c_yellow = "\033[33;40m";
+	c_magenta = "\033[35;40m";
+	c_cyan = "\033[36;40m";
+	c_white = "\033[37;40m";
+
+	c_bright = "\033[1;40m";
+	c_normal = "\033[0;37;40m";
+
+	c_very_normal = "\033[0m";
+
+	c_error = "\033[1;4;40m";
+}
+
+time_t parse_date_from_response_headers(char *in)
+{
+	char *date = NULL, *komma = NULL;
+	if (in == NULL)
+		return -1;
+
+	date = strstr(in, "\nDate:");
+	komma = date ? strchr(date, ',') : NULL;
+	if (date && komma)
+	{
+		struct tm tm;
+		memset(&tm, 0x00, sizeof tm);
+
+		/* 22 Feb 2013 09:13:56 */
+		if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
+			return mktime(&tm);
+	}
+
+	return -1;
+}
+
+int calc_page_age(char *in, time_t their_ts)
+{
+	int age = -1;
+
+	if (in != NULL && their_ts > 0)
+	{
+		char *date = strstr(in, "\nLast-Modified:");
+		char *komma = date ? strchr(date, ',') : NULL;
+		if (date && komma)
+		{
+			struct tm tm;
+			memset(&tm, 0x00, sizeof tm);
+
+			/* 22 Feb 2013 09:13:56 */
+			if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
+				age = their_ts - mktime(&tm);
+		}
+	}
+
+	return age;
+}
+
+int nagios_result(int ok, int nagios_mode, int nagios_exit_code, double avg_httping_time, double nagios_warn, double nagios_crit)
+{
+	if (nagios_mode == 1)
+	{
+		if (ok == 0)
+		{
+			printf("CRITICAL - connecting failed: %s", last_error);
+			return 2;
+		}
+		else if (avg_httping_time >= nagios_crit)
+		{
+			printf("CRITICAL - average httping-time is %.1f\n", avg_httping_time);
+			return 2;
+		}
+		else if (avg_httping_time >= nagios_warn)
+		{
+			printf("WARNING - average httping-time is %.1f\n", avg_httping_time);
+			return 1;
+		}
+
+		printf("OK - average httping-time is %.1f (%s)|ping=%f\n", avg_httping_time, last_error, avg_httping_time);
+
+		return 0;
+	}
+	else if (nagios_mode == 2)
+	{
+		if (ok && last_error[0] == 0x00)
+		{
+			printf("OK - all fine, avg httping time is %.1f|ping=%f\n", avg_httping_time, avg_httping_time);
+			return 0;
+		}
+
+		printf("%s: - failed: %s", nagios_exit_code == 1?"WARNING":(nagios_exit_code == 2?"CRITICAL":"ERROR"), last_error);
+		return nagios_exit_code;
+	}
+
+	return -1;
 }
 
 int main(int argc, char *argv[])
@@ -673,14 +781,6 @@ int main(int argc, char *argv[])
 	char no_cache = 0;
 	char tfo = 0;
 	char abort_on_resolve_failure = 1;
-	const char *c_red = "";
-	const char *c_blue = "";
-	const char *c_green = "";
-	const char *c_yellow = "";
-	const char *c_magenta = "";
-	const char *c_cyan = "";
-	const char *c_white = "";
-	const char *c_bright = "";
 	double offset_yellow = -1, offset_red = -1;
 	char colors = 0;
 	int verbose = 0;
@@ -905,7 +1005,6 @@ int main(int argc, char *argv[])
 					snprintf(dummy_buffer, sizeof dummy_buffer, "http://%s/", optarg);
 					hostname = strdup(dummy_buffer);
 				}
-
 				break;
 
 			case 'p':
@@ -1046,22 +1145,7 @@ int main(int argc, char *argv[])
 		error_exit("TCP Fast open and SSL not supported together\n");
 
 	if (colors)
-	{
-		c_red = "\033[31;40m";
-		c_blue = "\033[34;40m";
-		c_green = "\033[32;40m";
-		c_yellow = "\033[33;40m";
-		c_magenta = "\033[35;40m";
-		c_cyan = "\033[36;40m";
-		c_white = "\033[37;40m";
-
-		c_bright = "\033[1;40m";
-		c_normal = "\033[0;37;40m";
-
-		c_very_normal = "\033[0m";
-
-		c_error = "\033[1;4;40m";
-	}
+		set_colors();
 
 	if (!machine_readable && !json_output)
 		printf("%s%s", c_normal, c_white);
@@ -1156,9 +1240,9 @@ int main(int argc, char *argv[])
 
 	while((curncount < count || count == -1) && stop == 0)
 	{
-		double ms;
-		double dstart, dend, dafter_connect = 0.0;
-		char *reply;
+		double ms = -1.0;
+		double dstart = -1.0, dend = -1.0, dafter_connect = 0.0;
+		char *reply = NULL;
 		double Bps = 0;
 		char is_compressed = 0;
 		long long int bytes_transferred = 0;
@@ -1170,7 +1254,7 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			char *fp = NULL;
-			int rc;
+			int rc = -1;
 			char *sc = NULL, *scdummy = NULL;
 			int persistent_tries = 0;
 			int len = 0, overflow = 0, headers_len = 0;
@@ -1361,35 +1445,9 @@ persistent_loop:
 				}
 			}
 
-			if (reply != NULL)
-			{
-				char *date = strstr(reply, "\nDate:");
-				char *komma = date ? strchr(date, ',') : NULL;
-				if (date && komma)
-				{
-					struct tm tm;
-					memset(&tm, 0x00, sizeof tm);
+			their_ts = parse_date_from_response_headers(reply);
 
-					/* 22 Feb 2013 09:13:56 */
-					if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
-						their_ts = mktime(&tm);
-				}
-			}
-
-			if (reply != NULL && their_ts > 0)
-			{
-				char *date = strstr(reply, "\nLast-Modified:");
-				char *komma = date ? strchr(date, ',') : NULL;
-				if (date && komma)
-				{
-					struct tm tm;
-					memset(&tm, 0x00, sizeof tm);
-
-					/* 22 Feb 2013 09:13:56 */
-					if (strptime(komma + 1, "%d %b %Y %H:%M:%S %Z", &tm))
-						age = their_ts - mktime(&tm);
-				}
-			}
+			age = calc_page_age(reply, their_ts);
 
 			if (ask_compression && reply != NULL)
 			{
@@ -1738,37 +1796,8 @@ persistent_loop:
 	}
 
 error_exit:
-	if (nagios_mode == 1)
-	{
-		if (ok == 0)
-		{
-			printf("CRITICAL - connecting failed: %s", last_error);
-			return 2;
-		}
-		else if (avg_httping_time >= nagios_crit)
-		{
-			printf("CRITICAL - average httping-time is %.1f\n", avg_httping_time);
-			return 2;
-		}
-		else if (avg_httping_time >= nagios_warn)
-		{
-			printf("WARNING - average httping-time is %.1f\n", avg_httping_time);
-			return 1;
-		}
-
-		printf("OK - average httping-time is %.1f (%s)|ping=%f\n", avg_httping_time, last_error, avg_httping_time);
-	}
-	else if (nagios_mode == 2)
-	{
-		if (ok && last_error[0] == 0x00)
-		{
-			printf("OK - all fine, avg httping time is %.1f|ping=%f\n", avg_httping_time, avg_httping_time);
-			return 0;
-		}
-
-		printf("%s: - failed: %s", nagios_exit_code == 1?"WARNING":(nagios_exit_code == 2?"CRITICAL":"ERROR"), last_error);
-		return nagios_exit_code;
-	}
+	if (nagios_mode)
+		return nagios_result(ok, nagios_mode, nagios_exit_code, avg_httping_time, nagios_warn, nagios_crit);
 
 	if (!json_output && !machine_readable)
 		printf("%s", c_very_normal);
