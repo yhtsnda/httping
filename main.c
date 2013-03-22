@@ -1261,7 +1261,7 @@ persistent_loop:
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
 				if (proxy_is_socks5)
-					fd = socks5connect(ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr);
+					fd = socks5connect(ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, abort_on_resolve_failure);
 #ifndef NO_SSL
 				else if (proxy_host && use_ssl)
 					fd = connect_ssl_proxy((struct sockaddr *)bind_to, ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, &use_tfo);

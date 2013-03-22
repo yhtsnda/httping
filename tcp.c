@@ -29,7 +29,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	if (fd == -1)
 	{
 		set_error("problem creating socket (%s)", strerror(errno));
-		return -1;
+		return RC_INVAL;
 	}
 
 	/* go through a specific interface? */
@@ -42,14 +42,14 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		{
 			close(fd);
 			set_error("error setting sockopt to interface (%s)", strerror(errno));
-			return -1;
+			return RC_INVAL;
 		}
 
 		if (bind(fd, bind_to, sizeof *bind_to) == -1)
 		{
 			close(fd);
 			set_error("error binding to interface (%s)", strerror(errno));
-			return -1;
+			return RC_INVAL;
 		}
 	}
 
@@ -57,7 +57,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	if (set_fd_nonblocking(fd) == -1)
 	{
 		close(fd);
-		return -1;
+		return RC_INVAL;
 	}
 
 	/* wait for connection */
@@ -107,7 +107,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 			{
 				set_error("problem connecting to host: %s", strerror(errno));
 				close(fd);
-				return -1;
+				return RC_INVAL;
 			}
 		}
 	}
@@ -129,7 +129,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 
 		set_error("select() failed: %s", strerror(errno));
 
-		return -1;	/* error */
+		return RC_INVAL;	/* error */
 	}
 	else
 	{
@@ -141,7 +141,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		{
 			set_error("getsockopt failed (%s)", strerror(errno));
 			close(fd);
-			return -1;
+			return RC_INVAL;
 		}
 
 		/* no error? */
@@ -156,7 +156,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 
 	set_error("could not connect (%s)", strerror(errno));
 
-	return -1;
+	return RC_INVAL;
 }
 
 int set_tcp_low_latency(int sock)
