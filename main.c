@@ -1260,7 +1260,7 @@ persistent_loop:
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
-				if (proxy_is_socks5)
+				if (proxy_host && proxy_is_socks5)
 					fd = socks5connect(ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, abort_on_resolve_failure);
 #ifndef NO_SSL
 				else if (proxy_host && use_ssl)
