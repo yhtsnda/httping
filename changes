@@ -1,10 +1,5 @@
-- JSON output
-- added script for converting the JSON ping statistics into a graph
-- socks5 proxy support
-- implemented timeouts in SSL
-- added --no-host-header
-- react quicker on ctrl+c
-- added timestamps
-- added --threshold-show
-- added standard deviation calculation
-- added aggregates
+- fix for compilation problems on FreeBSD
+- retrieve proxy settings from environment
+- implemented proxy authentication
+- resolve ip address of proxy only once
+- added https proxying support
