@@ -54,7 +54,8 @@ void update_terminal(void)
 
 void create_windows(void)
 {
-	unsigned int nr = 0;
+	unsigned int nr = 0, logs_n = 0, slow_n = 0, fast_n = 0;
+	double scale = 0.0;
 
 	if (w_stats)
 	{
@@ -72,14 +73,19 @@ void create_windows(void)
 	scrollok(w_line1, false);
 	wnoutrefresh(w_line1);
 
-	w_slow  = newwin(8, max_x,  6, 0);
+	logs_n = max_y - 7;
+	scale = (double)logs_n / 17.0;
+	slow_n = (int)(scale * 7);
+	fast_n = logs_n - slow_n;
+
+	w_slow  = newwin(slow_n, max_x, 6, 0);
 	scrollok(w_slow, true);
 
-	w_line2 = newwin(1, max_x, 14, 0);
+	w_line2 = newwin(1, max_x, 6 + slow_n, 0);
 	scrollok(w_line2, false);
 	wnoutrefresh(w_line2);
 
-	w_fast  = newwin(max_y - 15, max_x, 15, 0);
+	w_fast  = newwin(fast_n, max_x, 6 + slow_n + 1, 0);
 	scrollok(w_fast, true);
 
 	wattron(w_line1, A_REVERSE);
@@ -173,4 +179,21 @@ void slow_log(const char *fmt, ...)
 void my_beep(void)
 {
 	beep();
+}
+
+void status_line(char *fmt, ...)
+{
+        va_list ap;
+
+	wattron(w_line1, A_REVERSE);
+
+	wmove(w_line1, 0, 0);
+
+        va_start(ap, fmt);
+        vwprintw(w_line1, fmt, ap);
+        va_end(ap);
+
+	wattroff(w_line1, A_REVERSE);
+
+	wnoutrefresh(w_line1);
 }

@@ -209,6 +209,20 @@ void usage(const char *me)
 	fprintf(stderr, "\t%s %s%s -s -Z\n\n", me, host, has_color ? " -Y" : "");
 }
 
+void emit_statuslines(double run_time)
+{
+#ifdef NC
+	time_t t = time(NULL);
+	char *t_str = ctime(&t);
+	char *dummy = strchr(t_str, '\n');
+
+	if (dummy)
+		*dummy = 0x00;
+
+	status_line("%s, running for %f seconds", t_str, run_time);
+#endif
+}
+
 void emit_headers(char *in)
 {
 #ifdef NC
@@ -1831,6 +1845,8 @@ persistent_loop:
 
 			break;
 		}
+
+		emit_statuslines(get_ts() - started_at);
 
 #ifdef NC
 		update_terminal();
