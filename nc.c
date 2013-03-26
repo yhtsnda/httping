@@ -45,8 +45,6 @@ void determine_terminal_size(unsigned int *max_y, unsigned int *max_x)
 
 void update_terminal(void)
 {
-        wmove(w_stats, 4, max_x - 1);
-
         wnoutrefresh(w_stats);
         wnoutrefresh(w_slow);
         wnoutrefresh(w_fast);
@@ -56,6 +54,8 @@ void update_terminal(void)
 
 void create_windows(void)
 {
+	unsigned int nr = 0;
+
 	if (w_stats)
 	{
 		delwin(w_stats);
@@ -65,22 +65,35 @@ void create_windows(void)
 		delwin(w_fast);
 	}
 
-	w_stats = newwin(5, 80,  0, 0);
+	w_stats = newwin(5, max_x,  0, 0);
 	scrollok(w_stats, false);
 
-	w_line1 = newwin(1, 80,  5, 0);
+	w_line1 = newwin(1, max_x,  5, 0);
 	scrollok(w_line1, false);
 	wnoutrefresh(w_line1);
 
-	w_slow  = newwin(8, 80,  6, 0);
+	w_slow  = newwin(8, max_x,  6, 0);
 	scrollok(w_slow, true);
 
-	w_line2 = newwin(1, 80, 14, 0);
+	w_line2 = newwin(1, max_x, 14, 0);
 	scrollok(w_line2, false);
 	wnoutrefresh(w_line2);
 
-	w_fast  = newwin(9, 80, 15, 0);
+	w_fast  = newwin(max_y - 15, max_x, 15, 0);
 	scrollok(w_fast, true);
+
+	wattron(w_line1, A_REVERSE);
+	wattron(w_line2, A_REVERSE);
+	for(nr=0; nr<max_x; nr++)
+	{
+		wprintw(w_line1, " ");
+		wprintw(w_line2, " ");
+	}
+	wattroff(w_line2, A_REVERSE);
+	wattroff(w_line1, A_REVERSE);
+
+        wnoutrefresh(w_line1);
+        wnoutrefresh(w_line2);
 
 	doupdate();
 
@@ -146,8 +159,6 @@ void fast_log(const char *fmt, ...)
         va_start(ap, fmt);
         vwprintw(w_fast, fmt, ap);
         va_end(ap);
-
-	wprintw(w_fast, "\n");
 }
 
 void slow_log(const char *fmt, ...)
@@ -157,8 +168,6 @@ void slow_log(const char *fmt, ...)
         va_start(ap, fmt);
         vwprintw(w_slow, fmt, ap);
         va_end(ap);
-
-	wprintw(w_fast, "\n");
 }
 
 void my_beep(void)

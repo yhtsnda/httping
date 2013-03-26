@@ -209,6 +209,33 @@ void usage(const char *me)
 	fprintf(stderr, "\t%s %s%s -s -Z\n\n", me, host, has_color ? " -Y" : "");
 }
 
+void emit_headers(char *in)
+{
+#ifdef NC
+	static char shown = 0;
+
+	if (!shown)
+	{
+		int len_in = strlen(in) - 4, pos = 0, pos_out = 0;
+		char *copy = (char *)malloc(len_in + 1);
+
+		for(pos=0; pos<len_in; pos++)
+		{
+			if (in[pos] != '\r')
+				copy[pos_out++] = in[pos];
+		}
+
+		copy[pos_out] = 0x00;
+
+		slow_log("\n%s", copy);
+
+		free(copy);
+
+		shown = 1;
+	}
+#endif
+}
+
 void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts)
 {
 	if (seq > 1)
@@ -259,7 +286,7 @@ void emit_error(int verbose, int seq, double start_ts, double cur_ts)
 
 #ifdef NC
 	if (ncurses_mode)
-		slow_log("%s%s", ts ? ts : "", get_error());
+		slow_log("\n%s%s", ts ? ts : "", get_error());
 	else
 #endif
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
@@ -1144,6 +1171,9 @@ int main(int argc, char *argv[])
 		error_exit("No URL/host to ping given");
 	}
 
+	if (colors && ncurses_mode)
+		error_exit("ncurses implicitly enables colors");
+
 	if (machine_readable + json_output + ncurses_mode > 1)
 		error_exit("Cannot combine -m, -M and -K");
 
@@ -1170,13 +1200,18 @@ int main(int argc, char *argv[])
 	if (!auth_password)
 		auth_password = ap_dummy;
 
+#ifdef NC
+	if (ncurses_mode)
+		init_ncurses();
+#endif
+
 	if (verbose)
 	{
 #ifdef NC
-		slow_log("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
+		slow_log("\nConnecting to host %s, port %d and requesting file %s", hostname, portnr, get);
 
 		if (proxy_host)
-			slow_log("Using proxyserver: %s:%d\n", proxy_host, proxy_port);
+			slow_log("\nUsing proxyserver: %s:%d", proxy_host, proxy_port);
 #else
 		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
 
@@ -1201,7 +1236,7 @@ int main(int argc, char *argv[])
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 	{
 #ifdef NC
-		slow_log("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
+		slow_log("\nPING %s:%d (%s):", hostname, portnr, get);
 #else
 		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
 #endif
@@ -1262,11 +1297,6 @@ int main(int argc, char *argv[])
 
 	if (persistent_connections)
 		fd = -1;
-
-#ifdef NC
-	if (ncurses_mode)
-		init_ncurses();
-#endif
 
 	while((curncount < count || count == -1) && stop == 0)
 	{
@@ -1458,6 +1488,8 @@ persistent_loop:
 			}
 
 			rc = get_HTTP_headers(fd, ssl_h, &reply, &overflow, timeout);
+
+			emit_headers(reply);
 
 			if ((show_statuscodes || machine_readable || json_output) && reply != NULL)
 			{
@@ -1671,6 +1703,8 @@ persistent_loop:
 			else if (!quiet && !nagios_mode && ms >= offset_show)
 			{
 				// FIXME write to buffer 
+				char line[4096] = { 0 };
+				int pos = 0;
 				const char *ms_color = c_green;
 				char current_host[1024] = "?";
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
@@ -1679,7 +1713,7 @@ persistent_loop:
 				if (show_ts)
 				{
 					char *ts = get_ts_str(verbose);
-					printf("%s", ts);
+					pos += snprintf(&line[pos], sizeof line - pos, "%s", ts);
 					free(ts);
 				}
 
@@ -1708,51 +1742,51 @@ persistent_loop:
 					ms_color = c_yellow;
 
 				if (persistent_connections && show_bytes_xfer)
-					printf("%s%s %s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "%s%s %s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
-					printf("%s%s %s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "%s%s %s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					printf("time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
 				else
-					printf("time=%s%.2f%s ms %s%s%s", ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "time=%s%.2f%s ms %s%s%s", ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
 
 				if (persistent_did_reconnect)
 				{
-					printf(" %sC%s", c_magenta, c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, " %sC%s", c_magenta, c_white);
 					persistent_did_reconnect = 0;
 				}
 
 				if (show_Bps)
 				{
-					printf(" %dKB/s", (int)Bps / 1024);
+					pos += snprintf(&line[pos], sizeof line - pos, " %dKB/s", (int)Bps / 1024);
 					if (show_bytes_xfer)
-						printf(" %dKB", (int)(bytes_transferred / 1024));
+						pos += snprintf(&line[pos], sizeof line - pos, " %dKB", (int)(bytes_transferred / 1024));
 					if (ask_compression)
 					{
-						printf(" (");
+						pos += snprintf(&line[pos], sizeof line - pos, " (");
 						if (!is_compressed)
-							printf("not ");
-						printf("compressed)");
+							pos += snprintf(&line[pos], sizeof line - pos, "not ");
+						pos += snprintf(&line[pos], sizeof line - pos, "compressed)");
 					}
 				}
 
 				if (use_ssl && show_fp && fp != NULL)
 				{
-					printf(" %s", fp);
+					pos += snprintf(&line[pos], sizeof line - pos, " %s", fp);
 					free(fp);
 				}
 
 				if (verbose > 0 && their_ts > 0)
 				{
 					/*  if diff_ts > 0, then their clock is running too fast */
-					printf(" toff=%d", (int)toff_diff_ts);
+					pos += snprintf(&line[pos], sizeof line - pos, " toff=%d", (int)toff_diff_ts);
 				}
 
 				if (verbose > 0 && age > 0)
-					printf(" age=%d", age);
+					pos += snprintf(&line[pos], sizeof line - pos, " age=%d", age);
 
-				printf("%s", c_normal);
+				pos += snprintf(&line[pos], sizeof line - pos, "%s", c_normal);
 
 				if (audible)
 				{
@@ -1764,11 +1798,11 @@ persistent_loop:
 				}
 
 #ifdef NC
-				if (nagios_output)
-					fast_log("%s\n", buffer);
+				if (ncurses_mode)
+					fast_log("%s\n", line);
 				else
 #endif
-					printf("%s\n", buffer);
+					printf("%s\n", line);
 
 				do_aggregates(ms, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose);
 			}
@@ -1790,7 +1824,11 @@ persistent_loop:
 			break;
 		}
 
+#ifdef NC
+		update_terminal();
+#else
 		fflush(NULL);
+#endif
 
 		if (curncount != count && !stop && wait > 0)
 			usleep((useconds_t)(wait * 1000000.0));
