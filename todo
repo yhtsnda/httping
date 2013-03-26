@@ -21,30 +21,3 @@
 	> Ken je de MySQL slow query log?
 	> Met een slow log bedoel ik eigenlijk gewoon alle requests > X ms, iets
 	> wat je nu ook al kunt doen. Gewoon wat ik hierna beschreven heb.
-
-- proxy: https
-	proxy connection setup:
-		0x0030:  53ad 11a1 434f 4e4e 4543 5420 706c 7573  S...CONNECT.plus
-		0x0040:  2e67 6f6f 676c 652e 636f 6d3a 3434 3320  .google.com:443.
-		0x0050:  4854 5450 2f31 2e31 0d0a 5573 6572 2d41  HTTP/1.1..User-A
-		0x0060:  6765 6e74 3a20 4d6f 7a69 6c6c 612f 352e  gent:.Mozilla/5.
-		0x0070:  3020 2857 696e 646f 7773 204e 5420 362e  0.(Windows.NT.6.
-		0x0080:  313b 2057 4f57 3634 3b20 7276 3a31 392e  1;.WOW64;.rv:19.
-		0x0090:  3029 2047 6563 6b6f 2f32 3031 3030 3130  0).Gecko/2010010
-		0x00a0:  3120 4669 7265 666f 782f 3139 2e30 0d0a  1.Firefox/19.0..
-		0x00b0:  5072 6f78 792d 436f 6e6e 6563 7469 6f6e  Proxy-Connection
-		0x00c0:  3a20 6b65 6570 2d61 6c69 7665 0d0a 436f  :.keep-alive..Co
-		0x00d0:  6e6e 6563 7469 6f6e 3a20 6b65 6570 2d61  nnection:.keep-a
-		0x00e0:  6c69 7665 0d0a 486f 7374 3a20 706c 7573  live..Host:.plus
-		0x00f0:  2e67 6f6f 676c 652e 636f 6d0d 0a50 726f  .google.com..Pro
-		0x0100:  7879 2d41 7574 686f 7269 7a61 7469 6f6e  xy-Authorization
-		0x0110:  3a20 4261 7369 6320 5a6d 3973 6132 5679  :.Basic.Zm9sa2Vy
-		0x0120:  6444 7046 6247 6c75 5a54 4579 4d77 3d3d  dDpFbGluZTEyMw==
-		0x0130:  0d0a 0d0a                                ....
-	12:04:39.366842 IP 192.168.64.1.8080 > 192.168.64.1.40122: Flags [P.], seq 1:40, ack 257, win 256, options [nop,nop,TS val 1403851195 ecr 1403851178], length 39
-		0x0000:  4500 005b 4108 4000 4006 f841 c0a8 4001  E..[A.@.@..A..@.
-		0x0010:  c0a8 4001 1f90 9cba cf6b 50a6 088e d1e0  ..@......kP.....
-		0x0020:  8018 0100 01a1 0000 0101 080a 53ad 11bb  ............S...
-		0x0030:  53ad 11aa 4854 5450 2f31 2e30 2032 3030  S...HTTP/1.0.200
-		0x0040:  2043 6f6e 6e65 6374 696f 6e20 6573 7461  .Connection.esta
-		0x0050:  626c 6973 6865 640d 0a0d 0a              blished....

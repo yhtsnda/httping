@@ -574,9 +574,11 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 
 		if (cur_ts - a -> last_ts >= a -> interval)
 		{
+			char line[4096] = { 0 };
+			int pos = 0;
 			double avg = a -> n_values ? a -> value / (double)a -> n_values : -1.0;
 
-			printf("AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
+			pos += snprintf(&line[pos], sizeof line - pos, "AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
 
 			if (verbose)
 			{
@@ -585,10 +587,16 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 				if (a -> n_values)
 					sd = sqrt((a -> sd / (double)a -> n_values) - pow(avg, 2.0));
 
-				printf("/%.1f", sd);
+				pos += snprintf(&line[pos], sizeof line - pos, "/%.1f", sd);
 			}
 
-			printf(" ms\n");
+			pos += snprintf(&line[pos], sizeof line - pos, " ms");
+
+#ifdef NC
+			slow_log("\n%s", line);
+#else
+			printf("%s\n", line;
+#endif
 
 			aggregates[index].value =
 			aggregates[index].sd    = 0.0;
