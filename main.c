@@ -1171,10 +1171,19 @@ int main(int argc, char *argv[])
 		auth_password = ap_dummy;
 
 	if (verbose)
+	{
+#ifdef NC
+		slow_log("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
+
+		if (proxy_host)
+			slow_log("Using proxyserver: %s:%d\n", proxy_host, proxy_port);
+#else
 		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
 
-	if (verbose && proxy_host)
-		fprintf(stderr, "Using proxyserver: %s:%d\n", proxy_host, proxy_port);
+		if (proxy_host)
+			fprintf(stderr, "Using proxyserver: %s:%d\n", proxy_host, proxy_port);
+#endif
+	}
 
 #ifndef NO_SSL
 	SSL_CTX *client_ctx = NULL;
@@ -1190,7 +1199,13 @@ int main(int argc, char *argv[])
 #endif
 
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
+	{
+#ifdef NC
+		slow_log("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
+#else
 		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
+#endif
+	}
 
 	if (json_output)
 		printf("[\n");
@@ -1655,6 +1670,7 @@ persistent_loop:
 			}
 			else if (!quiet && !nagios_mode && ms >= offset_show)
 			{
+				// FIXME write to buffer 
 				const char *ms_color = c_green;
 				char current_host[1024] = "?";
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
@@ -1738,10 +1754,21 @@ persistent_loop:
 
 				printf("%s", c_normal);
 
-				if(audible)
+				if (audible)
+				{
+#ifdef NC
+					my_beep();
+#else
 					putchar('\a');
+#endif
+				}
 
-				printf("\n");
+#ifdef NC
+				if (nagios_output)
+					fast_log("%s\n", buffer);
+				else
+#endif
+					printf("%s\n", buffer);
 
 				do_aggregates(ms, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose);
 			}

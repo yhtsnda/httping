@@ -106,7 +106,7 @@ void init_ncurses(void)
         keypad(stdscr, TRUE);
         intrflush(stdscr, FALSE);
         noecho();
-        nonl();
+        //nonl();
         refresh();
         nodelay(stdscr, FALSE);
         meta(stdscr, TRUE);     /* enable 8-bit input */
@@ -141,8 +141,27 @@ void end_ncurses(void)
 
 void fast_log(const char *fmt, ...)
 {
+        va_list ap;
+
+        va_start(ap, fmt);
+        vwprintw(w_fast, fmt, ap);
+        va_end(ap);
+
+	wprintw(w_fast, "\n");
 }
 
 void slow_log(const char *fmt, ...)
 {
+        va_list ap;
+
+        va_start(ap, fmt);
+        vwprintw(w_slow, fmt, ap);
+        va_end(ap);
+
+	wprintw(w_fast, "\n");
+}
+
+void my_beep(void)
+{
+	beep();
 }
