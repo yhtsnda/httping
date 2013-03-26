@@ -18,6 +18,9 @@
 # disable SSL?
 # SSL=no
 
+# enable NCURSES interface?
+NC=yes
+
 ############# do not change anything below here #############
 
 include version
@@ -62,6 +65,12 @@ endif
 
 ifeq ($(TFO),yes)
 CFLAGS+=-DTCP_TFO
+endif
+
+ifeq ($(NC),yes)
+CFLAGS+=-DNC
+OBJS+=nc.o
+LDFLAGS+=-lncurses
 endif
 
 ifeq ($(DEBUG),yes)

@@ -20,6 +20,9 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <sys/time.h>
+#ifdef NC
+#include <ncurses.h>
+#endif
 
 #include "gen.h"
 #include "http.h"
@@ -30,6 +33,9 @@
 #include "utils.h"
 #include "error.h"
 #include "socks5.h"
+#ifdef NC
+#include "nc.h"
+#endif
 
 #define MI_MA 999999999.9
 
@@ -38,6 +44,7 @@ static volatile int stop = 0;
 int quiet = 0;
 char machine_readable = 0;
 char json_output = 0;
+char show_ts = 0;
 
 const char *c_error = "";
 const char *c_normal = "";
@@ -52,6 +59,7 @@ const char *c_white = "";
 const char *c_bright = "";
 
 char nagios_mode = 0;
+char ncurses_mode = 0;
 
 int fd = -1;
 
@@ -81,6 +89,9 @@ void help_long(void)
 	fprintf(stderr, "--ipv6                 -6\n");
 	fprintf(stderr, "--nagios-mode-1        -n\n");
 	fprintf(stderr, "--nagios-mode-2        -n\n");
+#ifdef NC
+	fprintf(stderr, "--ncurses              -K\n");
+#endif
 	fprintf(stderr, "--no-cache             -Z\n");
 	fprintf(stderr, "--threshold-red        from what ping value to show the value in red (must be bigger than yellow)\n");
 	fprintf(stderr, "--threshold-show       from what ping value to show the results\n");
@@ -175,6 +186,8 @@ void usage(const char *me)
 	fprintf(stderr, "-T x           read the password fom the file 'x' (replacement for -P)\n");
 	fprintf(stderr, "-C cookie=value Add a cookie to the request\n");
 	fprintf(stderr, "-Y             add colors\n");
+	fprintf(stderr, "-E             fetch proxy settings from environment variables\n");
+	fprintf(stderr, "-K             ncurses mode\n");
 	fprintf(stderr, "-v             verbose mode\n");
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
@@ -219,25 +232,62 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 	printf("}");
 }
 
-void emit_error(int seq, double start_ts, double cur_ts)
+char *get_ts_str(int verbose)
 {
+	struct timeval tv;
+
+	(void)gettimeofday(&tv, NULL);
+
+	struct tm *tvm = localtime(&tv.tv_sec);
+
+	char buffer[4096];
+
+	if (verbose == 1)
+		sprintf(buffer, "%04d/%02d/%02d ", tvm -> tm_year + 1900, tvm -> tm_mon + 1, tvm -> tm_mday);
+	else if (verbose >= 2)
+		sprintf(buffer, "%.6f ", get_ts());
+
+	if (verbose <= 1)
+		sprintf(&buffer[strlen(buffer)], "%02d:%02d:%02d.%03d ", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
+
+	return strdup(buffer);
+}
+
+void emit_error(int verbose, int seq, double start_ts, double cur_ts)
+{
+	char *ts = show_ts ? get_ts_str(verbose) : NULL;
+
+#ifdef NC
+	if (ncurses_mode)
+		slow_log("%s%s", ts ? ts : "", get_error());
+	else
+#endif
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
-		printf("%s%s%s\n", c_error, get_error(), c_normal);
+		printf("%s%s%s%s\n", ts ? ts : "", c_error, get_error(), c_normal);
 
 	if (json_output)
 		emit_json(0, seq, start_ts, cur_ts, -1, -1, get_error(), -1, -1, -1, "", "", -1);
 
 	clear_error();
 
+	free(ts);
+
 	fflush(NULL);
 }
 
 void handler(int sig)
 {
-	if (!json_output)
-		fprintf(stderr, "Got signal %d\n", sig);
+#ifdef NC
+	if (sig == SIGWINCH)
+		win_resize = 1;
+	else
+#endif
+	{
+		if (!json_output)
+			fprintf(stderr, "Got signal %d\n", sig);
 
-	stop = 1;
+		stop = 1;
+	}
 }
 
 char * read_file(const char *file)
@@ -742,7 +792,6 @@ int main(int argc, char *argv[])
 	char colors = 0;
 	int verbose = 0;
 	double offset_show = -1.0;
-	char show_ts = 0;
 	char add_host_header = 1;
 	char *proxy_buster = NULL;
 	char proxy_is_socks5 = 0;
@@ -805,6 +854,9 @@ int main(int argc, char *argv[])
 		{"proxy-user",	1, NULL, 7 },
 		{"proxy-password",	1, NULL, 8 },
 		{"proxy-password-file",	1, NULL, 10 },
+#ifdef NC
+		{"ncurses",	0, NULL, 'K' },
+#endif
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
 		{NULL,		0, NULL, 0   }
@@ -814,10 +866,16 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "EA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "KEA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
+#ifdef NC
+			case 'K':
+				ncurses_mode = 1;
+				break;
+#endif
+
 			case 'E':
 				do_fetch_proxy_settings = 1;
 				break;
@@ -1086,11 +1144,11 @@ int main(int argc, char *argv[])
 		error_exit("No URL/host to ping given");
 	}
 
-	if (machine_readable && json_output)
-		error_exit("Cannot combine -m with -M");
+	if (machine_readable + json_output + ncurses_mode > 1)
+		error_exit("Cannot combine -m, -M and -K");
 
 	if ((machine_readable || json_output) && n_aggregates > 0)
-		error_exit("Aggregates can only be used in non-machine/json output mode");
+		error_exit("Aggregates can only be used in non-machine/json-output mode");
 
 	clear_error();
 
@@ -1161,7 +1219,7 @@ int main(int argc, char *argv[])
 		if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 		{
 			err++;
-			emit_error(-1, started_at, get_ts());
+			emit_error(verbose, -1, started_at, get_ts());
 			have_resolved = 0;
 			if (abort_on_resolve_failure)
 				error_exit(get_error());
@@ -1189,6 +1247,11 @@ int main(int argc, char *argv[])
 
 	if (persistent_connections)
 		fd = -1;
+
+#ifdef NC
+	if (ncurses_mode)
+		init_ncurses();
+#endif
 
 	while((curncount < count || count == -1) && stop == 0)
 	{
@@ -1229,7 +1292,7 @@ persistent_loop:
 				if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 				{
 					err++;
-					emit_error(curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart, get_ts());
 
 					if (abort_on_resolve_failure)
 						error_exit(get_error());
@@ -1240,7 +1303,7 @@ persistent_loop:
 				if (!ai_use)
 				{
 					set_error("No valid IPv4 or IPv6 address found for %s", hostname);
-					emit_error(curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart, get_ts());
 					err++;
 
 					if (abort_on_resolve_failure)
@@ -1277,7 +1340,7 @@ persistent_loop:
 
 			if (fd < 0)
 			{
-				emit_error(curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart, get_ts());
 				fd = -1;
 			}
 
@@ -1326,7 +1389,7 @@ persistent_loop:
 				if (fd == RC_TIMEOUT)
 					set_error("timeout connecting to host");
 
-				emit_error(curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart, get_ts());
 				err++;
 
 				fd = -1;
@@ -1370,7 +1433,7 @@ persistent_loop:
 				else if (rc == 0)
 					set_error("connection prematurely closed by peer");
 
-				emit_error(curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart, get_ts());
 
 				close(fd);
 				fd = -1;
@@ -1430,7 +1493,7 @@ persistent_loop:
 				if (!length)
 				{
 					set_error("'Content-Length'-header missing!");
-					emit_error(curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart, get_ts());
 					close(fd);
 					fd = -1;
 					break;
@@ -1464,7 +1527,7 @@ persistent_loop:
 				else if (rc == RC_TIMEOUT)
 					set_error("timeout while receiving reply-headers from host");
 
-				emit_error(curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart, get_ts());
 
 				close(fd);
 				fd = -1;
@@ -1526,7 +1589,7 @@ persistent_loop:
 				if (close_ssl_connection(ssl_h, fd) == -1)
 				{
 					set_error("error shutting down ssl");
-					emit_error(curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart, get_ts());
 				}
 
 				SSL_free(ssl_h);
@@ -1599,19 +1662,9 @@ persistent_loop:
 
 				if (show_ts)
 				{
-					struct timeval tv;
-
-					(void)gettimeofday(&tv, NULL);
-
-					struct tm *tvm = localtime(&tv.tv_sec);
-
-					if (verbose == 1)
-						printf("%04d/%02d/%02d ", tvm -> tm_year + 1900, tvm -> tm_mon + 1, tvm -> tm_mday);
-					else if (verbose >= 2)
-						printf("%.6f ", dend);
-
-					if (verbose <= 1)
-						printf("%02d:%02d:%02d.%03d ", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
+					char *ts = get_ts_str(verbose);
+					printf("%s", ts);
+					free(ts);
 				}
 
 				if (curncount & 1)
@@ -1715,6 +1768,11 @@ persistent_loop:
 		if (curncount != count && !stop && wait > 0)
 			usleep((useconds_t)(wait * 1000000.0));
 	}
+
+#ifdef NC
+	if (ncurses_mode)
+		end_ncurses();
+#endif
 
 	if (ok)
 		avg_httping_time = avg / (double)ok;
