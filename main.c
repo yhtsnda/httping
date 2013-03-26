@@ -220,6 +220,8 @@ void emit_statuslines(double run_time)
 		*dummy = 0x00;
 
 	status_line("%s, running for %f seconds", t_str, run_time);
+#else
+	(void)run_time;
 #endif
 }
 
@@ -247,6 +249,8 @@ void emit_headers(char *in)
 
 		shown = 1;
 	}
+#else
+	(void)in;
 #endif
 }
 
@@ -609,7 +613,7 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 #ifdef NC
 			slow_log("\n%s", line);
 #else
-			printf("%s\n", line;
+			printf("%s\n", line);
 #endif
 
 			aggregates[index].value =
