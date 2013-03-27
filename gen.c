@@ -1,4 +1,19 @@
+#include <math.h>
 #include <string.h>
+
+#include "gen.h"
+
+double calc_sd(stats_t *in)
+{
+	double avg = 0.0;
+
+	if (in -> n == 0)
+		return 0;
+
+	avg = in -> avg / (double)in -> n;
+
+	return sqrt((in -> sd / (double)in -> n) - pow(avg, 2.0));
+}
 
 /* Base64 encoding start */  
 const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

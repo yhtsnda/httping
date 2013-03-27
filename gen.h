@@ -1,5 +1,8 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 
+#ifndef __GEN_H__
+#define __GEN_H__
+
 #define RC_OK		0
 #define RC_SHORTREAD	-1
 #define RC_SHORTWRITE	-1
@@ -26,4 +29,17 @@
 	#endif
 #endif
 
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
+typedef struct
+{
+	double cur, min, avg, max, sd;
+	int n;
+} stats_t;
+
 int enc_b64(char *source, int source_lenght, char *target);
+
+double calc_sd(stats_t *in);
+
+#endif

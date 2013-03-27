@@ -1,5 +1,7 @@
 #include <ncurses.h>
 
+#include "gen.h"
+
 extern char win_resize;
 
 void init_ncurses(void);
@@ -9,3 +11,4 @@ void slow_log(const char *fmt, ...);
 void my_beep(void);
 void update_terminal(void);
 void status_line(char *fmt, ...);
+void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp);

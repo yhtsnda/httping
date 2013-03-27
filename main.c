@@ -212,14 +212,17 @@ void usage(const char *me)
 void emit_statuslines(double run_time)
 {
 #ifdef NC
-	time_t t = time(NULL);
-	char *t_str = ctime(&t);
-	char *dummy = strchr(t_str, '\n');
+	if (ncurses_mode)
+	{
+		time_t t = time(NULL);
+		char *t_str = ctime(&t);
+		char *dummy = strchr(t_str, '\n');
 
-	if (dummy)
-		*dummy = 0x00;
+		if (dummy)
+			*dummy = 0x00;
 
-	status_line("%s, running for %f seconds", t_str, run_time);
+		status_line("%s, running for %f seconds", t_str, run_time);
+	}
 #else
 	(void)run_time;
 #endif
@@ -230,7 +233,7 @@ void emit_headers(char *in)
 #ifdef NC
 	static char shown = 0;
 
-	if (!shown)
+	if (!shown && ncurses_mode)
 	{
 		int len_in = strlen(in) - 4, pos = 0, pos_out = 0;
 		char *copy = (char *)malloc(len_in + 1);
@@ -611,10 +614,11 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 			pos += snprintf(&line[pos], sizeof line - pos, " ms");
 
 #ifdef NC
-			slow_log("\n%s", line);
-#else
-			printf("%s\n", line);
+			if (ncurses_mode)
+				slow_log("\n%s", line);
+			else
 #endif
+			printf("%s\n", line);
 
 			aggregates[index].value =
 			aggregates[index].sd    = 0.0;
@@ -807,7 +811,6 @@ int main(int argc, char *argv[])
 	double wait = 1.0;
 	int audible = 0;
 	int ok = 0, err = 0;
-	double min = 999999999999999.0, avg = 0.0, max = 0.0, sd = 0.0;
 	int timeout=30;
 	char show_statuscodes = 0;
 	char use_ssl = 0;
@@ -852,6 +855,14 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
+	stats_t t_connect, t_request, t_total;
+	double total_took = 0;
+
+	memset(&t_connect, 0x00, sizeof t_connect);
+	memset(&t_request, 0x00, sizeof t_request);
+	memset(&t_total, 0x00, sizeof t_total);
+
+	t_connect.min = t_request.min = t_total.min = 999999999999.0;
 
 	static struct option long_options[] =
 	{
@@ -1234,16 +1245,21 @@ int main(int argc, char *argv[])
 	if (verbose)
 	{
 #ifdef NC
-		slow_log("\nConnecting to host %s, port %d and requesting file %s", hostname, portnr, get);
+		if (ncurses_mode)
+		{
+			slow_log("\nConnecting to host %s, port %d and requesting file %s", hostname, portnr, get);
 
-		if (proxy_host)
-			slow_log("\nUsing proxyserver: %s:%d", proxy_host, proxy_port);
-#else
-		printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
-
-		if (proxy_host)
-			fprintf(stderr, "Using proxyserver: %s:%d\n", proxy_host, proxy_port);
+			if (proxy_host)
+				slow_log("\nUsing proxyserver: %s:%d", proxy_host, proxy_port);
+		}
+		else
 #endif
+		{
+			printf("Connecting to host %s, port %d and requesting file %s\n\n", hostname, portnr, get);
+
+			if (proxy_host)
+				fprintf(stderr, "Using proxyserver: %s:%d\n", proxy_host, proxy_port);
+		}
 	}
 
 #ifndef NO_SSL
@@ -1262,10 +1278,11 @@ int main(int argc, char *argv[])
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 	{
 #ifdef NC
-		slow_log("\nPING %s:%d (%s):", hostname, portnr, get);
-#else
-		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
+		if (ncurses_mode)
+			slow_log("\nPING %s:%d (%s):", hostname, portnr, get);
+		else
 #endif
+		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
 	}
 
 	if (json_output)
@@ -1326,7 +1343,6 @@ int main(int argc, char *argv[])
 
 	while((curncount < count || count == -1) && stop == 0)
 	{
-		double ms = -1.0;
 		double dstart = -1.0, dend = -1.0, dafter_connect = 0.0;
 		char *reply = NULL;
 		double Bps = 0;
@@ -1334,17 +1350,19 @@ int main(int argc, char *argv[])
 		long long int bytes_transferred = 0;
 		time_t their_ts = 0;
 		int age = -1;
+		char *sc = NULL, *scdummy = NULL;
+		char *fp = NULL;
 
 		dstart = get_ts();
 
 		for(;;)
 		{
-			char *fp = NULL;
 			int rc = -1;
-			char *sc = NULL, *scdummy = NULL;
 			int persistent_tries = 0;
 			int len = 0, overflow = 0, headers_len = 0;
 			char req_sent = 0;
+			double dummy_ms = 0.0;
+			double their_est_ts = -1.0, toff_diff_ts = -1.0;
 
 			curncount++;
 
@@ -1454,6 +1472,15 @@ persistent_loop:
 			}
 
 			dafter_connect = get_ts();
+
+			dummy_ms = (dafter_connect - dstart) * 1000.0;
+
+			t_connect.cur = dummy_ms;
+			t_connect.min = min(t_connect.min, dummy_ms);
+			t_connect.max = max(t_connect.max, dummy_ms);
+			t_connect.avg += dummy_ms;
+			t_connect.sd += dummy_ms * dummy_ms;
+			t_connect.n++;
 
 			if (fd < 0)
 			{
@@ -1654,20 +1681,23 @@ persistent_loop:
 			dend = get_ts();
 
 #ifndef NO_SSL
-			if (use_ssl && !persistent_connections)
+			if (use_ssl)
 			{
-				if ((show_fp || json_output) && ssl_h != NULL)
+				if ((show_fp || json_output || ncurses_mode) && ssl_h != NULL)
 					fp = get_fingerprint(ssl_h);
 
-				if (close_ssl_connection(ssl_h, fd) == -1)
+				if (!persistent_connections)
 				{
-					set_error("error shutting down ssl");
-					emit_error(verbose, curncount, dstart, get_ts());
-				}
+					if (close_ssl_connection(ssl_h, fd) == -1)
+					{
+						set_error("error shutting down ssl");
+						emit_error(verbose, curncount, dstart, get_ts());
+					}
 
-				SSL_free(ssl_h);
-				ssl_h = NULL;
-				s_bio = NULL;
+					SSL_free(ssl_h);
+					ssl_h = NULL;
+					s_bio = NULL;
+				}
 			}
 #endif
 
@@ -1677,15 +1707,27 @@ persistent_loop:
 				fd = -1;
 			}
 
-			ms = (dend - dstart) * 1000.0;
-			avg += ms;
-			sd += ms * ms;
-			min = min > ms ? ms : min;
-			max = max < ms ? ms : max;
+			dummy_ms = (dend - dafter_connect) * 1000.0;
+
+			t_request.cur = dummy_ms;
+			t_request.min = min(t_request.min, dummy_ms);
+			t_request.max = max(t_request.max, dummy_ms);
+			t_request.avg += dummy_ms;
+			t_request.sd += dummy_ms * dummy_ms;
+			t_request.n++;
+
+			dummy_ms = (dend - dstart) * 1000.0;
+
+			t_total.cur = dummy_ms;
+			t_total.min = min(t_total.min, dummy_ms);
+			t_total.max = max(t_total.max, dummy_ms);
+			t_total.avg += dummy_ms;
+			t_total.sd += dummy_ms * dummy_ms;
+			t_total.n++;
 
 			/* estimate of when other end started replying */
-			double their_est_ts = (dend + dstart) / 2.0;
-			double toff_diff_ts = (double)their_ts - their_est_ts;
+			their_est_ts = (dend + dstart) / 2.0;
+			toff_diff_ts = (double)their_ts - their_est_ts;
 
 			if (json_output)
 			{
@@ -1697,8 +1739,6 @@ persistent_loop:
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
 				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts);
-
-				free(fp);
 			}
 			else if (machine_readable)
 			{
@@ -1709,7 +1749,7 @@ persistent_loop:
 						*dummy = 0x00;
 
 					if (strstr(ok_str, sc))
-						printf("%f", ms);
+						printf("%f", t_total.cur);
 					else
 						printf("%s", err_str);
 
@@ -1726,7 +1766,7 @@ persistent_loop:
 
 				printf("\n");
 			}
-			else if (!quiet && !nagios_mode && ms >= offset_show)
+			else if (!quiet && !nagios_mode && t_total.cur >= offset_show)
 			{
 				// FIXME write to buffer 
 				char line[4096] = { 0 };
@@ -1762,9 +1802,9 @@ persistent_loop:
 					i6_be = "]";
 				}
 
-				if (offset_red > 0.0 && ms >= offset_red)
+				if (offset_red > 0.0 && t_total.cur >= offset_red)
 					ms_color = c_red;
-				else if (offset_yellow > 0.0 && ms >= offset_yellow)
+				else if (offset_yellow > 0.0 && t_total.cur >= offset_yellow)
 					ms_color = c_yellow;
 
 				if (persistent_connections && show_bytes_xfer)
@@ -1773,9 +1813,9 @@ persistent_loop:
 					pos += snprintf(&line[pos], sizeof line - pos, "%s%s %s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 				else
-					pos += snprintf(&line[pos], sizeof line - pos, "time=%s%.2f%s ms %s%s%s", ms_color, ms, c_white, c_cyan, sc?sc:"", c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 
 				if (persistent_did_reconnect)
 				{
@@ -1800,7 +1840,6 @@ persistent_loop:
 				if (use_ssl && show_fp && fp != NULL)
 				{
 					pos += snprintf(&line[pos], sizeof line - pos, " %s", fp);
-					free(fp);
 				}
 
 				if (verbose > 0 && their_ts > 0)
@@ -1830,7 +1869,7 @@ persistent_loop:
 #endif
 					printf("%s\n", line);
 
-				do_aggregates(ms, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose);
+				do_aggregates(t_total.cur, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose);
 			}
 
 			if (show_statuscodes && ok_str != NULL && sc != NULL)
@@ -1845,18 +1884,22 @@ persistent_loop:
 				}
 			}
 
-			free(sc);
-
 			break;
 		}
 
 		emit_statuslines(get_ts() - started_at);
 
+		update_stats(&t_connect, &t_request, &t_total, curncount, err, sc, fp);
+
+		free(sc);
+		free(fp);
+
 #ifdef NC
-		update_terminal();
-#else
-		fflush(NULL);
+		if (ncurses_mode)
+			update_terminal();
+		else
 #endif
+		fflush(NULL);
 
 		if (curncount != count && !stop && wait > 0)
 			usleep((useconds_t)(wait * 1000000.0));
@@ -1868,11 +1911,11 @@ persistent_loop:
 #endif
 
 	if (ok)
-		avg_httping_time = avg / (double)ok;
+		avg_httping_time = t_total.avg / (double)t_total.n;
 	else
 		avg_httping_time = -1.0;
 
-	double total_took = get_ts() - started_at;
+	total_took = get_ts() - started_at;
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
 	{
 		int dummy = count;
@@ -1889,11 +1932,11 @@ persistent_loop:
 
 		if (ok > 0)
 		{
-			printf("round-trip min/avg/max%s = %s%.1f%s/%s%.1f%s/%s%.1f%s", verbose ? "/sd" : "", c_bright, min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, max, c_normal);
+			printf("round-trip min/avg/max%s = %s%.1f%s/%s%.1f%s/%s%.1f%s", verbose ? "/sd" : "", c_bright, t_total.min, c_normal, c_bright, avg_httping_time, c_normal, c_bright, t_total.max, c_normal);
 
 			if (verbose)
 			{
-				double sd_final = ok ? sqrt((sd / (double)ok) - pow(avg_httping_time, 2.0)) : -1.0;
+				double sd_final = t_total.n ? sqrt((t_total.sd / (double)t_total.n) - pow(avg_httping_time, 2.0)) : -1.0;
 				printf("/%.1f", sd_final);
 			}
 

@@ -7,6 +7,8 @@
 
 #include <ncurses.h>
 
+#include "gen.h"
+
 void handler(int sig);
 
 char win_resize = 0;
@@ -196,4 +198,25 @@ void status_line(char *fmt, ...)
 	wattroff(w_line1, A_REVERSE);
 
 	wnoutrefresh(w_line1);
+}
+
+void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp)
+{
+	werase(w_stats);
+
+	if (n_ok)
+	{
+		mvwprintw(w_stats, 0, 0, "connect: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f (cur/min/avg/max/sd)",
+			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
+		mvwprintw(w_stats, 1, 0, "request: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
+		mvwprintw(w_stats, 2, 0, "total  : %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+			total   -> cur, total   -> min, total   -> avg / (double)total   -> n, total   -> max, calc_sd(total  ));
+
+		mvwprintw(w_stats, 3, 0, "ok: %4d, fail: %4d", n_ok, n_fail);
+
+		mvwprintw(w_stats, 4, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
+	}
+
+	wnoutrefresh(w_stats);
 }
