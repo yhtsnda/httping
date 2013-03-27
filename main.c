@@ -568,7 +568,7 @@ void set_aggregate(char *in, int *n_aggregates, aggregate_t **aggregates)
 	}
 }
 
-void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *aggregates, int verbose)
+void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *aggregates, int verbose, char show_ts)
 {
 	int index=0;
 
@@ -599,6 +599,7 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 			int pos = 0;
 			double avg = a -> n_values ? a -> value / (double)a -> n_values : -1.0;
 
+			pos += snprintf(&line[pos], sizeof line - pos, "%s", show_ts ? get_ts_str(verbose) : "");
 			pos += snprintf(&line[pos], sizeof line - pos, "AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
 
 			if (verbose)
@@ -1869,7 +1870,7 @@ persistent_loop:
 #endif
 					printf("%s\n", line);
 
-				do_aggregates(t_total.cur, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose);
+				do_aggregates(t_total.cur, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose, show_ts);
 			}
 
 			if (show_statuscodes && ok_str != NULL && sc != NULL)

@@ -15,6 +15,9 @@ char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
 
+double *history = NULL;
+unsigned int history_n = 0;
+
 typedef enum { C_WHITE = 0, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN, C_RED } color_t;
 
 void determine_terminal_size(unsigned int *max_y, unsigned int *max_x)
@@ -68,26 +71,35 @@ void create_windows(void)
 		delwin(w_fast);
 	}
 
-	w_stats = newwin(5, max_x,  0, 0);
+	if (max_x > history_n)
+	{
+		history = (double *)realloc(history, sizeof(double) * max_x);
+
+		memset(&history[history_n], 0x00, (max_x - history_n) * sizeof(double));
+
+		history_n = max_x;
+	}
+
+	w_stats = newwin(6, max_x,  0, 0);
 	scrollok(w_stats, false);
 
-	w_line1 = newwin(1, max_x,  5, 0);
+	w_line1 = newwin(1, max_x,  6, 0);
 	scrollok(w_line1, false);
 	wnoutrefresh(w_line1);
 
-	logs_n = max_y - 7;
-	scale = (double)logs_n / 17.0;
-	slow_n = (int)(scale * 7);
+	logs_n = max_y - 8;
+	scale = (double)logs_n / 16.0;
+	slow_n = (int)(scale * 6);
 	fast_n = logs_n - slow_n;
 
-	w_slow  = newwin(slow_n, max_x, 6, 0);
+	w_slow  = newwin(slow_n, max_x, 7, 0);
 	scrollok(w_slow, true);
 
-	w_line2 = newwin(1, max_x, 6 + slow_n, 0);
+	w_line2 = newwin(1, max_x, 7 + slow_n, 0);
 	scrollok(w_line2, false);
 	wnoutrefresh(w_line2);
 
-	w_fast  = newwin(fast_n, max_x, 6 + slow_n + 1, 0);
+	w_fast  = newwin(fast_n, max_x, 7 + slow_n + 1, 0);
 	scrollok(w_fast, true);
 
 	wattron(w_line1, A_REVERSE);
@@ -217,6 +229,11 @@ void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, 
 
 		mvwprintw(w_stats, 4, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
 	}
+
+	memmove(&history[1], &history[0], (history_n - 1) * sizeof(double));
+	history[0]= total -> cur;
+
+	// FIXME draw history graph
 
 	wnoutrefresh(w_stats);
 }
