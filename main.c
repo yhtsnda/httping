@@ -114,7 +114,9 @@ void help_long(void)
 	fprintf(stderr, "--show-transfer-speed  -b\n");
 	fprintf(stderr, "--show-xfer-speed-compressed  -B\n");
 	fprintf(stderr, "--split-time           -S\n");
+#ifdef TCP_TFO
 	fprintf(stderr, "--tcp-fast-open        -F\n");
+#endif
 	fprintf(stderr, "--timeout              -t\n");
 	fprintf(stderr, "--timestamp / --ts     put a timestamp before the measured values, use -v to include the date and -vv to show in microseconds\n");
 	fprintf(stderr, "--url                  -g\n");
@@ -188,6 +190,9 @@ void usage(const char *me)
 	fprintf(stderr, "-Y             add colors\n");
 	fprintf(stderr, "-E             fetch proxy settings from environment variables\n");
 	fprintf(stderr, "-K             ncurses mode\n");
+#ifdef TCP_TFO
+	fprintf(stderr, "-F             \"TCP fast open\" (TFO), reduces the latency of TCP connects\n");
+#endif
 	fprintf(stderr, "-v             verbose mode\n");
 	fprintf(stderr, "-V             show the version\n\n");
 	fprintf(stderr, "\n");
@@ -1889,8 +1894,10 @@ persistent_loop:
 		}
 
 		emit_statuslines(get_ts() - started_at);
-
-		update_stats(&t_connect, &t_request, &t_total, curncount, err, sc, fp);
+#ifdef NC
+		if (ncurses_mode)
+			update_stats(&t_connect, &t_request, &t_total, curncount, err, sc, fp);
+#endif
 
 		free(sc);
 		free(fp);

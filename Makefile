@@ -13,7 +13,7 @@
 # files in the program, then also delete it here.
 
 # support for tcp fast open?
-# TFO=yes
+TFO=yes
 
 # disable SSL?
 # SSL=no
