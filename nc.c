@@ -130,6 +130,8 @@ void recreate_terminal(void)
         refresh(); /* <- as specified by ncurses faq, was: doupdate(); */
 
         create_windows();
+
+	win_resize = 0;
 }
 
 void init_ncurses(void)
@@ -179,6 +181,9 @@ void fast_log(const char *fmt, ...)
         va_start(ap, fmt);
         vwprintw(w_fast, fmt, ap);
         va_end(ap);
+
+	if (win_resize)
+		recreate_terminal();
 }
 
 void slow_log(const char *fmt, ...)
@@ -188,6 +193,9 @@ void slow_log(const char *fmt, ...)
         va_start(ap, fmt);
         vwprintw(w_slow, fmt, ap);
         va_end(ap);
+
+	if (win_resize)
+		recreate_terminal();
 }
 
 void my_beep(void)
@@ -210,6 +218,9 @@ void status_line(char *fmt, ...)
 	wattroff(w_line1, A_REVERSE);
 
 	wnoutrefresh(w_line1);
+
+	if (win_resize)
+		recreate_terminal();
 }
 
 void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp)
@@ -236,4 +247,7 @@ void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, 
 	// FIXME draw history graph
 
 	wnoutrefresh(w_stats);
+
+	if (win_resize)
+		recreate_terminal();
 }

@@ -1545,7 +1545,7 @@ persistent_loop:
 
 			emit_headers(reply);
 
-			if ((show_statuscodes || machine_readable || json_output) && reply != NULL)
+			if ((show_statuscodes || machine_readable || json_output || ncurses_mode) && reply != NULL)
 			{
 				/* statuscode is in first line behind
 				 * 'HTTP/1.x'
