@@ -271,7 +271,7 @@ void draw_graph(void)
 			diff = 1.0;
 
 		wattron(w_line1, A_REVERSE);
-		mvwprintw(w_line1, 0, 0, "graph range: %.2fms - %.2fms", mi, ma);
+		mvwprintw(w_line1, 0, 0, "graph range: %7.2fms - %7.2fms    ", mi, ma);
 		wattroff(w_line1, A_REVERSE);
 		wnoutrefresh(w_line1);
 
@@ -310,7 +310,7 @@ void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, 
 		mvwprintw(w_stats, 2, 0, "total  : %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
 			total   -> cur, total   -> min, total   -> avg / (double)total   -> n, total   -> max, calc_sd(total  ));
 
-		mvwprintw(w_stats, 3, 0, "ok: %4d, fail: %4d", n_ok, n_fail);
+		mvwprintw(w_stats, 3, 0, "ok: %4d, fail: %4d%s", n_ok, n_fail, use_tfo ? ", with TFO" : "");
 
 		mvwprintw(w_stats, 4, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
 	}
