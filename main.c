@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <netdb.h>
 #ifndef NO_SSL
 #include <openssl/ssl.h>
@@ -262,7 +263,7 @@ void emit_headers(char *in)
 #endif
 }
 
-void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts)
+void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -282,6 +283,7 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 	printf("\"host\" : \"%s\", ", host);
 	printf("\"ssl_fingerprint\" : \"%s\", ", ssl_fp);
 	printf("\"time_offset\" : \"%f\" ", toff_diff_ts);
+	printf("\"tfo_succes\" : \"%s\" ", tfo_succes ? "true" : "false");
 	printf("}");
 }
 
@@ -319,7 +321,7 @@ void emit_error(int verbose, int seq, double start_ts, double cur_ts)
 		printf("%s%s%s%s\n", ts ? ts : "", c_error, get_error(), c_normal);
 
 	if (json_output)
-		emit_json(0, seq, start_ts, cur_ts, -1, -1, get_error(), -1, -1, -1, "", "", -1);
+		emit_json(0, seq, start_ts, cur_ts, -1, -1, get_error(), -1, -1, -1, "", "", -1, 0);
 
 	clear_error();
 
@@ -1389,6 +1391,11 @@ int main(int argc, char *argv[])
 			char req_sent = 0;
 			double dummy_ms = 0.0;
 			double their_est_ts = -1.0, toff_diff_ts = -1.0;
+#ifdef TCP_TFO
+			struct tcp_info info;
+			socklen_t info_len = sizeof(struct tcp_info);
+			char tfo_success = 0;
+#endif
 
 			curncount++;
 
@@ -1708,6 +1715,11 @@ persistent_loop:
 			}
 #endif
 
+#ifdef TCP_TFO
+			if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && (info.tcpi_options & TCPI_OPT_SYN_DATA))
+				tfo_success = 1;
+#endif
+
 			if (!persistent_connections)
 			{
 				close(fd);
@@ -1733,7 +1745,7 @@ persistent_loop:
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts);
+				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success);
 			}
 			else if (machine_readable)
 			{
@@ -1857,6 +1869,11 @@ persistent_loop:
 #endif
 				}
 
+#ifdef TCP_TFO
+				if (tfo_success)
+					pos += snprintf(&line[pos], sizeof line - pos, " F");
+#endif
+
 #ifdef NC
 				if (ncurses_mode)
 					fast_log("%s\n", line);
@@ -1885,7 +1902,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_connect, &t_request, &t_total, curncount, err, sc, fp);
+			update_stats(&t_connect, &t_request, &t_total, curncount, err, sc, fp, use_tfo);
 #endif
 
 		free(sc);

@@ -297,7 +297,7 @@ void draw_graph(void)
 	}
 }
 
-void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp)
+void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo)
 {
 	werase(w_stats);
 

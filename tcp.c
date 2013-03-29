@@ -81,6 +81,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		{
 			printf("TCP TFO Not Supported. Please check if \"/proc/sys/net/ipv4/tcp_fastopen\" is 1. Disabling TFO for now.\n");
 			*tfo = 0;
+			goto old_connect;
 		}
 	}
 			
@@ -92,7 +93,10 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	(void)msg_accepted;
 #endif
 	{
-		int rc = connect(fd, ai -> ai_addr, ai -> ai_addrlen);
+		int rc = -1;
+
+old_connect:
+		rc = connect(fd, ai -> ai_addr, ai -> ai_addrlen);
 
 		if (rc == 0)
 		{
