@@ -281,7 +281,7 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 	printf("\"data_size\" : \"%d\", ", data_size);
 	printf("\"bps\" : \"%f\", ", Bps);
 	printf("\"host\" : \"%s\", ", host);
-	printf("\"ssl_fingerprint\" : \"%s\", ", ssl_fp);
+	printf("\"ssl_fingerprint\" : \"%s\", ", ssl_fp ? ssl_fp : "");
 	printf("\"time_offset\" : \"%f\" ", toff_diff_ts);
 	printf("\"tfo_succes\" : \"%s\" ", tfo_succes ? "true" : "false");
 	printf("}");
@@ -1988,6 +1988,8 @@ error_exit:
 		shutdown_ssl();
 	}
 #endif
+
+	fflush(NULL);
 
 	if (ok)
 		return 0;
