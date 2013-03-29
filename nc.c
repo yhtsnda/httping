@@ -14,8 +14,10 @@ void handler(int sig);
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
+int stats_h = 6;
 
 double *history = NULL;
+char *history_set = NULL;
 unsigned int history_n = 0;
 
 typedef enum { C_WHITE = 0, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN, C_RED } color_t;
@@ -74,32 +76,34 @@ void create_windows(void)
 	if (max_x > history_n)
 	{
 		history = (double *)realloc(history, sizeof(double) * max_x);
+		history_set = (char *)realloc(history_set, sizeof(char) * max_x);
 
 		memset(&history[history_n], 0x00, (max_x - history_n) * sizeof(double));
+		memset(&history_set[history_n], 0x00, (max_x - history_n) * sizeof(char));
 
 		history_n = max_x;
 	}
 
-	w_stats = newwin(6, max_x,  0, 0);
+	w_stats = newwin(stats_h, max_x,  0, 0);
 	scrollok(w_stats, false);
 
-	w_line1 = newwin(1, max_x,  6, 0);
+	w_line1 = newwin(1, max_x, stats_h, 0);
 	scrollok(w_line1, false);
 	wnoutrefresh(w_line1);
 
-	logs_n = max_y - 8;
+	logs_n = max_y - (stats_h + 1 + 1);
 	scale = (double)logs_n / 16.0;
 	slow_n = (int)(scale * 6);
 	fast_n = logs_n - slow_n;
 
-	w_slow  = newwin(slow_n, max_x, 7, 0);
+	w_slow  = newwin(slow_n, max_x, (stats_h + 1), 0);
 	scrollok(w_slow, true);
 
-	w_line2 = newwin(1, max_x, 7 + slow_n, 0);
+	w_line2 = newwin(1, max_x, (stats_h + 1) + slow_n, 0);
 	scrollok(w_line2, false);
 	wnoutrefresh(w_line2);
 
-	w_fast  = newwin(fast_n, max_x, 7 + slow_n + 1, 0);
+	w_fast  = newwin(fast_n, max_x, (stats_h + 1) + slow_n + 1, 0);
 	scrollok(w_fast, true);
 
 	wattron(w_line1, A_REVERSE);
@@ -172,6 +176,9 @@ void end_ncurses(void)
 	}
 
 	endwin();
+
+	free(history);
+	free(history_set);
 }
 
 void fast_log(const char *fmt, ...)
@@ -207,20 +214,87 @@ void status_line(char *fmt, ...)
 {
         va_list ap;
 
-	wattron(w_line1, A_REVERSE);
+	wattron(w_line2, A_REVERSE);
 
-	wmove(w_line1, 0, 0);
+	wmove(w_line2, 0, 0);
 
         va_start(ap, fmt);
-        vwprintw(w_line1, fmt, ap);
+        vwprintw(w_line2, fmt, ap);
         va_end(ap);
 
-	wattroff(w_line1, A_REVERSE);
+	wattroff(w_line2, A_REVERSE);
 
-	wnoutrefresh(w_line1);
+	wnoutrefresh(w_line2);
 
 	if (win_resize)
 		recreate_terminal();
+}
+
+void draw_column(WINDOW *win, int x, int height, char overflow)
+{
+	void *dummy = NULL;
+	int y = 0, end_y = max(0, (int)stats_h - height);
+
+	for(y=max_y - 1; y >= end_y; y--)
+		mvwchgat(win, y, x, 1, A_REVERSE, C_YELLOW, dummy);
+
+	if (overflow)
+		mvwchgat(win, 0, x, 1, A_REVERSE, C_RED, dummy);
+}
+
+void draw_graph(void)
+{
+	int index = 0, n = min(max_x, history_n);
+	double sd = 0.0, avg = 0.0, mi = 0.0, ma = 0.0;
+	stats_t h_stats;
+
+	init_statst(&h_stats);
+
+	for(index=0; index<n; index++)
+	{
+		if (history_set[index])
+			update_statst(&h_stats, history[index]);
+	}
+
+	if (h_stats.n)
+	{
+		double diff = 0.0;
+
+		avg = h_stats.avg / (double)h_stats.n;
+		sd = calc_sd(&h_stats);
+
+		mi = max(h_stats.min, max(0.0, avg - sd));
+		ma = min(h_stats.max, avg + sd);
+		diff = ma - mi;
+
+		if (diff == 0.0)
+			diff = 1.0;
+
+		wattron(w_line1, A_REVERSE);
+		mvwprintw(w_line1, 0, 0, "graph range: %.2fms - %.2fms", mi, ma);
+		wattroff(w_line1, A_REVERSE);
+		wnoutrefresh(w_line1);
+
+		/* fprintf(stderr, "%d| %f %f %f %f\n", h_stats.n, mi, avg, ma, sd); */
+
+		for(index=0; index<h_stats.n; index++)
+		{
+			char overflow = 0;
+			double height = (history[index] - mi) / (ma - mi);
+			int i_h = 0;
+
+			if (height > 1.0)
+			{
+				height = 1.0;
+				overflow = 1;
+			}
+
+			i_h = (int)(height * stats_h);
+			/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
+
+			draw_column(w_stats, max_x - (1 + index), i_h, overflow);
+		}
+	}
 }
 
 void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp)
@@ -242,9 +316,12 @@ void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, 
 	}
 
 	memmove(&history[1], &history[0], (history_n - 1) * sizeof(double));
-	history[0]= total -> cur;
+	memmove(&history_set[1], &history_set[0], (history_n - 1) * sizeof(char));
 
-	// FIXME draw history graph
+	history[0]= total -> cur;
+	history_set[0] = 1;
+
+	draw_graph();
 
 	wnoutrefresh(w_stats);
 

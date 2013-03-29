@@ -864,11 +864,9 @@ int main(int argc, char *argv[])
 	stats_t t_connect, t_request, t_total;
 	double total_took = 0;
 
-	memset(&t_connect, 0x00, sizeof t_connect);
-	memset(&t_request, 0x00, sizeof t_request);
-	memset(&t_total, 0x00, sizeof t_total);
-
-	t_connect.min = t_request.min = t_total.min = 999999999999.0;
+	init_statst(&t_connect);
+	init_statst(&t_request);
+	init_statst(&t_total);
 
 	static struct option long_options[] =
 	{
@@ -1480,13 +1478,7 @@ persistent_loop:
 			dafter_connect = get_ts();
 
 			dummy_ms = (dafter_connect - dstart) * 1000.0;
-
-			t_connect.cur = dummy_ms;
-			t_connect.min = min(t_connect.min, dummy_ms);
-			t_connect.max = max(t_connect.max, dummy_ms);
-			t_connect.avg += dummy_ms;
-			t_connect.sd += dummy_ms * dummy_ms;
-			t_connect.n++;
+			update_statst(&t_connect, dummy_ms);
 
 			if (fd < 0)
 			{
@@ -1714,22 +1706,10 @@ persistent_loop:
 			}
 
 			dummy_ms = (dend - dafter_connect) * 1000.0;
-
-			t_request.cur = dummy_ms;
-			t_request.min = min(t_request.min, dummy_ms);
-			t_request.max = max(t_request.max, dummy_ms);
-			t_request.avg += dummy_ms;
-			t_request.sd += dummy_ms * dummy_ms;
-			t_request.n++;
+			update_statst(&t_request, dummy_ms);
 
 			dummy_ms = (dend - dstart) * 1000.0;
-
-			t_total.cur = dummy_ms;
-			t_total.min = min(t_total.min, dummy_ms);
-			t_total.max = max(t_total.max, dummy_ms);
-			t_total.avg += dummy_ms;
-			t_total.sd += dummy_ms * dummy_ms;
-			t_total.n++;
+			update_statst(&t_total, dummy_ms);
 
 			/* estimate of when other end started replying */
 			their_est_ts = (dend + dstart) / 2.0;

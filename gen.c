@@ -3,6 +3,24 @@
 
 #include "gen.h"
 
+void init_statst(stats_t *data)
+{
+	memset(data, 0x00, sizeof(stats_t));
+
+	data -> min = 999999999999.0;
+	data -> max = -data -> min;
+}
+
+void update_statst(stats_t *data, double in)
+{
+	data -> cur = in;
+	data -> min = min(data -> min, in);
+	data -> max = max(data -> max, in);
+	data -> avg += in;
+	data -> sd += in * in;
+	(data -> n)++;
+}
+
 double calc_sd(stats_t *in)
 {
 	double avg = 0.0;

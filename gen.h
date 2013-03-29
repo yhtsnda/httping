@@ -40,6 +40,8 @@ typedef struct
 
 int enc_b64(char *source, int source_lenght, char *target);
 
+void init_statst(stats_t *data);
+void update_statst(stats_t *data, double in);
 double calc_sd(stats_t *in);
 
 #endif
