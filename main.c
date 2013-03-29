@@ -749,6 +749,28 @@ int calc_page_age(char *in, time_t their_ts)
 	return age;
 }
 
+char check_compressed(const char *reply)
+{
+	if (reply != NULL)
+	{
+		char *encoding = strstr(reply, "\nContent-Encoding:");
+
+		if (encoding)
+		{
+			char *dummy = strchr(encoding + 1, '\r');
+			if (dummy) *dummy = 0x00;
+
+			dummy = strchr(encoding + 1, '\n');
+			if (dummy) *dummy = 0x00;
+
+			if (strstr(encoding, "gzip") == 0 || strstr(encoding, "deflate") == 0)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 int nagios_result(int ok, int nagios_mode, int nagios_exit_code, double avg_httping_time, double nagios_warn, double nagios_crit)
 {
 	if (nagios_mode == 1)
@@ -1569,21 +1591,7 @@ persistent_loop:
 
 			age = calc_page_age(reply, their_ts);
 
-			if (ask_compression && reply != NULL)
-			{
-				char *encoding = strstr(reply, "\nContent-Encoding:");
-				if (encoding)
-				{
-					char *dummy = strchr(encoding + 1, '\n');
-					if (dummy) *dummy = 0x00;
-
-					dummy = strchr(encoding + 1, '\r');
-					if (dummy) *dummy = 0x00;
-
-					if (strstr(encoding, "gzip") == 0 || strstr(encoding, "deflate") == 0)
-						is_compressed = 1;
-				}
-			}
+			is_compressed = check_compressed(reply);
 
 			if (persistent_connections && show_bytes_xfer && reply != NULL)
 			{
@@ -1605,6 +1613,7 @@ persistent_loop:
 			{
 				headers_len = strlen(reply) + 4;
 				free(reply);
+				reply = NULL;
 			}
 
 			if (rc < 0)
