@@ -4,6 +4,8 @@
 
 - http 302 volgen?
 
+- reply with cookies
+
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
 

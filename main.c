@@ -1430,7 +1430,7 @@ int main(int argc, char *argv[])
 
 	while((curncount < count || count == -1) && stop == 0)
 	{
-		double dstart = -1.0, dend = -1.0, dafter_connect = 0.0;
+		double dstart = -1.0, dend = -1.0, dafter_connect = 0.0, dafter_resolve = 0.0;
 		char *reply = NULL;
 		double Bps = 0;
 		char is_compressed = 0;
@@ -1495,11 +1495,12 @@ persistent_loop:
 
 				get_addr(ai_use, &addr);
 
-				dummy_ms = (get_ts() - dstart) * 1000.0;
-				update_statst(&t_resolve, dummy_ms);
-
 				have_resolved = 1;
 			}
+
+			dafter_resolve = get_ts();
+			dummy_ms = (dafter_resolve - dstart) * 1000.0;
+			update_statst(&t_resolve, dummy_ms);
 
 			free(request);
 			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
@@ -1568,7 +1569,7 @@ persistent_loop:
 
 			dafter_connect = get_ts();
 
-			dummy_ms = (dafter_connect - dstart) * 1000.0;
+			dummy_ms = (dafter_connect - dafter_resolve) * 1000.0;
 			update_statst(&t_connect, dummy_ms);
 
 			if (fd < 0)
@@ -1780,6 +1781,7 @@ persistent_loop:
 #ifdef TCP_TFO
 			if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && (info.tcpi_options & TCPI_OPT_SYN_DATA))
 				tfo_success = 1;
+			/* printf("%d %d %d %d %d %d\n", info.tcpi_retransmits, info.tcpi_unacked, info.tcpi_sacked, info.tcpi_lost, info.tcpi_retrans, info.tcpi_fackets); */
 #endif
 
 			if (!persistent_connections)
@@ -1837,7 +1839,6 @@ persistent_loop:
 			}
 			else if (!quiet && !nagios_mode && t_total.cur >= offset_show)
 			{
-				// FIXME write to buffer 
 				char line[4096] = { 0 };
 				int pos = 0;
 				const char *ms_color = c_green;
@@ -1882,7 +1883,7 @@ persistent_loop:
 					pos += snprintf(&line[pos], sizeof line - pos, "%s%s %s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", (dafter_connect - dstart) * 1000.0, sep, unsep, (dend - dafter_connect) * 1000.0, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f+%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur, sep, unsep, t_request.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 				else
 					pos += snprintf(&line[pos], sizeof line - pos, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 
