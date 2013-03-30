@@ -263,7 +263,7 @@ void emit_headers(char *in)
 #endif
 }
 
-void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double ping_end_ts, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes)
+void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -271,10 +271,10 @@ void emit_json(char ok, int seq, double start_ts, double connect_end_ts, double 
 	printf("\"status\" : \"%d\", ", ok);
 	printf("\"seq\" : \"%d\", ", seq);
 	printf("\"start_ts\" : \"%f\", ", start_ts);
-	printf("\"connect_end_ts\" : \"%f\", ", connect_end_ts);
-	printf("\"ping_end_ts\" : \"%f\", ", ping_end_ts);
-	printf("\"connect_s\" : \"%e\", ", connect_end_ts - start_ts);
-	printf("\"total_s\" : \"%e\", ", ping_end_ts - start_ts);
+	printf("\"resolve_ms\" : \"%e\", ", t_resolve -> cur);
+	printf("\"connect_ms\" : \"%e\", ", t_connect -> cur);
+	printf("\"request_ms\" : \"%e\", ", t_request -> cur);
+	printf("\"total_ms\" : \"%e\", ", t_resolve -> cur + t_connect -> cur + t_request -> cur);
 	printf("\"http_code\" : \"%d\", ", http_code);
 	printf("\"msg\" : \"%s\", ", msg);
 	printf("\"header_size\" : \"%d\", ", header_size);
@@ -308,7 +308,7 @@ char *get_ts_str(int verbose)
 	return strdup(buffer);
 }
 
-void emit_error(int verbose, int seq, double start_ts, double cur_ts)
+void emit_error(int verbose, int seq, double start_ts)
 {
 	char *ts = show_ts ? get_ts_str(verbose) : NULL;
 
@@ -321,7 +321,7 @@ void emit_error(int verbose, int seq, double start_ts, double cur_ts)
 		printf("%s%s%s%s\n", ts ? ts : "", c_error, get_error(), c_normal);
 
 	if (json_output)
-		emit_json(0, seq, start_ts, cur_ts, -1, -1, get_error(), -1, -1, -1, "", "", -1, 0);
+		emit_json(0, seq, start_ts, NULL, NULL, NULL, -1, get_error(), -1, -1, -1, "", "", -1, 0);
 
 	clear_error();
 
@@ -1399,7 +1399,7 @@ int main(int argc, char *argv[])
 		if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 		{
 			err++;
-			emit_error(verbose, -1, started_at, get_ts());
+			emit_error(verbose, -1, started_at);
 			have_resolved = 0;
 			if (abort_on_resolve_failure)
 				error_exit(get_error());
@@ -1473,7 +1473,7 @@ persistent_loop:
 				if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 				{
 					err++;
-					emit_error(verbose, curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart);
 
 					if (abort_on_resolve_failure)
 						error_exit(get_error());
@@ -1484,7 +1484,7 @@ persistent_loop:
 				if (!ai_use)
 				{
 					set_error("No valid IPv4 or IPv6 address found for %s", hostname);
-					emit_error(verbose, curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart);
 					err++;
 
 					if (abort_on_resolve_failure)
@@ -1525,7 +1525,7 @@ persistent_loop:
 
 			if (fd < 0)
 			{
-				emit_error(verbose, curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart);
 				fd = -1;
 			}
 
@@ -1577,7 +1577,7 @@ persistent_loop:
 				if (fd == RC_TIMEOUT)
 					set_error("timeout connecting to host");
 
-				emit_error(verbose, curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart);
 				err++;
 
 				fd = -1;
@@ -1621,7 +1621,7 @@ persistent_loop:
 				else if (rc == 0)
 					set_error("connection prematurely closed by peer");
 
-				emit_error(verbose, curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart);
 
 				close(fd);
 				fd = -1;
@@ -1669,7 +1669,7 @@ persistent_loop:
 				if (!length)
 				{
 					set_error("'Content-Length'-header missing!");
-					emit_error(verbose, curncount, dstart, get_ts());
+					emit_error(verbose, curncount, dstart);
 					close(fd);
 					fd = -1;
 					break;
@@ -1704,7 +1704,7 @@ persistent_loop:
 				else if (rc == RC_TIMEOUT)
 					set_error("timeout while receiving reply-headers from host");
 
-				emit_error(verbose, curncount, dstart, get_ts());
+				emit_error(verbose, curncount, dstart);
 
 				close(fd);
 				fd = -1;
@@ -1768,7 +1768,7 @@ persistent_loop:
 					if (close_ssl_connection(ssl_h, fd) == -1)
 					{
 						set_error("error shutting down ssl");
-						emit_error(verbose, curncount, dstart, get_ts());
+						emit_error(verbose, curncount, dstart);
 					}
 
 					SSL_free(ssl_h);
@@ -1809,7 +1809,7 @@ persistent_loop:
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, dafter_connect, dend, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success);
+				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success);
 			}
 			else if (machine_readable)
 			{
