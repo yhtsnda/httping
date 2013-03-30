@@ -297,22 +297,24 @@ void draw_graph(void)
 	}
 }
 
-void update_stats(stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo)
 {
 	werase(w_stats);
 
 	if (n_ok)
 	{
-		mvwprintw(w_stats, 0, 0, "connect: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f (cur/min/avg/max/sd)",
+		mvwprintw(w_stats, 0, 0, "resolve: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f (cur/min/avg/max/sd)",
+			resolve -> cur, resolve -> min, resolve -> avg / (double)resolve -> n, resolve -> max, calc_sd(resolve));
+		mvwprintw(w_stats, 1, 0, "connect: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
 			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
-		mvwprintw(w_stats, 1, 0, "request: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+		mvwprintw(w_stats, 2, 0, "request: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
 			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
-		mvwprintw(w_stats, 2, 0, "total  : %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+		mvwprintw(w_stats, 3, 0, "total  : %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
 			total   -> cur, total   -> min, total   -> avg / (double)total   -> n, total   -> max, calc_sd(total  ));
 
-		mvwprintw(w_stats, 3, 0, "ok: %4d, fail: %4d%s", n_ok, n_fail, use_tfo ? ", with TFO" : "");
+		mvwprintw(w_stats, 4, 0, "ok: %4d, fail: %4d%s", n_ok, n_fail, use_tfo ? ", with TFO" : "");
 
-		mvwprintw(w_stats, 4, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
+		mvwprintw(w_stats, 5, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
 	}
 
 	memmove(&history[1], &history[0], (history_n - 1) * sizeof(double));

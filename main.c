@@ -885,7 +885,7 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total;
+	stats_t t_connect, t_request, t_total, t_resolve;
 	double total_took = 0;
 
 	init_statst(&t_connect);
@@ -1328,6 +1328,14 @@ int main(int argc, char *argv[])
 	double started_at = get_ts();
 	if (proxy_host)
 	{
+#ifdef NC
+		if (ncurses_mode)
+		{
+			slow_log("\nResolving hostname %s", proxy_host);
+			update_terminal();
+		}
+#endif
+
 		if (resolve_host(proxy_host, &ai_proxy, use_ipv6, proxy_port) == -1)
 			error_exit(get_error());
 
@@ -1337,6 +1345,14 @@ int main(int argc, char *argv[])
 	}
 	else if (resolve_once)
 	{
+#ifdef NC
+		if (ncurses_mode)
+		{
+			slow_log("\nResolving hostname %s", hostname);
+			update_terminal();
+		}
+#endif
+
 		if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
 		{
 			err++;
@@ -1435,6 +1451,9 @@ persistent_loop:
 				}
 
 				get_addr(ai_use, &addr);
+
+				dummy_ms = (get_ts() - dstart) * 1000.0;
+				update_statst(&t_resolve, dummy_ms);
 
 				have_resolved = 1;
 			}
@@ -1902,7 +1921,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_connect, &t_request, &t_total, curncount, err, sc, fp, use_tfo);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, curncount, err, sc, fp, use_tfo);
 #endif
 
 		free(sc);
