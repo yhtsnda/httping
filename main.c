@@ -708,7 +708,7 @@ void set_colors(void)
 	c_error = "\033[1;4;40m";
 }
 
-time_t parse_date_from_response_headers(char *in)
+time_t parse_date_from_response_headers(const char *in)
 {
 	char *date = NULL, *komma = NULL;
 	if (in == NULL)
@@ -729,7 +729,7 @@ time_t parse_date_from_response_headers(char *in)
 	return -1;
 }
 
-int calc_page_age(char *in, time_t their_ts)
+int calc_page_age(const char *in, const time_t their_ts)
 {
 	int age = -1;
 
@@ -749,6 +749,38 @@ int calc_page_age(char *in, time_t their_ts)
 	}
 
 	return age;
+}
+
+const char *get_location(const char *host, int port, char use_ssl, char *reply)
+{
+	if (reply)
+	{
+		char *copy = strdup(reply);
+		char *head = strstr(copy, "\nLocation:");
+		char *lf = head ? strchr(head + 1, '\n') : NULL;
+
+		if (head)
+		{
+			char buffer[4096];
+			char *dest = head + 11;
+
+			if (lf)
+				*lf = 0x00;
+
+			if (memcmp(dest, "http", 4) == 0)
+				snprintf(buffer, sizeof buffer, "%s", dest);
+			else
+				snprintf(buffer, sizeof buffer, "http%s://%s:%d%s", use_ssl ? "s" : "", host, port, dest);
+
+			free(copy);
+
+			return strdup(buffer);
+		}
+
+		free(copy);
+	}
+
+	return NULL;
 }
 
 char check_compressed(const char *reply)
@@ -1324,6 +1356,17 @@ int main(int argc, char *argv[])
 	struct sockaddr_in6 addr;
 	struct addrinfo *ai = NULL, *ai_use = NULL;
 	struct addrinfo *ai_proxy = NULL, *ai_use_proxy = NULL;
+
+	/*
+		if (follow_30x)
+		{
+			get headers
+
+			const char *get_location(const char *host, int port, char use_ssl, char *reply)
+
+			set new host/port/path/etc
+		}
+	*/
 
 	double started_at = get_ts();
 	if (proxy_host)
