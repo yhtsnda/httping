@@ -242,6 +242,52 @@ void draw_column(WINDOW *win, int x, int height, char overflow)
 		mvwchgat(win, 0, x, 1, A_REVERSE, C_RED, dummy);
 }
 
+double get_cur_scc()
+{
+        double scc_val = 0.0;
+        double prev_val = 0.0, u0 = 0.0;
+        double t[3] = { 0 };
+        unsigned int loop = 0, n = 0;
+	char first = 1;
+
+        t[0] = t[1] = t[2] = 0.0;
+
+        for(loop=0; loop<history_n; loop++)
+        {
+                double cur_val = history[loop];
+
+		if (!history_set[loop])
+			continue;
+
+                if (first)
+                {
+                        prev_val = 0;
+                        u0 = cur_val;
+			first = 0;
+                }
+                else
+		{
+                        t[0] += prev_val * cur_val;
+		}
+
+                t[1] = t[1] + cur_val;
+                t[2] = t[2] + (cur_val * cur_val);
+                prev_val = cur_val;
+
+		n++;
+        }
+
+        t[0] = t[0] + prev_val * u0;
+        t[1] = t[1] * t[1];
+
+        scc_val = (double)n * t[2] - t[1];
+
+        if (scc_val == 0.0)
+                return -1.0;
+
+	return ((double)n * t[0] - t[1]) / scc_val;
+}
+
 void draw_graph(void)
 {
 	int index = 0, n = min(max_x, history_n);
@@ -312,7 +358,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		mvwprintw(w_stats, 3, 0, "total  : %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
 			total   -> cur, total   -> min, total   -> avg / (double)total   -> n, total   -> max, calc_sd(total  ));
 
-		mvwprintw(w_stats, 4, 0, "ok: %4d, fail: %4d%s", n_ok, n_fail, use_tfo ? ", with TFO" : "");
+		mvwprintw(w_stats, 4, 0, "ok: %4d, fail: %4d%s, scc: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc());
 
 		mvwprintw(w_stats, 5, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
 	}

@@ -919,6 +919,7 @@ int main(int argc, char *argv[])
 	char *au_dummy = NULL, *ap_dummy = NULL;
 	stats_t t_connect, t_request, t_total, t_resolve;
 	double total_took = 0;
+	char first_resolve = 1;
 
 	init_statst(&t_connect);
 	init_statst(&t_request);
@@ -1462,6 +1463,15 @@ persistent_loop:
 			if ((!resolve_once || (resolve_once == 1 && have_resolved == 0)) && fd == -1 && proxy_host == NULL)
 			{
 				memset(&addr, 0x00, sizeof addr);
+
+#ifdef NC
+				if (ncurses_mode && first_resolve)
+				{
+					slow_log("\nResolving hostname %s", hostname);
+					update_terminal();
+					first_resolve = 0;
+				}
+#endif
 
 				if (ai)
 				{
