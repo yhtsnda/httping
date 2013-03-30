@@ -227,7 +227,7 @@ void emit_statuslines(double run_time)
 		if (dummy)
 			*dummy = 0x00;
 
-		status_line("%s, running for %f seconds", t_str, run_time);
+		status_line("%s, running for %f seconds, press ctrl + c to stop", t_str, run_time);
 	}
 #else
 	(void)run_time;
