@@ -1,3 +1,4 @@
+#include <poll.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <signal.h>
@@ -372,6 +373,9 @@ void draw_graph(void)
 
 void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo)
 {
+	char force_redraw = 0;
+	struct pollfd p = { 0, POLLIN, 0 };
+
 	werase(w_stats);
 
 	if (n_ok)
@@ -400,6 +404,9 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 	wnoutrefresh(w_stats);
 
-	if (win_resize)
+	if (poll(&p, 1, 0) == 1 && p.revents == POLLIN && getch() == 12) /* ^L */
+		force_redraw = 1;
+
+	if (win_resize || force_redraw)
 		recreate_terminal();
 }
