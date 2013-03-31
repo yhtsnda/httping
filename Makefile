@@ -17,10 +17,12 @@
 # *** configure script ***
 # support for tcp fast open?
 #TFO=yes
-# disable SSL?
+# disable SSL? (no = disable so the default is use openssl)
 # SSL=no
 # enable NCURSES interface?
 #NC=yes
+# do fft in ncurses interface? (requires libfftw3)
+#FW=yes
 
 ############# do not change anything below here #############
 
@@ -72,6 +74,12 @@ ifeq ($(NC),yes)
 CFLAGS+=-DNC
 OBJS+=nc.o
 LDFLAGS+=-lncurses
+endif
+
+ifeq ($(FW),yes)
+CFLAGS+=-DFW
+OBJS+=fft.o
+LDFLAGS+=-lfftw3
 endif
 
 ifeq ($(DEBUG),yes)

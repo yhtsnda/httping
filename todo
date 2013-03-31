@@ -25,3 +25,7 @@
 	> Ken je de MySQL slow query log?
 	> Met een slow log bedoel ik eigenlijk gewoon alle requests > X ms, iets
 	> wat je nu ook al kunt doen. Gewoon wat ik hierna beschreven heb.
+
+- fft: hoogste frequentie(s?) tonen in statusbalk(?)
+
+set args --graph-limit 50 -K -i 0.1 -W belle

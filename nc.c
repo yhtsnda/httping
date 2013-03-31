@@ -10,6 +10,9 @@
 
 #include "error.h"
 #include "gen.h"
+#ifdef FW
+#include "fft.h"
+#endif
 
 void handler(int sig);
 
@@ -17,9 +20,11 @@ char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
 int stats_h = 6;
+int logs_n = 0, slow_n = 0, fast_n = 0;
+
 double graph_limit = 99999999.9;
 
-double *history = NULL;
+double *history = NULL, *history_temp = NULL, *history_fft = NULL;
 char *history_set = NULL;
 unsigned int history_n = 0;
 
@@ -64,7 +69,7 @@ void update_terminal(void)
 
 void create_windows(void)
 {
-	unsigned int nr = 0, logs_n = 0, slow_n = 0, fast_n = 0;
+	unsigned int nr = 0;
 	double scale = 0.0;
 
 	if (w_stats)
@@ -76,10 +81,24 @@ void create_windows(void)
 		delwin(w_fast);
 	}
 
+#ifdef FW
+	fft_free();
+	fft_init(max_x);
+#endif
+
 	if (max_x > history_n)
 	{
 		history = (double *)realloc(history, sizeof(double) * max_x);
 		if (!history)
+			error_exit("realloc issue");
+
+		history_temp = (double *)realloc(history_temp, sizeof(double) * max_x);
+		if (!history_temp)
+			error_exit("realloc issue");
+
+		/* halve of it is enough really */
+		history_fft = (double *)realloc(history_fft, sizeof(double) * max_x);
+		if (!history_fft)
 			error_exit("realloc issue");
 
 		history_set = (char *)realloc(history_set, sizeof(char) * max_x);
@@ -189,6 +208,12 @@ void end_ncurses(void)
 
 	free(history);
 	free(history_set);
+
+#ifdef FW
+	fft_free();
+#endif
+	free(history_temp);
+	free(history_fft);
 }
 
 void fast_log(const char *fmt, ...)
@@ -243,9 +268,14 @@ void status_line(char *fmt, ...)
 void draw_column(WINDOW *win, int x, int height, char overflow, char limitter)
 {
 	void *dummy = NULL;
-	int y = 0, end_y = max(0, (int)stats_h - height);
+	int y = 0, end_y = 0, win_h = 0, win_w = 0;
 
-	for(y=max_y - 1; y >= end_y; y--)
+	getmaxyx(win, win_h, win_w);
+	(void)win_w; /* silence warnings */
+
+	end_y = max(0, win_h - height);
+
+	for(y=win_h - 1; y >= end_y; y--)
 		mvwchgat(win, y, x, 1, A_REVERSE, C_YELLOW, dummy);
 
 	if (limitter)
@@ -253,7 +283,7 @@ void draw_column(WINDOW *win, int x, int height, char overflow, char limitter)
 	else if (overflow)
 		mvwchgat(win, 0, x, 1, A_REVERSE, C_RED, dummy);
 	else if (height == 0)
-		mvwchgat(win, stats_h - 1, x, 1, A_REVERSE, C_GREEN, dummy);
+		mvwchgat(win, win_h - 1, x, 1, A_REVERSE, C_GREEN, dummy);
 }
 
 double get_cur_scc()
@@ -301,6 +331,48 @@ double get_cur_scc()
 
 	return ((double)n * t[0] - t[1]) / scc_val;
 }
+
+#ifdef FW
+void draw_fft(void)
+{
+	double mx = 0.0;
+	unsigned int index = 0;
+
+	memset(history_temp, 0x00, sizeof(double) * max_x);
+
+	for(index=0; index<max_x; index++)
+	{
+		double val = 0.0;
+
+		if (history_set[index])
+			val = history[index];
+		else
+			val = index > 0 ? history[index - 1] : 0;
+
+		if (val > graph_limit)
+			val = graph_limit;
+
+		history_temp[index] = val;
+	}
+
+	fft_do(history_temp, history_fft);
+
+	for(index=1; index<max_x/2; index++)
+		mx = max(mx, history_fft[index]);
+
+	for(index=0; index<(unsigned int)slow_n; index++)
+		mvwchgat(w_slow, index, 0, max_x / 2 + 1, A_NORMAL, C_WHITE, NULL);
+
+	for(index=1; index<max_x/2; index++)
+	{
+		int height = (int)((double)slow_n * (history_fft[index] / mx));
+
+		draw_column(w_slow, index - 1, height, 0, 0);
+	}
+
+	wnoutrefresh(w_slow);
+}
+#endif
 
 void draw_graph(void)
 {
@@ -401,6 +473,9 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 	history_set[0] = 1;
 
 	draw_graph();
+#ifdef FW
+	draw_fft();
+#endif
 
 	wnoutrefresh(w_stats);
 
