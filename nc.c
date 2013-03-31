@@ -337,8 +337,9 @@ void draw_fft(void)
 {
 	double mx = 0.0;
 	unsigned int index = 0;
+	int cx = 0, cy = 0;
 
-	memset(history_temp, 0x00, sizeof(double) * max_x);
+	getyx(w_slow, cy, cx);
 
 	for(index=0; index<max_x; index++)
 	{
@@ -369,6 +370,8 @@ void draw_fft(void)
 
 		draw_column(w_slow, index - 1, height, 0, 0);
 	}
+
+	wmove(w_slow, cy, cx);
 
 	wnoutrefresh(w_slow);
 }
