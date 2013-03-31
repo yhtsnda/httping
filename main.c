@@ -1967,7 +1967,7 @@ persistent_loop:
 
 #ifdef NC
 				if (ncurses_mode)
-					fast_log("%s\n", line);
+					fast_log("\n%s", line);
 				else
 #endif
 					printf("%s\n", line);
