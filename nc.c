@@ -7,6 +7,7 @@
 
 #include <ncurses.h>
 
+#include "error.h"
 #include "gen.h"
 
 void handler(int sig);
@@ -15,6 +16,7 @@ char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
 int stats_h = 6;
+double graph_limit = 99999999.9;
 
 double *history = NULL;
 char *history_set = NULL;
@@ -143,8 +145,10 @@ void recreate_terminal(void)
 	win_resize = 0;
 }
 
-void init_ncurses(void)
+void init_ncurses_ui(double graph_limit_in)
 {
+	graph_limit = graph_limit_in;
+
         initscr();
         start_color();
         keypad(stdscr, TRUE);
@@ -235,7 +239,7 @@ void status_line(char *fmt, ...)
 		recreate_terminal();
 }
 
-void draw_column(WINDOW *win, int x, int height, char overflow)
+void draw_column(WINDOW *win, int x, int height, char overflow, char limitter)
 {
 	void *dummy = NULL;
 	int y = 0, end_y = max(0, (int)stats_h - height);
@@ -243,10 +247,11 @@ void draw_column(WINDOW *win, int x, int height, char overflow)
 	for(y=max_y - 1; y >= end_y; y--)
 		mvwchgat(win, y, x, 1, A_REVERSE, C_YELLOW, dummy);
 
-	if (overflow)
+	if (limitter)
+		mvwchgat(win, 0, x, 1, A_REVERSE, C_BLUE, dummy);
+	else if (overflow)
 		mvwchgat(win, 0, x, 1, A_REVERSE, C_RED, dummy);
-
-	if (height == 0)
+	else if (height == 0)
 		mvwchgat(win, stats_h - 1, x, 1, A_REVERSE, C_GREEN, dummy);
 }
 
@@ -307,7 +312,11 @@ void draw_graph(void)
 	for(index=0; index<n; index++)
 	{
 		if (history_set[index])
-			update_statst(&h_stats, history[index]);
+		{
+			double val = history[index] < graph_limit ? history[index] : graph_limit;
+
+			update_statst(&h_stats, val);
+		}
 	}
 
 	if (h_stats.n)
@@ -333,9 +342,19 @@ void draw_graph(void)
 
 		for(index=0; index<h_stats.n; index++)
 		{
-			char overflow = 0;
-			double height = (history[index] - mi) / (ma - mi);
+			char overflow = 0, limitter = 0;
+			double val = 0, height = 0;
 			int i_h = 0;
+
+			if (history[index] < graph_limit)
+				val = history[index];
+			else
+			{
+				val = graph_limit;
+				limitter = 1;
+			}
+
+			height = (val - mi) / (ma - mi);
 
 			if (height > 1.0)
 			{
@@ -346,7 +365,7 @@ void draw_graph(void)
 			i_h = (int)(height * stats_h);
 			/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
 
-			draw_column(w_stats, max_x - (1 + index), i_h, overflow);
+			draw_column(w_stats, max_x - (1 + index), i_h, overflow, limitter);
 		}
 	}
 }

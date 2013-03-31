@@ -63,6 +63,9 @@ UserAgent-string to send to the webserver (instead of 'HTTPing <version>').
 .B "\-i interval"
 How many seconds to sleep between every probe sent.
 .TP
+.B "\-K"
+Enable ncurses user interface.
+.TP
 .B "\-L x"
 Use this switch together with '-G'. Limit the amount of data transferred to 'x'. Note that this only affects the content of the page/file and not the headerdata.
 .TP
@@ -126,17 +129,11 @@ Enable colors
 .B "\-z"
 When connecting using SSL, display the fingerprint of the X509 certificate(s) of the peer.
 .TP
-.B "\-\-threshold\-red x"
-If the measured threshold is higher than x (and -Y is given), then the shown value is colored red. If you also use --threshold-yellow, then this value must be bigger.
+.B "\-\-aggregates x[,y[,z[,etc.]]]"
+Show aggregates every x[/y[/z[/etc]]] seconds.
 .TP
-.B "\-\-threshold\-yellow x"
-If the measured threshold is higher than x (and -Y is given), then the shown value is colored yellow.
-.TP
-.B "\-\-threshold\-show x"
-If the measured threshold is higher than x, then the result is shown (default is show always). The value x is in ms.
-.TP
-.B "\-\-timestamp" or "\-\-ts"
-Put a timestamp before the result-lines. Use -v to also show a date.
+.B "\-\-graph-limit x"
+If values measured are bigger than x, then they're limitted to x.
 .TP
 .B "\-\-no-host-header"
 Do not put a "Host:"-header in the request header.
@@ -150,11 +147,23 @@ Use password 'x' to authenticate against proxy (http/socks5) server (optional).
 .B "\-\-proxy-password-file x"
 Read password from file 'x' to authenticate against proxy (http/socks5) server (optional).
 .TP
-.B "\-\-aggregates x[,y[,z[,etc.]]]"
-Show aggregates every x[/y[/z[/etc]]] seconds.
+.B "\-\-threshold\-red x"
+If the measured threshold is higher than x (and -Y is given), then the shown value is colored red. If you also use --threshold-yellow, then this value must be bigger.
+.TP
+.B "\-\-threshold\-yellow x"
+If the measured threshold is higher than x (and -Y is given), then the shown value is colored yellow.
+.TP
+.B "\-\-threshold\-show x"
+If the measured threshold is higher than x, then the result is shown (default is show always). The value x is in ms.
+.TP
+.B "\-\-timestamp" or "\-\-ts"
+Put a timestamp before the result-lines. Use -v to also show a date.
 .TP
 .B "\-V"
 Show the version and exit.
+
+.SH GRAPH
+The graph in the ncurses uses colors to encode a meaning. Green: value is less than 1 block. Red: the value did not fit in the graph. Blue: the value was limitted by --graph-limit.
 
 .SH KEYS
 Press <CTRL> + <c> to exit the program. It will display a summary of what was measured.
@@ -181,7 +190,7 @@ None. This program is totally bug-free.
 .SH NOTES
 This page describes
 .B httping
-as found in the httping-2.0 package; other versions may differ slightly.
+as found in the httping-2.2 package; other versions may differ slightly.
 Please mail corrections and additions to folkert@vanheusden.com.
 Report bugs in the program to folkert@vanheusden.com.
 Please consider sending bitcoins to 1N5Sn4jny4xVwTwSYLnf7WnFQEGoVRmTQF

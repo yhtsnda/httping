@@ -84,6 +84,7 @@ void help_long(void)
 	fprintf(stderr, "--data-limit           -L\n");
 	fprintf(stderr, "--flood                -f\n");
 	fprintf(stderr, "--get-request          -G\n");
+	fprintf(stderr, "--graph-limit x        do not scale to values above x\n");
 	fprintf(stderr, "--hostname             -h\n");
 	fprintf(stderr, "--host-port            -x\n");
 	fprintf(stderr, "--interval             -i\n");
@@ -920,6 +921,7 @@ int main(int argc, char *argv[])
 	stats_t t_connect, t_request, t_total, t_resolve;
 	double total_took = 0;
 	char first_resolve = 1;
+	double graph_limit = 9999999.9;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -980,6 +982,7 @@ int main(int argc, char *argv[])
 		{"proxy-user",	1, NULL, 7 },
 		{"proxy-password",	1, NULL, 8 },
 		{"proxy-password-file",	1, NULL, 10 },
+		{"graph-limit",	1, NULL, 11 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #endif
@@ -996,6 +999,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 11:
+				graph_limit = atof(optarg);
+				break;
+
 #ifdef NC
 			case 'K':
 				ncurses_mode = 1;
@@ -1301,7 +1308,7 @@ int main(int argc, char *argv[])
 
 #ifdef NC
 	if (ncurses_mode)
-		init_ncurses();
+		init_ncurses_ui(graph_limit);
 #endif
 
 	if (verbose)

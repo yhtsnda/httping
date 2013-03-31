@@ -2,7 +2,7 @@
 
 extern char win_resize;
 
-void init_ncurses(void);
+void init_ncurses_ui(double graph_limit_in);
 void end_ncurses(void);
 void fast_log(const char *fmt, ...);
 void slow_log(const char *fmt, ...);

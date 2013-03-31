@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 FILE=/tmp/a.out_eb_$$
 FILE2=/tmp/a.out_eb2_$$
@@ -6,8 +6,40 @@ FILE2=/tmp/a.out_eb2_$$
 echo \*\*\* HTTPing v`grep VERSION version | cut -d = -f 2` \(`echo $Revision: 795 $ | awk '{ print $2; }'`\) configure script \*\*\*
 echo
 
+F_TFO=0
+F_NC=0
+F_OS=0
+for var in "$@"
+do
+	case "$var" in
+		--with-tfo)
+			F_TFO=1
+			;;
+
+		--with-ncurses)
+			F_NC=1
+			;;
+
+		--with-openssl)
+			F_OS=1
+			;;
+
+		--help)
+			echo "--with-tfo      forse enable tcp fast open"
+			echo "--with-ncurses  forse enable ncurses"
+			echo "--with-openssl  forse enable openssl"
+			exit 0
+			;;
+
+		*)
+			echo Command line parameter \"$var\" is not understood
+			exit 1
+			;;
+	esac
+done
+
 g++ -O0 -o $FILE test_TFO.c 2> $FILE2
-if [ $? -eq 0 ] ; then
+if [ $? -eq 0 ] || [ $F_TFO -eq 1 ] ; then
 	echo \+ system supports TCP fast open
 	TFO="TFO=yes"
 else
@@ -16,7 +48,7 @@ else
 fi
 
 g++ -O0 -lncurses -o $FILE test_ncurses.c 2> $FILE2
-if [ $? -eq 0 ] ; then
+if [ $? -eq 0 ] || [ $F_NC -eq 1 ] ; then
 	echo \+ system has ncurses development libraries
 	NC="NC=yes"
 else
@@ -25,7 +57,7 @@ else
 fi
 
 g++ -O0 -lssl -lcrypto -o $FILE test_openssl.c 2> $FILE2
-if [ $? -eq 0 ] ; then
+if [ $? -eq 0 ] || [ $F_OS -eq 1 ] ; then
 	echo \+ system has OpenSSL development libraries
 	SSL="SSL=yes"
 else
