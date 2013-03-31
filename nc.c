@@ -76,7 +76,12 @@ void create_windows(void)
 	if (max_x > history_n)
 	{
 		history = (double *)realloc(history, sizeof(double) * max_x);
+		if (!history)
+			error_exit("realloc issue");
+
 		history_set = (char *)realloc(history_set, sizeof(char) * max_x);
+		if (!history_set)
+			error_exit("realloc issue");
 
 		memset(&history[history_n], 0x00, (max_x - history_n) * sizeof(double));
 		memset(&history_set[history_n], 0x00, (max_x - history_n) * sizeof(char));

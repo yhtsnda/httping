@@ -105,7 +105,7 @@ makefile.inc:
 	./configure
 
 clean:
-	$(RMDIR) $(OBJS) $(TARGET) *~ core cov-int
+	$(RMDIR) $(OBJS) $(TARGET) makefile.inc *~ core cov-int
 
 package: clean
 	# source package
