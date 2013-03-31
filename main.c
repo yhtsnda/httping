@@ -95,9 +95,7 @@ void help_long(void)
 	fprintf(stderr, "--ncurses              -K\n");
 #endif
 	fprintf(stderr, "--no-cache             -Z\n");
-	fprintf(stderr, "--threshold-red        from what ping value to show the value in red (must be bigger than yellow)\n");
-	fprintf(stderr, "--threshold-show       from what ping value to show the results\n");
-	fprintf(stderr, "--threshold-yellow     from what ping value to show the value in yellow\n");
+	fprintf(stderr, "--no-graph             -D\n");
 	fprintf(stderr, "--ok-result-codes      -o (only for -m)\n");
 	fprintf(stderr, "--parseable-output     -m\n");
 	fprintf(stderr, "--password             -P\n");
@@ -119,6 +117,9 @@ void help_long(void)
 #ifdef TCP_TFO
 	fprintf(stderr, "--tcp-fast-open        -F\n");
 #endif
+	fprintf(stderr, "--threshold-red        from what ping value to show the value in red (must be bigger than yellow)\n");
+	fprintf(stderr, "--threshold-show       from what ping value to show the results\n");
+	fprintf(stderr, "--threshold-yellow     from what ping value to show the value in yellow\n");
 	fprintf(stderr, "--timeout              -t\n");
 	fprintf(stderr, "--timestamp / --ts     put a timestamp before the measured values, use -v to include the date and -vv to show in microseconds\n");
 	fprintf(stderr, "--url                  -g\n");
@@ -922,6 +923,7 @@ int main(int argc, char *argv[])
 	double total_took = 0;
 	char first_resolve = 1;
 	double graph_limit = 9999999.9;
+	char nc_graph = 1;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -985,6 +987,9 @@ int main(int argc, char *argv[])
 		{"graph-limit",	1, NULL, 11 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
+#ifdef FW
+		{"no-graph",	0, NULL, 'D' },
+#endif
 #endif
 		{"version",	0, NULL, 'V' },
 		{"help",	0, NULL, 'H' },
@@ -995,7 +1000,7 @@ int main(int argc, char *argv[])
 
 	buffer = (char *)malloc(buffer_size);
 
-	while((c = getopt_long(argc, argv, "KEA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "DKEA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
@@ -1007,6 +1012,11 @@ int main(int argc, char *argv[])
 			case 'K':
 				ncurses_mode = 1;
 				break;
+#ifdef FW
+			case 'D':
+				nc_graph = 0;
+				break;
+#endif
 #endif
 
 			case 'E':
@@ -1983,7 +1993,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, curncount, err, sc, fp, use_tfo);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, curncount, err, sc, fp, use_tfo, nc_graph);
 #endif
 
 		free(sc);

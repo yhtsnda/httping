@@ -443,7 +443,7 @@ void draw_graph(void)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg)
 {
 	char force_redraw = 0;
 	struct pollfd p = { 0, POLLIN, 0 };
@@ -472,10 +472,13 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 	history[0]= total -> cur;
 	history_set[0] = 1;
 
-	draw_graph();
+	if (dg)
+	{
+		draw_graph();
 #ifdef FW
-	draw_fft();
+		draw_fft();
 #endif
+	}
 
 	wnoutrefresh(w_stats);
 
