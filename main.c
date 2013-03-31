@@ -921,6 +921,7 @@ int main(int argc, char *argv[])
 	double total_took = 0;
 	char first_resolve = 1;
 
+	init_statst(&t_resolve);
 	init_statst(&t_connect);
 	init_statst(&t_request);
 	init_statst(&t_total);
