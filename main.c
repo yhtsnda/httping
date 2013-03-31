@@ -1451,10 +1451,10 @@ int main(int argc, char *argv[])
 			char req_sent = 0;
 			double dummy_ms = 0.0;
 			double their_est_ts = -1.0, toff_diff_ts = -1.0;
+			char tfo_success = 0;
 #ifdef TCP_TFO
 			struct tcp_info info;
 			socklen_t info_len = sizeof(struct tcp_info);
-			char tfo_success = 0;
 #endif
 
 			curncount++;

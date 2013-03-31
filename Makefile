@@ -111,7 +111,7 @@ package: clean
 	# source package
 	$(RMDIR) $(PACKAGE)*
 	$(MKDIR) $(PACKAGE)
-	$(INSTALLDOC) *.c *.h Makefile version $(MANS) $(DOCS) $(PACKAGE)
+	$(INSTALLDOC) *.c *.h configure Makefile version $(MANS) $(DOCS) $(PACKAGE)
 	$(ARCHIVE) $(PACKAGE) | $(COMPRESS) > $(PACKAGE).tgz
 	$(RMDIR) $(PACKAGE)
 
