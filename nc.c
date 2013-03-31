@@ -245,6 +245,9 @@ void draw_column(WINDOW *win, int x, int height, char overflow)
 
 	if (overflow)
 		mvwchgat(win, 0, x, 1, A_REVERSE, C_RED, dummy);
+
+	if (height == 0)
+		mvwchgat(win, stats_h - 1, x, 1, A_REVERSE, C_GREEN, dummy);
 }
 
 double get_cur_scc()
