@@ -118,7 +118,7 @@ package: clean
 check:
 	cppcheck -v --enable=all --std=c++11 --inconclusive -I. . 2> err.txt
 
-coverity: clean
+coverity: makefile.inc
 	rm -rf cov-int
 	CC=gcc cov-build --dir cov-int make all
 	tar vczf ~/site/coverity/httping.tgz README cov-int/
