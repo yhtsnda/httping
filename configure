@@ -1,0 +1,43 @@
+#! /bin/sh
+
+FILE=/tmp/a.out_eb_$$
+FILE2=/tmp/a.out_eb2_$$
+
+echo \*\*\* HTTPing v`grep VERSION version | cut -d = -f 2` \(`echo $Revision: 795 $ | awk '{ print $2; }'`\) configure script \*\*\*
+echo
+
+g++ -O0 -o $FILE test_TFO.c 2> $FILE2
+if [ $? -eq 0 ] ; then
+	echo \+ system supports TCP fast open
+	TFO="TFO=yes"
+else
+	echo \- this system does NOT support TCP fast open
+	TFO=""
+fi
+
+g++ -O0 -lncurses -o $FILE test_ncurses.c 2> $FILE2
+if [ $? -eq 0 ] ; then
+	echo \+ system has ncurses development libraries
+	NC="NC=yes"
+else
+	echo \- this system does NOT have the ncurses development libraries
+	NC=""
+fi
+
+g++ -O0 -lssl -lcrypto -o $FILE test_openssl.c 2> $FILE2
+if [ $? -eq 0 ] ; then
+	echo \+ system has OpenSSL development libraries
+	SSL="SSL=yes"
+else
+	echo \- this system does NOT have the OpenSSL development libraries
+	SSL=""
+fi
+
+> makefile.inc
+echo $NC  >> makefile.inc
+echo $SSL >> makefile.inc
+echo $TFO >> makefile.inc
+
+rm -f $FILE $FILE2
+
+echo

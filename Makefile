@@ -12,14 +12,15 @@
 # version.  If you delete this exception statement from all source
 # files in the program, then also delete it here.
 
-# support for tcp fast open?
-TFO=yes
+-include makefile.inc
 
+# *** configure script ***
+# support for tcp fast open?
+#TFO=yes
 # disable SSL?
 # SSL=no
-
 # enable NCURSES interface?
-NC=yes
+#NC=yes
 
 ############# do not change anything below here #############
 
@@ -99,6 +100,9 @@ install: $(TARGET)
 ifneq ($(DEBUG),yes)
 	$(STRIP) $(DESTDIR)/$(BINDIR)/$(TARGET)
 endif
+
+makefile.inc:
+	./configure
 
 clean:
 	$(RMDIR) $(OBJS) $(TARGET) *~ core cov-int
