@@ -35,6 +35,13 @@ void fft_free(void)
 		fftw_free(pout);
 		free(pin);
 	}
+
+	fftw_destroy_plan(plan);
+}
+
+void fft_stop(void)
+{
+	fftw_cleanup();
 }
 
 void fft_do(double *in, double *output_mag)

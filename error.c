@@ -14,9 +14,6 @@ void error_exit(char *format, ...)
 {
 	va_list ap;
 
-char *p = NULL;
-*p = 1;
-
 	va_start(ap, format);
 	(void)vfprintf(stderr, format, ap);
 	va_end(ap);

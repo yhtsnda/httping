@@ -28,4 +28,4 @@
 
 - fft: hoogste frequentie(s?) tonen in statusbalk(?)
 
-set args --graph-limit 50 -K -i 0.1 -W belle
+set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle

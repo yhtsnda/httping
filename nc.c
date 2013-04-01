@@ -211,6 +211,7 @@ void end_ncurses(void)
 
 #ifdef FW
 	fft_free();
+	fft_stop();
 #endif
 	free(history_temp);
 	free(history_fft);
