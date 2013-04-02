@@ -132,6 +132,9 @@ Enable colors
 .B "\-z"
 When connecting using SSL, display the fingerprint of the X509 certificate(s) of the peer.
 .TP
+.B "\-\---adaptive-interval" or "\-\-ai"
+(Try to) ping on the same interval. E.g. if interval is set to 1.0 seconds and ping a ping t[n] occurs at 500s with duration 250ms, then the next ping (t[n+1]) will happen at 501 seconds and not at 501.25 seconds. Of course when the ping duration is > bigger than the interval, a ping will be "skipped" (not literally: the sequence number will continue) and t[n+1] will then be e.g. 502s instead of the expected 501s. This is usefull for example in the ncurses output mode where an fft is calculated over the ping times.
+.TP
 .B "\-\-aggregates x[,y[,z[,etc.]]]"
 Show aggregates every x[/y[/z[/etc]]] seconds.
 .TP
