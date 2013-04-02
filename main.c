@@ -242,7 +242,7 @@ void emit_headers(char *in)
 #ifdef NC
 	static char shown = 0;
 
-	if (!shown && ncurses_mode)
+	if (!shown && ncurses_mode && in != NULL)
 	{
 		int len_in = strlen(in) - 4, pos = 0, pos_out = 0;
 		char *copy = (char *)malloc(len_in + 1);
@@ -1022,7 +1022,7 @@ int main(int argc, char *argv[])
 				ncurses_mode = 1;
 				adaptive_interval = 1;
 				if (!wait_set)
-					wait = 0.001;
+					wait = 0.5;
 				break;
 #ifdef FW
 			case 'D':
