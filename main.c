@@ -75,6 +75,7 @@ void version(void)
 void help_long(void)
 {
 	fprintf(stderr, "--aggregate x[,y[,z]]  show an aggregate each x[/y[/z[/etc]]] seconds\n");
+	fprintf(stderr, "--ai / --adaptive-interval  execute pings at multiples of interval relative to start, default on in ncurses output mode\n");
 	fprintf(stderr, "--audible-ping         -a\n");
 	fprintf(stderr, "--basic-auth           -A\n");
 	fprintf(stderr, "--bind-to              -y\n");
@@ -873,6 +874,7 @@ int main(int argc, char *argv[])
 	int c = 0;
 	int count = -1, curncount = 0;
 	double wait = 1.0;
+	char wait_set = 0;
 	int audible = 0;
 	int ok = 0, err = 0;
 	int timeout=30;
@@ -924,6 +926,7 @@ int main(int argc, char *argv[])
 	char first_resolve = 1;
 	double graph_limit = 9999999.9;
 	char nc_graph = 1;
+	char adaptive_interval = 0;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -985,6 +988,8 @@ int main(int argc, char *argv[])
 		{"proxy-password",	1, NULL, 8 },
 		{"proxy-password-file",	1, NULL, 10 },
 		{"graph-limit",	1, NULL, 11 },
+		{"adaptive-interval",	0, NULL, 12 },
+		{"ai",	0, NULL, 12 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1004,6 +1009,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 12:
+				adaptive_interval = 1;
+				break;
+
 			case 11:
 				graph_limit = atof(optarg);
 				break;
@@ -1011,6 +1020,9 @@ int main(int argc, char *argv[])
 #ifdef NC
 			case 'K':
 				ncurses_mode = 1;
+				adaptive_interval = 1;
+				if (!wait_set)
+					wait = 0.001;
 				break;
 #ifdef FW
 			case 'D':
@@ -1176,6 +1188,7 @@ int main(int argc, char *argv[])
 				wait = atof(optarg);
 				if (wait < 0.0)
 					error_exit("-i cannot have a value smaller than zero");
+				wait_set = 1;
 				break;
 
 			case 't':
@@ -1196,6 +1209,8 @@ int main(int argc, char *argv[])
 
 			case 'f':
 				wait = 0;
+				wait_set = 1;
+				adaptive_interval = 0;
 				break;
 
 			case 'G':
@@ -1366,6 +1381,9 @@ int main(int argc, char *argv[])
 
 	if (json_output)
 		printf("[\n");
+
+	if (adaptive_interval && wait <= 0.0)
+		error_exit("Interval must be > 0 when using adaptive interval");
 
 	signal(SIGINT, handler);
 	signal(SIGTERM, handler);
@@ -2006,8 +2024,23 @@ persistent_loop:
 #endif
 		fflush(NULL);
 
-		if (curncount != count && !stop && wait > 0)
-			usleep((useconds_t)(wait * 1000000.0));
+		if (!stop && wait > 0)
+		{
+			double cur_sleep = wait;
+
+			if (adaptive_interval)
+			{
+				double now = get_ts();
+				double interval_left = fmod(now - started_at, wait);
+
+				if (interval_left <= 0.0)
+					cur_sleep = wait;
+				else
+					cur_sleep = wait - interval_left;
+			}
+
+			usleep((useconds_t)(cur_sleep * 1000000.0));
+		}
 	}
 
 #ifdef NC
