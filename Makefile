@@ -120,6 +120,7 @@ package: clean
 	$(RMDIR) $(PACKAGE)*
 	$(MKDIR) $(PACKAGE)
 	$(INSTALLDOC) *.c *.h configure Makefile version $(MANS) $(DOCS) $(PACKAGE)
+	$(INSTALLBIN) configure $(PACKAGE)
 	$(ARCHIVE) $(PACKAGE) | $(COMPRESS) > $(PACKAGE).tgz
 	$(RMDIR) $(PACKAGE)
 
