@@ -1333,7 +1333,7 @@ int main(int argc, char *argv[])
 
 #ifdef NC
 	if (ncurses_mode)
-		init_ncurses_ui(graph_limit);
+		init_ncurses_ui(graph_limit, 1.0 / wait);
 #endif
 
 	if (verbose)

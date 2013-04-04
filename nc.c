@@ -25,6 +25,7 @@ char **slow_history = NULL, **fast_history = NULL;
 int window_history_n = 0;
 
 double graph_limit = 99999999.9;
+double hz = 1.0;
 
 double *history = NULL, *history_temp = NULL, *history_fft = NULL;
 char *history_set = NULL;
@@ -195,9 +196,10 @@ void recreate_terminal(void)
 	win_resize = 0;
 }
 
-void init_ncurses_ui(double graph_limit_in)
+void init_ncurses_ui(double graph_limit_in, double hz_in)
 {
 	graph_limit = graph_limit_in;
+	hz = hz_in;
 
         initscr();
         start_color();
@@ -392,8 +394,10 @@ double get_cur_scc()
 void draw_fft(void)
 {
 	double mx = 0.0;
-	unsigned int index = 0;
+	unsigned int index = 0, highest = 0;
 	int cx = 0, cy = 0;
+	/* double max_freq = hz / 2.0; */
+	double highest_freq = 0, avg_freq_index = 0.0, total_val = 0.0, avg_freq = 0.0;
 
 	getyx(w_slow, cy, cx);
 
@@ -415,7 +419,26 @@ void draw_fft(void)
 	fft_do(history_temp, history_fft);
 
 	for(index=1; index<max_x/2; index++)
-		mx = max(mx, history_fft[index]);
+	{
+		avg_freq_index += (double)index * history_fft[index];
+		total_val += history_fft[index];
+
+		if (history_fft[index] > mx)
+		{
+			mx = history_fft[index];
+			highest = index;
+		}
+	}
+
+	highest_freq = (hz / (double)max_x) * (double)highest;
+
+	avg_freq_index /= total_val;
+	avg_freq = (hz / (double)max_x) * avg_freq_index;
+
+	wattron(w_line1, A_REVERSE);
+	mvwprintw(w_line1, 0, 38, "highest: %6.2fHz, avg: %6.2fHz", highest_freq, avg_freq);
+	wattroff(w_line1, A_REVERSE);
+	wnoutrefresh(w_line1);
 
 	for(index=0; index<(unsigned int)slow_n; index++)
 		mvwchgat(w_slow, index, 0, max_x / 2 + 1, A_NORMAL, C_WHITE, NULL);
