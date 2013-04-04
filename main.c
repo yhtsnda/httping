@@ -68,8 +68,21 @@ void version(void)
 {
 	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2013 folkert@vanheusden.com\n");
 #ifndef NO_SSL
-	fprintf(stderr, "SSL support included\n");
+	fprintf(stderr, " * SSL support included (-l)\n");
 #endif
+
+#ifdef NC
+#ifdef FW
+	fprintf(stderr, " * ncurses interface with FFT included (-K)\n");
+#else
+	fprintf(stderr, " * ncurses interface included (-K)\n");
+#endif
+#endif
+
+#ifdef TCP_TFO
+	fprintf(stderr, " * TFO (TCP fast open) support included (-F)\n");
+#endif
+	fprintf(stderr, "\n");
 }
 
 void help_long(void)
@@ -1277,16 +1290,17 @@ int main(int argc, char *argv[])
  
 			case 'H':
 				version();
+
 				usage(argv[0]);
+
 				return 0;
 
 			case '?':
 			default:
 				version();
 
-				fprintf(stderr, "Command not understood!\n\n");
+				fprintf(stderr, "Command not understood!\n\nPlease run:\n\t%s --help\nto see a list of options.\n\n", argv[0]);
 
-				usage(argv[0]);
 				return 1;
 		}
 	}
@@ -1299,12 +1313,9 @@ int main(int argc, char *argv[])
 
 	if (!url)
 	{
-		usage(argv[0]);
-		error_exit("No URL/host to ping given");
+		fprintf(stderr, "No URL/host to ping given\n\n");
+		return 1;
 	}
-
-	if (colors && ncurses_mode)
-		error_exit("ncurses implicitly enables colors");
 
 	if (machine_readable + json_output + ncurses_mode > 1)
 		error_exit("Cannot combine -m, -M and -K");
@@ -1334,7 +1345,12 @@ int main(int argc, char *argv[])
 
 #ifdef NC
 	if (ncurses_mode)
+	{
+		if (wait == 0.0)
+			wait = 0.001;
+
 		init_ncurses_ui(graph_limit, 1.0 / wait);
+	}
 #endif
 
 	if (verbose)

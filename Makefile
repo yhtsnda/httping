@@ -96,7 +96,7 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(WFLAGS) $(OBJS) $(LDFLAGS) -o $(TARGET)
 	#
-	# Oh, blatant plug: http://www.vanheusden.com/wishlist.html
+	# Oh, blatant plug: http://www.vanheusden.com/wishlist.php
 
 install: $(TARGET)
 	$(INSTALLDIR) $(DESTDIR)/$(BINDIR)
