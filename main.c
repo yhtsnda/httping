@@ -230,7 +230,7 @@ void emit_statuslines(double run_time)
 		if (dummy)
 			*dummy = 0x00;
 
-		status_line("%s, running for %f seconds, press ctrl + c to stop", t_str, run_time);
+		status_line("%s, run time: %.3fs, press ctrl + c to stop", t_str, run_time);
 	}
 #else
 	(void)run_time;
@@ -921,7 +921,7 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total, t_resolve;
+	stats_t t_connect, t_request, t_total, t_resolve, t_ssl;
 	double total_took = 0;
 	char first_resolve = 1;
 	double graph_limit = 9999999.9;
@@ -932,6 +932,7 @@ int main(int argc, char *argv[])
 	init_statst(&t_connect);
 	init_statst(&t_request);
 	init_statst(&t_total);
+	init_statst(&t_ssl);
 
 	static struct option long_options[] =
 	{
@@ -1488,6 +1489,7 @@ int main(int argc, char *argv[])
 			double dummy_ms = 0.0;
 			double their_est_ts = -1.0, toff_diff_ts = -1.0;
 			char tfo_success = 0;
+			double ssl_handshake = 0.0;
 #ifdef TCP_TFO
 			struct tcp_info info;
 			socklen_t info_len = sizeof(struct tcp_info);
@@ -1596,8 +1598,10 @@ persistent_loop:
 #ifndef NO_SSL
 				if (use_ssl && ssl_h == NULL)
 				{
-					int rc = connect_ssl(fd, client_ctx, &ssl_h, &s_bio, timeout);
-					if (rc != 0)
+					int rc = connect_ssl(fd, client_ctx, &ssl_h, &s_bio, timeout, &ssl_handshake);
+					if (rc == 0)
+						update_statst(&t_ssl, ssl_handshake);
+					else
 					{
 						close(fd);
 						fd = rc;
@@ -1616,7 +1620,7 @@ persistent_loop:
 			dafter_connect = get_ts();
 
 			dummy_ms = (dafter_connect - dafter_resolve) * 1000.0;
-			update_statst(&t_connect, dummy_ms);
+			update_statst(&t_connect, dummy_ms - ssl_handshake);
 
 			if (fd < 0)
 			{
@@ -2019,7 +2023,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, curncount, err, sc, fp, use_tfo, nc_graph);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph);
 #endif
 
 		free(sc);

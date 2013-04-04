@@ -19,7 +19,7 @@ void handler(int sig);
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
-int stats_h = 6;
+int stats_h = 7;
 int logs_n = 0, slow_n = 0, fast_n = 0;
 char **slow_history = NULL, **fast_history = NULL;
 int window_history_n = 0;
@@ -525,7 +525,7 @@ void draw_graph(void)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg)
 {
 	char force_redraw = 0;
 	struct pollfd p = { 0, POLLIN, 0 };
@@ -534,18 +534,39 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 	if (n_ok)
 	{
+		char buffer[4096] = { 0 };
+		unsigned int buflen = 0;
+
 		mvwprintw(w_stats, 0, 0, "resolve: %6.2f %6.2f %6.2f %6.2f %6.2f (cur/min/avg/max/sd)",
 			resolve -> cur, resolve -> min, resolve -> avg / (double)resolve -> n, resolve -> max, calc_sd(resolve));
 		mvwprintw(w_stats, 1, 0, "connect: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
-		mvwprintw(w_stats, 2, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
+		mvwprintw(w_stats, 2, 0, "ssl   : %6.2f %6.2f %6.2f %6.2f %6.2f",
+			ssl_setup -> cur, ssl_setup -> min, ssl_setup -> avg / (double)ssl_setup -> n, ssl_setup -> max, calc_sd(ssl_setup));
+		mvwprintw(w_stats, 3, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
-		mvwprintw(w_stats, 3, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
-			total   -> cur, total   -> min, total   -> avg / (double)total   -> n, total   -> max, calc_sd(total  ));
+		mvwprintw(w_stats, 4, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
+			total -> cur, total -> min, total -> avg / (double)total -> n, total -> max, calc_sd(total));
 
-		mvwprintw(w_stats, 4, 0, "ok: %4d, fail: %4d%s, scc: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc());
+		mvwprintw(w_stats, 5, 0, "ok: %4d, fail: %4d%s, scc: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc());
 
-		mvwprintw(w_stats, 5, 0, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
+		buflen = snprintf(buffer, sizeof buffer, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
+
+		if (buflen <= max_x)
+			mvwprintw(w_stats, 6, 0, "%s", buffer);
+		else
+		{
+			static char prev_sf[48] = { 0 };
+
+			mvwprintw(w_stats, 6, 0, "http result code: %s", last_connect_str);
+
+			if (fp && strcmp(prev_sf, fp))
+			{
+				slow_log("\nSSL fingerprint: %s", fp);
+
+				memcpy(prev_sf, fp, 47);
+			}
+		}
 	}
 
 	memmove(&history[1], &history[0], (history_n - 1) * sizeof(double));

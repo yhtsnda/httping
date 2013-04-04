@@ -23,6 +23,7 @@
 #include "tcp.h"
 #include "io.h"
 #include "http.h"
+#include "utils.h"
 
 BIO *bio_err = NULL;
 
@@ -121,13 +122,16 @@ int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 	return cnt;
 }
 
-int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int timeout)
+int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int timeout, double *ssl_handshake)
 {
 	int dummy = -1;
+	double dstart = get_ts();
 
 	struct timeval tv;
 	tv.tv_sec  = timeout / 1000;
 	tv.tv_usec = (timeout - (tv.tv_sec * 1000)) * 1000;
+
+	*ssl_handshake = -1.0;
 
 	if (setsockopt(socket_h, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv) == -1)
 	{
@@ -152,6 +156,8 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int
 		set_error("problem starting SSL connection: %d", SSL_get_error(*ssl_h, dummy));
 		return -1;
 	}
+
+	*ssl_handshake = get_ts() - dstart;
 
 	return 0;
 }
