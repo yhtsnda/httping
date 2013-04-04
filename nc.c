@@ -441,13 +441,13 @@ void draw_fft(void)
 	wnoutrefresh(w_line1);
 
 	for(index=0; index<(unsigned int)slow_n; index++)
-		mvwchgat(w_slow, index, 0, max_x / 2 + 1, A_NORMAL, C_WHITE, NULL);
+		mvwchgat(w_slow, index, max_x / 2, max_x / 2, A_NORMAL, C_WHITE, NULL);
 
-	for(index=1; index<max_x/2; index++)
+	for(index=1; index<max_x / 2 + 1; index++)
 	{
 		int height = (int)((double)slow_n * (history_fft[index] / mx));
 
-		draw_column(w_slow, index - 1, height, 0, 0);
+		draw_column(w_slow, max_x / 2 + index - 1, height, 0, 0);
 	}
 
 	wmove(w_slow, cy, cx);
@@ -525,7 +525,7 @@ void draw_graph(void)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl)
 {
 	char force_redraw = 0;
 	struct pollfd p = { 0, POLLIN, 0 };
@@ -541,8 +541,15 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			resolve -> cur, resolve -> min, resolve -> avg / (double)resolve -> n, resolve -> max, calc_sd(resolve));
 		mvwprintw(w_stats, 1, 0, "connect: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
-		mvwprintw(w_stats, 2, 0, "ssl   : %6.2f %6.2f %6.2f %6.2f %6.2f",
-			ssl_setup -> cur, ssl_setup -> min, ssl_setup -> avg / (double)ssl_setup -> n, ssl_setup -> max, calc_sd(ssl_setup));
+		if (use_ssl)
+		{
+			mvwprintw(w_stats, 2, 0, "ssl   : %6.2f %6.2f %6.2f %6.2f %6.2f",
+				ssl_setup -> cur, ssl_setup -> min, ssl_setup -> avg / (double)ssl_setup -> n, ssl_setup -> max, calc_sd(ssl_setup));
+		}
+		else
+		{
+			mvwprintw(w_stats, 2, 0, "ssl   :");
+		}
 		mvwprintw(w_stats, 3, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
 		mvwprintw(w_stats, 4, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
