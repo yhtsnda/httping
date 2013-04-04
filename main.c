@@ -298,15 +298,15 @@ char *get_ts_str(int verbose)
 
 	struct tm *tvm = localtime(&tv.tv_sec);
 
-	char buffer[4096];
+	char buffer[4096] = { 0 };
 
 	if (verbose == 1)
 		sprintf(buffer, "%04d/%02d/%02d ", tvm -> tm_year + 1900, tvm -> tm_mon + 1, tvm -> tm_mday);
 	else if (verbose >= 2)
-		sprintf(buffer, "%.6f ", get_ts());
+		sprintf(buffer, "%.6f", get_ts());
 
 	if (verbose <= 1)
-		sprintf(&buffer[strlen(buffer)], "%02d:%02d:%02d.%03d ", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
+		sprintf(&buffer[strlen(buffer)], "%02d:%02d:%02d.%03d", tvm -> tm_hour, tvm -> tm_min, tvm -> tm_sec, (int)(tv.tv_usec / 1000));
 
 	return strdup(buffer);
 }
@@ -1892,10 +1892,15 @@ persistent_loop:
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 				const char *sep = c_bright, *unsep = c_normal;
 
-				if (show_ts)
+				if (show_ts || ncurses_mode)
 				{
 					char *ts = get_ts_str(verbose);
-					pos += snprintf(&line[pos], sizeof line - pos, "%s", ts);
+
+					if (ncurses_mode)
+						pos += snprintf(&line[pos], sizeof line - pos, "[%s] ", ts);
+					else
+						pos += snprintf(&line[pos], sizeof line - pos, "%s ", ts);
+
 					free(ts);
 				}
 
@@ -1923,10 +1928,13 @@ persistent_loop:
 				else if (offset_yellow > 0.0 && t_total.cur >= offset_yellow)
 					ms_color = c_yellow;
 
+				if (!ncurses_mode)
+					pos += snprintf(&line[pos], sizeof line - pos, "%s%s ", c_white, operation);
+
 				if (persistent_connections && show_bytes_xfer)
-					pos += snprintf(&line[pos], sizeof line - pos, "%s%s %s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "%s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
-					pos += snprintf(&line[pos], sizeof line - pos, "%s%s %s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_white, operation, c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
+					pos += snprintf(&line[pos], sizeof line - pos, "%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
 					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f+%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur, sep, unsep, t_request.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);

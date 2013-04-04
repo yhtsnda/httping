@@ -21,6 +21,8 @@ WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fas
 unsigned int max_x = 80, max_y = 25;
 int stats_h = 6;
 int logs_n = 0, slow_n = 0, fast_n = 0;
+char **slow_history = NULL, **fast_history = NULL;
+int window_history_n = 0;
 
 double graph_limit = 99999999.9;
 
@@ -111,6 +113,22 @@ void create_windows(void)
 		history_n = max_x;
 	}
 
+	if ((int)max_y > window_history_n)
+	{
+		slow_history = (char **)realloc(slow_history, sizeof(char *) * max_y);
+		if (!slow_history)
+			error_exit("realloc issue");
+
+		fast_history = (char **)realloc(fast_history, sizeof(char *) * max_y);
+		if (!fast_history)
+			error_exit("realloc issue");
+
+		memset(&slow_history[window_history_n], 0x00, (max_y - window_history_n) * sizeof(char *));
+		memset(&fast_history[window_history_n], 0x00, (max_y - window_history_n) * sizeof(char *));
+
+		window_history_n = max_y;
+	}
+
 	w_stats = newwin(stats_h, max_x,  0, 0);
 	scrollok(w_stats, false);
 
@@ -153,14 +171,26 @@ void create_windows(void)
 
 void recreate_terminal(void)
 {
+	int index = 0;
+
         determine_terminal_size(&max_y, &max_x);
 
         resizeterm(max_y, max_x);
 
         endwin();
-        refresh(); /* <- as specified by ncurses faq, was: doupdate(); */
+        refresh();
 
         create_windows();
+
+	for(index = window_history_n - 1; index >= 0; index--)
+	{
+		if (slow_history[index])
+			wprintw(w_slow, slow_history[index]);
+		if (fast_history[index])
+			wprintw(w_fast, fast_history[index]);
+	}
+
+	doupdate();
 
 	win_resize = 0;
 }
@@ -195,6 +225,17 @@ void init_ncurses_ui(double graph_limit_in)
 
 void end_ncurses(void)
 {
+	int index = 0;
+
+	for(index=0; index<window_history_n; index++)
+	{
+		free(slow_history[index]);
+		free(fast_history[index]);
+	}
+
+	free(slow_history);
+	free(fast_history);
+
 	if (w_stats)
 	{
 		delwin(w_stats);
@@ -219,11 +260,18 @@ void end_ncurses(void)
 
 void fast_log(const char *fmt, ...)
 {
+	char buffer[4096] = { 0 };
         va_list ap;
 
         va_start(ap, fmt);
-        vwprintw(w_fast, fmt, ap);
+        vsnprintf(buffer, sizeof buffer, fmt, ap);
         va_end(ap);
+
+	free(fast_history[window_history_n - 1]);
+	memmove(&fast_history[1], &fast_history[0], (window_history_n - 1) * sizeof(char *));
+	fast_history[0] = strdup(buffer);
+
+	wprintw(w_fast, buffer);
 
 	if (win_resize)
 		recreate_terminal();
@@ -231,11 +279,18 @@ void fast_log(const char *fmt, ...)
 
 void slow_log(const char *fmt, ...)
 {
+	char buffer[4096] = { 0 };
         va_list ap;
 
         va_start(ap, fmt);
-        vwprintw(w_slow, fmt, ap);
+        vsnprintf(buffer, sizeof buffer, fmt, ap);
         va_end(ap);
+
+	free(slow_history[window_history_n - 1]);
+	memmove(&slow_history[1], &slow_history[0], (window_history_n - 1) * sizeof(char *));
+	slow_history[0] = strdup(buffer);
+
+	wprintw(w_slow, buffer);
 
 	if (win_resize)
 		recreate_terminal();
@@ -456,13 +511,13 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 	if (n_ok)
 	{
-		mvwprintw(w_stats, 0, 0, "resolve: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f (cur/min/avg/max/sd)",
+		mvwprintw(w_stats, 0, 0, "resolve: %6.2f %6.2f %6.2f %6.2f %6.2f (cur/min/avg/max/sd)",
 			resolve -> cur, resolve -> min, resolve -> avg / (double)resolve -> n, resolve -> max, calc_sd(resolve));
-		mvwprintw(w_stats, 1, 0, "connect: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+		mvwprintw(w_stats, 1, 0, "connect: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
-		mvwprintw(w_stats, 2, 0, "request: %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+		mvwprintw(w_stats, 2, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
-		mvwprintw(w_stats, 3, 0, "total  : %6.2f/%6.2f/%6.2f/%6.2f/%6.2f",
+		mvwprintw(w_stats, 3, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
 			total   -> cur, total   -> min, total   -> avg / (double)total   -> n, total   -> max, calc_sd(total  ));
 
 		mvwprintw(w_stats, 4, 0, "ok: %4d, fail: %4d%s, scc: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc());
