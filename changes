@@ -1,5 +1,2 @@
-- fix for compilation problems on FreeBSD
-- retrieve proxy settings from environment
-- implemented proxy authentication
-- resolve ip address of proxy only once
-- added https proxying support
+- added OPTIONAL ncurses interface
+- added adaptive interval
