@@ -1,3 +1,4 @@
+/* $Revision$ */
 #include <poll.h>
 #include <stdarg.h>
 #include <stdio.h>

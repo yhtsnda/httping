@@ -1,9 +1,9 @@
-#! /bin/bash
+#! /bin/sh
 
 FILE=/tmp/a.out_eb_$$
 FILE2=/tmp/a.out_eb2_$$
 
-echo \*\*\* HTTPing v`grep VERSION version | cut -d = -f 2` \(`echo $Revision: 795 $ | awk '{ print $2; }'`\) configure script \*\*\*
+echo \*\*\* HTTPing v`grep VERSION version | cut -d = -f 2` \(`echo $Revision$ | awk '{ print $2; }'`\) configure script \*\*\*
 echo
 
 F_TFO=0

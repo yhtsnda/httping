@@ -2,16 +2,21 @@ Installation:
 ------------
 make install
 
-to build without SSL support:
-	make -f Makefile.nossl install
+This will first invoke the 'configure'-script and then build the sources.
+You can also run 'configure' manually. Then the following switches apply:
+	--with-tfo      force enable tcp fast open
+	--with-ncurses  force enable ncurses
+	--with-openssl  force enable openssl
+	--with-fftw3    force enable fftw3
 
-to build with "tcp fast open" support, add the following line to the makefile:
-	TFO=yes
-Please note that TCP fast open requires a Linux kernel of version 3.7 or more
-recent.
+Please note that TCP fast open requires a Linux kernel of version 3.7 or more recent.
 
-to build without SSL support, add the following line to the makefile:
-	SSL=no
+'fftw3' support is only usefull if you include the ncurses interface.
+
+Debian package names:
+	ncurses requires libncurses5-dev
+	fftw3 requires libfftw3-dev
+	openssl requires libssl-dev
 
 
 Usage:

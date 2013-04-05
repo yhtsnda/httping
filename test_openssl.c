@@ -1,4 +1,5 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
+/* $Revision$ */
 
 #include <stdio.h>
 #include <openssl/bio.h>

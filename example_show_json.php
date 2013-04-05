@@ -1,3 +1,6 @@
+<?
+	# $Revision$
+?>
 <HTML>
 <BODY>
 <TABLE BORDER='1'>
