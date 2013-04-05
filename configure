@@ -6,6 +6,11 @@ FILE2=/tmp/a.out_eb2_$$
 echo \*\*\* HTTPing v`grep VERSION version | cut -d = -f 2` \(`echo $Revision$ | awk '{ print $2; }'`\) configure script \*\*\*
 echo
 
+if [ -z "$CC" ]
+then
+	CC=gcc
+fi
+
 F_TFO=0
 F_NC=0
 F_OS=0
@@ -44,7 +49,7 @@ do
 	esac
 done
 
-g++ -O0 -o $FILE test_TFO.c 2> $FILE2
+$CC -O0 -o $FILE test_TFO.c 2> $FILE2
 if [ $? -eq 0 ] || [ $F_TFO -eq 1 ] ; then
 	echo \+ system supports TCP fast open
 	TFO="TFO=yes"
@@ -53,7 +58,7 @@ else
 	TFO=""
 fi
 
-g++ -O0 -lncurses -o $FILE test_ncurses.c 2> $FILE2
+$CC -O0 -lncurses -o $FILE test_ncurses.c 2> $FILE2
 if [ $? -eq 0 ] || [ $F_NC -eq 1 ] ; then
 	echo \+ system has ncurses development libraries
 	NC="NC=yes"
@@ -62,7 +67,7 @@ else
 	NC=""
 fi
 
-g++ -O0 -lssl -lcrypto -o $FILE test_openssl.c 2> $FILE2
+$CC -O0 -lssl -lcrypto -o $FILE test_openssl.c 2> $FILE2
 if [ $? -eq 0 ] || [ $F_OS -eq 1 ] ; then
 	echo \+ system has OpenSSL development libraries
 	SSL="SSL=yes"
@@ -71,7 +76,7 @@ else
 	SSL=""
 fi
 
-g++ -O0 -lfftw3 -o $FILE test_fftw3.c 2> $FILE2
+$CC -O0 -lfftw3 -o $FILE test_fftw3.c 2> $FILE2
 if [ $? -eq 0 ] || [ $F_FW -eq 1 ] ; then
 	echo \+ system has FFTW3 development libraries
 	FW="FW=yes"
