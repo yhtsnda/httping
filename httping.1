@@ -138,20 +138,23 @@ When connecting using SSL, display the fingerprint of the X509 certificate(s) of
 .B "\-\-aggregates x[,y[,z[,etc.]]]"
 Show aggregates every x[/y[/z[/etc]]] seconds.
 .TP
-.B "\-\-graph-limit x"
+.B "\-\-graph\-limit x"
 If values measured are bigger than x, then they're limitted to x.
 .TP
-.B "\-\-no-host-header"
+.B "\-\-no\-host\-header"
 Do not put a "Host:"-header in the request header.
 .TP
-.B "\-\-proxy-user x"
+.B "\-\-proxy\-user x"
 Use username 'x' to authenticate against proxy (http/socks5) server (optional).
 .TP
-.B "\-\-proxy-password x"
+.B "\-\-proxy\-password x"
 Use password 'x' to authenticate against proxy (http/socks5) server (optional).
 .TP
-.B "\-\-proxy-password-file x"
+.B "\-\-proxy\-password-file x"
 Read password from file 'x' to authenticate against proxy (http/socks5) server (optional).
+.TP
+.B "\-\-slow\-log x"
+When the duration is x or more, show ping line in the slow log window (the middle window).
 .TP
 .B "\-\-threshold\-red x"
 If the measured threshold is higher than x (and -Y is given), then the shown value is colored red. If you also use --threshold-yellow, then this value must be bigger.
@@ -196,7 +199,7 @@ None. This program is totally bug-free.
 .SH NOTES
 This page describes
 .B httping
-as found in the httping-2.2 package; other versions may differ slightly.
+as found in the httping-2.3 package; other versions may differ slightly.
 Please mail corrections and additions to folkert@vanheusden.com.
 Report bugs in the program to folkert@vanheusden.com.
 Please consider sending bitcoins to 1N5Sn4jny4xVwTwSYLnf7WnFQEGoVRmTQF

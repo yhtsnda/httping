@@ -941,6 +941,7 @@ int main(int argc, char *argv[])
 	double graph_limit = 9999999.9;
 	char nc_graph = 1;
 	char adaptive_interval = 0;
+	double slow_log = 9999999.0;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1004,6 +1005,7 @@ int main(int argc, char *argv[])
 		{"proxy-password-file",	1, NULL, 10 },
 		{"graph-limit",	1, NULL, 11 },
 		{"adaptive-interval",	0, NULL, 12 },
+		{"slow-log",	0, NULL, 13 },
 		{"ai",	0, NULL, 12 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
@@ -1024,6 +1026,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 13:
+				slow_log = atof(optarg);
+				break;
+
 			case 12:
 				adaptive_interval = 1;
 				break;
@@ -2014,7 +2020,13 @@ persistent_loop:
 
 #ifdef NC
 				if (ncurses_mode)
-					fast_log("\n%s", line);
+				{
+					if (dummy_ms >= slow_log)
+					else
+						slow_log("\n%s", line);
+					else
+						fast_log("\n%s", line);
+				}
 				else
 #endif
 					printf("%s\n", line);
