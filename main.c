@@ -941,7 +941,7 @@ int main(int argc, char *argv[])
 	double graph_limit = 9999999.9;
 	char nc_graph = 1;
 	char adaptive_interval = 0;
-	double slow_log = 9999999.0;
+	double show_slow_log = 9999999.0;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1027,7 +1027,7 @@ int main(int argc, char *argv[])
 		switch(c)
 		{
 			case 13:
-				slow_log = atof(optarg);
+				show_slow_log = atof(optarg);
 				break;
 
 			case 12:
@@ -2021,8 +2021,7 @@ persistent_loop:
 #ifdef NC
 				if (ncurses_mode)
 				{
-					if (dummy_ms >= slow_log)
-					else
+					if (dummy_ms >= show_slow_log)
 						slow_log("\n%s", line);
 					else
 						fast_log("\n%s", line);
