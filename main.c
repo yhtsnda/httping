@@ -622,9 +622,12 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 			char line[4096] = { 0 };
 			int pos = 0;
 			double avg = a -> n_values ? a -> value / (double)a -> n_values : -1.0;
+			char *ts = get_ts_str(verbose);
 
-			pos += snprintf(&line[pos], sizeof line - pos, "%s", show_ts ? get_ts_str(verbose) : "");
+			pos += snprintf(&line[pos], sizeof line - pos, "%s", show_ts ? ts : "");
 			pos += snprintf(&line[pos], sizeof line - pos, "AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
+
+			free(ts);
 
 			if (verbose)
 			{
@@ -669,6 +672,9 @@ void fetch_proxy_settings(char **proxy_user, char **proxy_password, char **proxy
 		char *path = NULL, *url = NULL;
 
 		interpret_url(str, &path, proxy_host, proxy_port, use_ipv6, use_ssl, &url, proxy_user, proxy_password);
+
+		free(url);
+		free(path);
 	}
 }
 
@@ -1882,7 +1888,7 @@ persistent_loop:
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc), sc, headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success);
+				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success);
 			}
 			else if (machine_readable)
 			{
