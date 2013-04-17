@@ -255,10 +255,11 @@ void emit_headers(char *in)
 {
 #ifdef NC
 	static char shown = 0;
+	int len_in = -1;
 
-	if (!shown && ncurses_mode && in != NULL)
+	if (!shown && ncurses_mode && in != NULL && (len_in = strlen(in) - 4) > 0)
 	{
-		int len_in = strlen(in) - 4, pos = 0, pos_out = 0;
+		int pos = 0, pos_out = 0;
 		char *copy = (char *)malloc(len_in + 1);
 
 		for(pos=0; pos<len_in; pos++)
@@ -1365,6 +1366,22 @@ int main(int argc, char *argv[])
 		init_ncurses_ui(graph_limit, 1.0 / wait);
 	}
 #endif
+
+	if (strncmp(complete_url, "https://", 8) == 0 && !use_ssl)
+	{
+		use_ssl = 1;
+#ifdef NC
+		if (ncurses_mode)
+		{
+			slow_log("\nAuto enabling SSL due to https-URL");
+			update_terminal();
+		}
+		else
+#endif
+		{
+			fprintf(stderr, "Auto enabling SSL due to https-URL");
+		}
+	}
 
 	if (verbose)
 	{
