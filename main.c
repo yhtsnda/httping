@@ -1861,7 +1861,7 @@ persistent_loop:
 
 				if (!persistent_connections)
 				{
-					if (close_ssl_connection(ssl_h, fd) == -1)
+					if (close_ssl_connection(ssl_h) == -1)
 					{
 						set_error("error shutting down ssl");
 						emit_error(verbose, curncount, dstart);

@@ -41,24 +41,25 @@ void shutdown_ssl(void)
 	CRYPTO_cleanup_all_ex_data();
 }
 
-char close_ssl_connection(SSL *ssl_h, int socket_h)
+char close_ssl_connection(SSL *ssl_h)
 {
 	int rc = SSL_shutdown(ssl_h);
 
 	if (!rc)
-	{
-		shutdown(socket_h, 1);
-
 		rc = SSL_shutdown(ssl_h);
-	}
 
-	/* rc == 0 means try again but it seems to be fine
-	 * to ignore that is what I read from the manpage
-	 */
+/*
+ignoring failures: the socket will be closed
+anyway later on so any openssl failures won't
+do any harm
 	if (rc == -1)
+	{
+		fprintf(stderr, "SSL_shutdown failed: %s\n", strerror(errno));
 		return -1;
-	else 
-		return 0;
+	}
+*/
+
+	return 0;
 }
 
 int READ_SSL(SSL *ssl_h, char *whereto, int len)
