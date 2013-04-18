@@ -1,4 +1,5 @@
 /* $Revision$ */
+#include <math.h>
 #include <poll.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -11,6 +12,7 @@
 
 #include "error.h"
 #include "gen.h"
+#include "kalman.h"
 #ifdef FW
 #include "fft.h"
 #endif
@@ -27,6 +29,9 @@ int window_history_n = 0;
 
 double graph_limit = 99999999.9;
 double hz = 1.0;
+
+double graph_avg = 0.0, graph_sd = 0.0, graph_min = 999999999999.0, graph_max = -99999999999999999.0;
+int graph_n = 0;
 
 double *history = NULL, *history_temp = NULL, *history_fft = NULL;
 char *history_set = NULL;
@@ -222,6 +227,8 @@ void init_ncurses_ui(double graph_limit_in, double hz_in)
         init_pair(C_YELLOW, COLOR_YELLOW, COLOR_BLACK);
         init_pair(C_GREEN, COLOR_GREEN, COLOR_BLACK);
         init_pair(C_RED, COLOR_RED, COLOR_BLACK);
+
+	kalman_init(0.0);
 
         recreate_terminal();
 }
@@ -457,77 +464,68 @@ void draw_fft(void)
 }
 #endif
 
-void draw_graph(void)
+void draw_graph(double val)
 {
 	int index = 0, n = min(max_x, history_n);
-	double sd = 0.0, avg = 0.0, mi = 0.0, ma = 0.0;
-	stats_t h_stats;
+	double avg = 0, sd = 0;
+	double mi = 0.0, ma = 0.0, diff = 0.0;
 
-	init_statst(&h_stats);
+	graph_min = min(val, graph_min);
+	graph_max = max(val, graph_max);
+
+	graph_avg += val;
+	graph_sd += val * val;
+	graph_n++;
+
+	avg = graph_avg / (double)graph_n;
+	sd = sqrt((graph_sd / (double)graph_n) - pow(avg, 2.0));
+
+	mi = max(graph_min, max(0.0, avg - sd));
+	ma = min(graph_max, avg + sd);
+	diff = ma - mi;
+
+	if (diff == 0.0)
+		diff = 1.0;
+
+	wattron(w_line1, A_REVERSE);
+	mvwprintw(w_line1, 0, 0, "graph range: %7.2fms - %7.2fms    ", mi, ma);
+	wattroff(w_line1, A_REVERSE);
+	wnoutrefresh(w_line1);
+
+	/* fprintf(stderr, "%d| %f %f %f %f\n", h_stats.n, mi, avg, ma, sd); */
 
 	for(index=0; index<n; index++)
 	{
-		if (history_set[index])
+		char overflow = 0, limitter = 0;
+		double val = 0, height = 0;
+		int i_h = 0;
+
+		if (history[index] < graph_limit)
+			val = history[index];
+		else
 		{
-			double val = history[index] < graph_limit ? history[index] : graph_limit;
-
-			update_statst(&h_stats, val);
+			val = graph_limit;
+			limitter = 1;
 		}
-	}
 
-	if (h_stats.n)
-	{
-		double diff = 0.0;
+		height = (val - mi) / diff;
 
-		avg = h_stats.avg / (double)h_stats.n;
-		sd = calc_sd(&h_stats);
-
-		mi = max(h_stats.min, max(0.0, avg - sd));
-		ma = min(h_stats.max, avg + sd);
-		diff = ma - mi;
-
-		if (diff == 0.0)
-			diff = 1.0;
-
-		wattron(w_line1, A_REVERSE);
-		mvwprintw(w_line1, 0, 0, "graph range: %7.2fms - %7.2fms    ", mi, ma);
-		wattroff(w_line1, A_REVERSE);
-		wnoutrefresh(w_line1);
-
-		/* fprintf(stderr, "%d| %f %f %f %f\n", h_stats.n, mi, avg, ma, sd); */
-
-		for(index=0; index<h_stats.n; index++)
+		if (height > 1.0)
 		{
-			char overflow = 0, limitter = 0;
-			double val = 0, height = 0;
-			int i_h = 0;
-
-			if (history[index] < graph_limit)
-				val = history[index];
-			else
-			{
-				val = graph_limit;
-				limitter = 1;
-			}
-
-			height = (val - mi) / (ma - mi);
-
-			if (height > 1.0)
-			{
-				height = 1.0;
-				overflow = 1;
-			}
-
-			i_h = (int)(height * stats_h);
-			/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
-
-			draw_column(w_stats, max_x - (1 + index), i_h, overflow, limitter);
+			height = 1.0;
+			overflow = 1;
 		}
+
+		i_h = (int)(height * stats_h);
+		/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
+
+		draw_column(w_stats, max_x - (1 + index), i_h, overflow, limitter);
 	}
 }
 
 void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl)
 {
+	double k = 0.0;
 	char force_redraw = 0;
 	struct pollfd p = { 0, POLLIN, 0 };
 
@@ -556,7 +554,9 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		mvwprintw(w_stats, 4, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
 			total -> cur, total -> min, total -> avg / (double)total -> n, total -> max, calc_sd(total));
 
-		mvwprintw(w_stats, 5, 0, "ok: %4d, fail: %4d%s, scc: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc());
+		k = kalman_do(total -> cur);
+
+		mvwprintw(w_stats, 5, 0, "ok: %4d, fail: %4d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
 
 		buflen = snprintf(buffer, sizeof buffer, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
 
@@ -585,7 +585,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 	if (dg)
 	{
-		draw_graph();
+		draw_graph(k);
 #ifdef FW
 		draw_fft();
 #endif
