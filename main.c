@@ -1314,9 +1314,10 @@ int main(int argc, char *argv[])
 
 			case '?':
 			default:
+				fprintf(stderr, "\n");
 				version();
 
-				fprintf(stderr, "Command not understood!\n\nPlease run:\n\t%s --help\nto see a list of options.\n\n", argv[0]);
+				fprintf(stderr, "\n\nPlease run:\n\t%s --help\nto see a list of options.\n\n", argv[0]);
 
 				return 1;
 		}
