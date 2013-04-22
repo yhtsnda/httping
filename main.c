@@ -39,8 +39,6 @@
 #include "nc.h"
 #endif
 
-#define MI_MA 999999999.9
-
 static volatile int stop = 0;
 
 int quiet = 0;
@@ -584,8 +582,8 @@ void set_aggregate(char *in, int *n_aggregates, aggregate_t **aggregates)
 		memset(&(*aggregates)[*n_aggregates - 1], 0x00, sizeof(aggregate_t));
 
 		(*aggregates)[*n_aggregates - 1].interval = atoi(dummy);
-		(*aggregates)[*n_aggregates - 1].max = -MI_MA;
-		(*aggregates)[*n_aggregates - 1].min =  MI_MA;
+		(*aggregates)[*n_aggregates - 1].max = -MY_DOUBLE_INF;
+		(*aggregates)[*n_aggregates - 1].min =  MY_DOUBLE_INF;
 
 		dummy = strchr(dummy, ',');
 		if (dummy)
@@ -651,8 +649,8 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 
 			aggregates[index].value =
 			aggregates[index].sd    = 0.0;
-			aggregates[index].min =  MI_MA;
-			aggregates[index].max = -MI_MA;
+			aggregates[index].min =  MY_DOUBLE_INF;
+			aggregates[index].max = -MY_DOUBLE_INF;
 			aggregates[index].n_values = 0;
 			aggregates[index].last_ts = cur_ts;
 		}
@@ -942,13 +940,13 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total, t_resolve, t_ssl, stats_to;
+	stats_t t_connect, t_request, t_total, t_resolve, t_ssl, stats_to, tcp_rtt_stats;
 	double total_took = 0;
 	char first_resolve = 1;
-	double graph_limit = 9999999.9;
+	double graph_limit = MY_DOUBLE_INF;
 	char nc_graph = 1;
 	char adaptive_interval = 0;
-	double show_slow_log = 9999999.0;
+	double show_slow_log = MY_DOUBLE_INF;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -957,6 +955,9 @@ int main(int argc, char *argv[])
 	init_statst(&t_ssl);
 
 	init_statst(&stats_to);
+#if defined(linux) || defined(__FreeBSD__)
+	init_statst(&tcp_rtt_stats);
+#endif
 
 	static struct option long_options[] =
 	{
@@ -1538,7 +1539,7 @@ int main(int argc, char *argv[])
 			double their_est_ts = -1.0, toff_diff_ts = -1.0;
 			char tfo_success = 0;
 			double ssl_handshake = 0.0;
-#ifdef TCP_TFO
+#if defined(linux) || defined(__FreeBSD__)
 			struct tcp_info info;
 			socklen_t info_len = sizeof(struct tcp_info);
 #endif
@@ -1876,10 +1877,12 @@ persistent_loop:
 			}
 #endif
 
-#ifdef TCP_TFO
+#if defined(linux) || defined(__FreeBSD__)
 			if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && (info.tcpi_options & TCPI_OPT_SYN_DATA))
 				tfo_success = 1;
 			/* printf("%d %d %d %d %d %d\n", info.tcpi_retransmits, info.tcpi_unacked, info.tcpi_sacked, info.tcpi_lost, info.tcpi_retrans, info.tcpi_fackets); */
+
+			update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
 #endif
 
 			if (!persistent_connections)
@@ -1894,8 +1897,7 @@ persistent_loop:
 			dummy_ms = (dend - dstart) * 1000.0;
 			update_statst(&t_total, dummy_ms);
 
-			/* estimate of when other end started replying */
-			their_est_ts = (dend + dafter_connect) / 2.0;
+			their_est_ts = (dend + dafter_connect) / 2.0; /* estimate of when other end started replying */
 			toff_diff_ts = ((double)their_ts - their_est_ts) * 1000.0;
 			update_statst(&stats_to, toff_diff_ts);
 
@@ -2077,7 +2079,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats);
 #endif
 
 		free(sc);

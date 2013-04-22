@@ -27,11 +27,8 @@ int logs_n = 0, slow_n = 0, fast_n = 0;
 char **slow_history = NULL, **fast_history = NULL;
 int window_history_n = 0;
 
-double graph_limit = 99999999.9;
+double graph_limit = MY_DOUBLE_INF;
 double hz = 1.0;
-
-double graph_avg = 0.0, graph_sd = 0.0, graph_min = 999999999999.0, graph_max = -99999999999999999.0;
-int graph_n = 0;
 
 double *history = NULL, *history_temp = NULL, *history_fft = NULL;
 char *history_set = NULL;
@@ -464,22 +461,52 @@ void draw_fft(void)
 
 void draw_graph(double val)
 {
-	int index = 0, n = min(max_x, history_n);
+	int index = 0, loop_n = min(max_x, history_n), n = 0, n2 = 0;
 	double avg = 0, sd = 0;
-	double mi = 0.0, ma = 0.0, diff = 0.0;
+	double avg2 = 0, sd2 = 0;
+	double mi = MY_DOUBLE_INF, ma = -MY_DOUBLE_INF, diff = 0.0;
 
-	graph_min = min(val, graph_min);
-	graph_max = max(val, graph_max);
+	for(index=0; index<loop_n; index++)
+	{
+		double val = history[index];
 
-	graph_avg += val;
-	graph_sd += val * val;
-	graph_n++;
+		if (!history_set[index])
+			continue;
 
-	avg = graph_avg / (double)graph_n;
-	sd = sqrt((graph_sd / (double)graph_n) - pow(avg, 2.0));
+		mi = min(val, mi);
+		ma = max(val, ma);
 
-	mi = max(graph_min, max(0.0, avg - sd));
-	ma = min(graph_max, avg + sd);
+		avg += val;
+		sd += val * val;
+		n++;
+	}
+
+	avg /= (double)n;
+	sd = sqrt((sd / (double)n) - pow(avg, 2.0));
+
+	mi = max(mi, avg - sd);
+	ma = min(ma, avg + sd);
+
+	for(index=0; index<loop_n; index++)
+	{
+		double val = history[index];
+
+		if (!history_set[index])
+			continue;
+
+		if (val < mi || val > ma)
+			continue;
+
+		avg2 += val;
+		sd2 += val * val;
+		n2++;
+	}
+
+	avg2 /= (double)n2;
+	sd2 = sqrt((sd2 / (double)n2) - pow(avg2, 2.0));
+
+	mi = max(mi, avg2 - sd2);
+	ma = min(ma, avg2 + sd2);
 	diff = ma - mi;
 
 	if (diff == 0.0)
@@ -492,11 +519,17 @@ void draw_graph(double val)
 
 	/* fprintf(stderr, "%d| %f %f %f %f\n", h_stats.n, mi, avg, ma, sd); */
 
-	for(index=0; index<n; index++)
+	for(index=0; index<loop_n; index++)
 	{
 		char overflow = 0, limitter = 0;
 		double val = 0, height = 0;
-		int i_h = 0;
+		int i_h = 0, x = max_x - (1 + index);
+
+		if (!history_set[index])
+		{
+			mvwchgat(w_stats, stats_h - 1, x, 1, A_REVERSE, C_CYAN, NULL);
+			continue;
+		}
 
 		if (history[index] < graph_limit)
 			val = history[index];
@@ -517,11 +550,11 @@ void draw_graph(double val)
 		i_h = (int)(height * stats_h);
 		/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
 
-		draw_column(w_stats, max_x - (1 + index), i_h, overflow, limitter);
+		draw_column(w_stats, x, i_h, overflow, limitter);
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to, stats_t *tcp_rtt_stats)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -562,6 +595,11 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			mvwprintw(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
 			mvwprintw(w_stats, 1, 45, "t offst: %6.2f %6.2f %6.2f %6.2f %6.2f",
 				st_to -> cur, st_to -> min, st_to -> avg / (double)st_to -> n, st_to -> max, calc_sd(st_to));
+
+#if defined(linux) || defined(__FreeBSD__)
+			mvwprintw(w_stats, 2, 45, "tcp rtt: %6.2f %6.2f %6.2f %6.2f %6.2f",
+				tcp_rtt_stats -> cur, tcp_rtt_stats -> min, tcp_rtt_stats -> avg / (double)tcp_rtt_stats -> n, tcp_rtt_stats -> max, calc_sd(tcp_rtt_stats));
+#endif
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");

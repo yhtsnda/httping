@@ -17,6 +17,8 @@
 	#define BIO	void
 #endif
 
+#define MY_DOUBLE_INF	999999999999999.9
+
 #ifdef TCP_TFO
 	#ifndef MSG_FASTOPEN
 		#define MSG_FASTOPEN	0x20000000

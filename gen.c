@@ -8,7 +8,7 @@ void init_statst(stats_t *data)
 {
 	memset(data, 0x00, sizeof(stats_t));
 
-	data -> min = 999999999999.0;
+	data -> min = MY_DOUBLE_INF;
 	data -> max = -data -> min;
 }
 
