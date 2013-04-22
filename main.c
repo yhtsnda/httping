@@ -1895,8 +1895,8 @@ persistent_loop:
 			update_statst(&t_total, dummy_ms);
 
 			/* estimate of when other end started replying */
-			their_est_ts = (dend + dstart) / 2.0;
-			toff_diff_ts = (double)their_ts - their_est_ts;
+			their_est_ts = (dend + dafter_connect) / 2.0;
+			toff_diff_ts = ((double)their_ts - their_est_ts) * 1000.0;
 			update_statst(&stats_to, toff_diff_ts);
 
 			if (json_output)
