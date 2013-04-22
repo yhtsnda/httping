@@ -45,7 +45,7 @@ void fft_stop(void)
 	fftw_cleanup();
 }
 
-void fft_do(double *in, double *output_mag)
+void fft_do(double *in, double *output_mag, double *output_phase)
 {
 	int loop = 0;
 
@@ -58,8 +58,11 @@ void fft_do(double *in, double *output_mag)
 	{
 		double real = pout[loop][0];
 		double img = pout[loop][1];
-		double mag = sqrt(pow(real, 2.0) + pow(img, 2.0));
 
-		output_mag[loop] = mag;
+		/* magnitude */
+		output_mag[loop] = sqrt(pow(real, 2.0) + pow(img, 2.0));
+
+		/* phase */
+		output_phase[loop] = (real == 0 || img == 0) ? 0 : atan2(real, img);
 	}
 }

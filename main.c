@@ -39,7 +39,7 @@
 #include "nc.h"
 #endif
 
-static volatile int stop = 0;
+volatile int stop = 0;
 
 int quiet = 0;
 char machine_readable = 0;
@@ -95,6 +95,10 @@ void help_long(void)
 	fprintf(stderr, "--cookie               -C\n");
 	fprintf(stderr, "--count                -c\n");
 	fprintf(stderr, "--data-limit           -L\n");
+#if defined(NC) && defined(FW)
+	fprintf(stderr, "--draw-phase           draw phase (fourier transform) in gui\n");
+#endif
+	fprintf(stderr, "--nagios-mode-2        -n\n");
 	fprintf(stderr, "--flood                -f\n");
 	fprintf(stderr, "--get-request          -G\n");
 	fprintf(stderr, "--graph-limit x        do not scale to values above x\n");
@@ -1015,8 +1019,9 @@ int main(int argc, char *argv[])
 		{"proxy-password-file",	1, NULL, 10 },
 		{"graph-limit",	1, NULL, 11 },
 		{"adaptive-interval",	0, NULL, 12 },
-		{"slow-log",	0, NULL, 13 },
 		{"ai",	0, NULL, 12 },
+		{"slow-log",	0, NULL, 13 },
+		{"draw-phase",	0, NULL, 14 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1036,6 +1041,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 14:
+				draw_phase = 1;
+				break;
+
 			case 13:
 				show_slow_log = atof(optarg);
 				break;

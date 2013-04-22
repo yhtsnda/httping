@@ -12,12 +12,11 @@
 
 #include "error.h"
 #include "gen.h"
+#include "main.h"
 #include "kalman.h"
 #ifdef FW
 #include "fft.h"
 #endif
-
-void handler(int sig);
 
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
@@ -30,9 +29,13 @@ int window_history_n = 0;
 double graph_limit = MY_DOUBLE_INF;
 double hz = 1.0;
 
-double *history = NULL, *history_temp = NULL, *history_fft = NULL;
+double *history = NULL, *history_temp = NULL, *history_fft_magn = NULL, *history_fft_phase = NULL;
 char *history_set = NULL;
 unsigned int history_n = 0;
+
+char draw_phase = 0;
+
+char pause_graphs = 0;
 
 typedef enum { C_WHITE = 0, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN, C_RED } color_t;
 
@@ -102,8 +105,12 @@ void create_windows(void)
 			error_exit("realloc issue");
 
 		/* halve of it is enough really */
-		history_fft = (double *)realloc(history_fft, sizeof(double) * max_x);
-		if (!history_fft)
+		history_fft_magn = (double *)realloc(history_fft_magn, sizeof(double) * max_x);
+		if (!history_fft_magn)
+			error_exit("realloc issue");
+
+		history_fft_phase = (double *)realloc(history_fft_phase, sizeof(double) * max_x);
+		if (!history_fft_phase)
 			error_exit("realloc issue");
 
 		history_set = (char *)realloc(history_set, sizeof(char) * max_x);
@@ -260,7 +267,8 @@ void end_ncurses(void)
 	fft_stop();
 #endif
 	free(history_temp);
-	free(history_fft);
+	free(history_fft_phase);
+	free(history_fft_magn);
 }
 
 void fast_log(const char *fmt, ...)
@@ -396,11 +404,12 @@ double get_cur_scc()
 #ifdef FW
 void draw_fft(void)
 {
-	double mx = 0.0;
+	double mx_mag = 0.0, mx_pha = 0.0;
 	unsigned int index = 0, highest = 0;
 	int cx = 0, cy = 0;
 	/* double max_freq = hz / 2.0; */
 	double highest_freq = 0, avg_freq_index = 0.0, total_val = 0.0, avg_freq = 0.0;
+	unsigned int dummy = 0;
 
 	getyx(w_slow, cy, cx);
 
@@ -419,18 +428,21 @@ void draw_fft(void)
 		history_temp[index] = val;
 	}
 
-	fft_do(history_temp, history_fft);
+	fft_do(history_temp, history_fft_magn, history_fft_phase);
 
 	for(index=1; index<max_x/2; index++)
 	{
-		avg_freq_index += (double)index * history_fft[index];
-		total_val += history_fft[index];
+		avg_freq_index += (double)index * history_fft_magn[index];
+		total_val += history_fft_magn[index];
 
-		if (history_fft[index] > mx)
+		if (history_fft_magn[index] > mx_mag)
 		{
-			mx = history_fft[index];
+			mx_mag = history_fft_magn[index];
 			highest = index;
 		}
+
+		if (history_fft_phase[index] > mx_pha)
+			mx_pha = history_fft_phase[index];
 	}
 
 	highest_freq = (hz / (double)max_x) * (double)highest;
@@ -443,14 +455,34 @@ void draw_fft(void)
 	wattroff(w_line1, A_REVERSE);
 	wnoutrefresh(w_line1);
 
-	for(index=0; index<(unsigned int)slow_n; index++)
-		mvwchgat(w_slow, index, max_x / 2, max_x / 2, A_NORMAL, C_WHITE, NULL);
+	dummy = max_x / 2 + 1;
 
-	for(index=1; index<max_x / 2 + 1; index++)
+	if (draw_phase)
 	{
-		int height = (int)((double)slow_n * (history_fft[index] / mx));
+		int y = 0;
 
-		draw_column(w_slow, max_x / 2 + index - 1, height, 0, 0);
+		for(y=0; y<slow_n; y++)
+			mvwchgat(w_slow, y, dummy, 1, A_REVERSE, C_WHITE, NULL);
+
+		for(index=0; index<(unsigned int)slow_n; index++)
+			mvwchgat(w_slow, index, 0, max_x, A_NORMAL, C_WHITE, NULL);
+
+		for(index=1; index<dummy - 1; index++)
+		{
+			int height_pha = (int)((double)fast_n * (history_fft_phase[index] / mx_pha));
+			draw_column(w_slow, index - 1, height_pha, 0, 0);
+		}
+	}
+	else
+	{
+		for(index=0; index<(unsigned int)slow_n; index++)
+			mvwchgat(w_slow, index, max_x / 2, max_x / 2, A_NORMAL, C_WHITE, NULL);
+	}
+
+	for(index=1; index<dummy; index++)
+	{
+		int height_magn = (int)((double)slow_n * (history_fft_magn[index] / mx_mag));
+		draw_column(w_slow, max_x / 2 + index - 1, height_magn, 0, 0);
 	}
 
 	wmove(w_slow, cy, cx);
@@ -627,7 +659,21 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 	history[0]= total -> cur;
 	history_set[0] = 1;
 
-	if (dg)
+	if (poll(&p, 1, 0) == 1 && p.revents == POLLIN)
+	{
+		int c = getch();
+
+		if (c == 12) /* ^L */
+			force_redraw = 1;
+
+		if (c == 'H')
+			pause_graphs = !pause_graphs;
+
+		if (c == 'q')
+			stop = 1;
+	}
+
+	if (dg && !pause_graphs)
 	{
 		draw_graph(k);
 #ifdef FW
@@ -636,9 +682,6 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 	}
 
 	wnoutrefresh(w_stats);
-
-	if (poll(&p, 1, 0) == 1 && p.revents == POLLIN && getch() == 12) /* ^L */
-		force_redraw = 1;
 
 	if (win_resize || force_redraw)
 		recreate_terminal();

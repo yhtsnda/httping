@@ -2,6 +2,7 @@
 #include <ncurses.h>
 
 extern char win_resize;
+extern char draw_phase;
 
 void init_ncurses_ui(double graph_limit_in, double hz_in);
 void end_ncurses(void);

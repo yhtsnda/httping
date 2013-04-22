@@ -138,6 +138,9 @@ When connecting using SSL, display the fingerprint of the X509 certificate(s) of
 .B "\-\-aggregates x[,y[,z[,etc.]]]"
 Show aggregates every x[/y[/z[/etc]]] seconds.
 .TP
+.B "\-\-draw-phase"
+Not only draw the magnitude of the fourier transform, draw the phase as well.
+.TP
 .B "\-\-graph\-limit x"
 If values measured are bigger than x, then they're limitted to x.
 .TP
@@ -176,6 +179,7 @@ The graph in the ncurses uses colors to encode a meaning. Green: value is less t
 
 .SH KEYS
 Press <CTRL> + <c> to exit the program. It will display a summary of what was measured.
+In the ncurses gui, press <CTRL> + <l> to forcibly redraw the screen. Press 'H' to halt the graphs (and again to continue). Press 'q' to stop the program (<CTRL> + <c> will work too).
 
 .SH EXAMPLES
 .TP
