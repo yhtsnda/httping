@@ -11,4 +11,12 @@
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
 
+- if max_x > ...
+  - time offset stats
+  - processing time / content-size stats
+  - content-size stats
+
+- fft:
+  - real / im, of real / mag
+
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle
