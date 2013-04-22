@@ -22,7 +22,7 @@ void handler(int sig);
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
-int stats_h = 7;
+int stats_h = 8;
 int logs_n = 0, slow_n = 0, fast_n = 0;
 char **slow_history = NULL, **fast_history = NULL;
 int window_history_n = 0;
@@ -79,7 +79,6 @@ void update_terminal(void)
 void create_windows(void)
 {
 	unsigned int nr = 0;
-	double scale = 0.0;
 
 	if (w_stats)
 	{
@@ -144,9 +143,8 @@ void create_windows(void)
 	wnoutrefresh(w_line1);
 
 	logs_n = max_y - (stats_h + 1 + 1);
-	scale = (double)logs_n / 16.0;
-	slow_n = (int)(scale * 6);
-	fast_n = logs_n - slow_n;
+	fast_n = logs_n * 11 / 20;
+	slow_n = logs_n - fast_n;
 
 	w_slow  = newwin(slow_n, max_x, (stats_h + 1), 0);
 	scrollok(w_slow, true);
@@ -523,7 +521,7 @@ void draw_graph(double val)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -536,37 +534,45 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		char buffer[4096] = { 0 };
 		unsigned int buflen = 0;
 
-		mvwprintw(w_stats, 0, 0, "resolve: %6.2f %6.2f %6.2f %6.2f %6.2f (cur/min/avg/max/sd)",
+		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
+		mvwprintw(w_stats, 1, 0, "resolve: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			resolve -> cur, resolve -> min, resolve -> avg / (double)resolve -> n, resolve -> max, calc_sd(resolve));
-		mvwprintw(w_stats, 1, 0, "connect: %6.2f %6.2f %6.2f %6.2f %6.2f",
+		mvwprintw(w_stats, 2, 0, "connect: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
 		if (use_ssl)
 		{
-			mvwprintw(w_stats, 2, 0, "ssl   : %6.2f %6.2f %6.2f %6.2f %6.2f",
+			mvwprintw(w_stats, 3, 0, "ssl   : %6.2f %6.2f %6.2f %6.2f %6.2f",
 				ssl_setup -> cur, ssl_setup -> min, ssl_setup -> avg / (double)ssl_setup -> n, ssl_setup -> max, calc_sd(ssl_setup));
 		}
 		else
 		{
-			mvwprintw(w_stats, 2, 0, "ssl   :");
+			mvwprintw(w_stats, 3, 0, "ssl   :");
 		}
-		mvwprintw(w_stats, 3, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
+
+		mvwprintw(w_stats, 4, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
 			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
-		mvwprintw(w_stats, 4, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
+		mvwprintw(w_stats, 5, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
 			total -> cur, total -> min, total -> avg / (double)total -> n, total -> max, calc_sd(total));
 
 		k = kalman_do(total -> cur);
+		mvwprintw(w_stats, 6, 0, "ok: %4d, fail: %4d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
 
-		mvwprintw(w_stats, 5, 0, "ok: %4d, fail: %4d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
+		if (max_x >= 44 * 2 + 1)
+		{
+			mvwprintw(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
+			mvwprintw(w_stats, 1, 45, "t offst: %6.2f %6.2f %6.2f %6.2f %6.2f",
+				st_to -> cur, st_to -> min, st_to -> avg / (double)st_to -> n, st_to -> max, calc_sd(st_to));
+		}
 
 		buflen = snprintf(buffer, sizeof buffer, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
 
 		if (buflen <= max_x)
-			mvwprintw(w_stats, 6, 0, "%s", buffer);
+			mvwprintw(w_stats, 7, 0, "%s", buffer);
 		else
 		{
 			static char prev_sf[48] = { 0 };
 
-			mvwprintw(w_stats, 6, 0, "http result code: %s", last_connect_str);
+			mvwprintw(w_stats, 7, 0, "http result code: %s", last_connect_str);
 
 			if (fp && strcmp(prev_sf, fp))
 			{

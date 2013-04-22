@@ -942,7 +942,7 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total, t_resolve, t_ssl;
+	stats_t t_connect, t_request, t_total, t_resolve, t_ssl, stats_to;
 	double total_took = 0;
 	char first_resolve = 1;
 	double graph_limit = 9999999.9;
@@ -955,6 +955,8 @@ int main(int argc, char *argv[])
 	init_statst(&t_request);
 	init_statst(&t_total);
 	init_statst(&t_ssl);
+
+	init_statst(&stats_to);
 
 	static struct option long_options[] =
 	{
@@ -1895,6 +1897,7 @@ persistent_loop:
 			/* estimate of when other end started replying */
 			their_est_ts = (dend + dstart) / 2.0;
 			toff_diff_ts = (double)their_ts - their_est_ts;
+			update_statst(&stats_to, toff_diff_ts);
 
 			if (json_output)
 			{
@@ -2074,7 +2077,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to);
 #endif
 
 		free(sc);
