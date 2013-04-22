@@ -63,6 +63,6 @@ void fft_do(double *in, double *output_mag, double *output_phase)
 		output_mag[loop] = sqrt(pow(real, 2.0) + pow(img, 2.0));
 
 		/* phase */
-		output_phase[loop] = (real == 0 || img == 0) ? 0 : atan2(real, img);
+		output_phase[loop] = (real == 0 && img == 0) ? 0 : atan2(real, img);
 	}
 }

@@ -404,7 +404,7 @@ double get_cur_scc()
 #ifdef FW
 void draw_fft(void)
 {
-	double mx_mag = 0.0, mx_pha = 0.0;
+	double mx_mag = 0.0, mx_pha = 2.0 * PI;
 	unsigned int index = 0, highest = 0;
 	int cx = 0, cy = 0;
 	/* double max_freq = hz / 2.0; */
@@ -440,9 +440,6 @@ void draw_fft(void)
 			mx_mag = history_fft_magn[index];
 			highest = index;
 		}
-
-		if (history_fft_phase[index] > mx_pha)
-			mx_pha = history_fft_phase[index];
 	}
 
 	highest_freq = (hz / (double)max_x) * (double)highest;
@@ -469,7 +466,7 @@ void draw_fft(void)
 
 		for(index=1; index<dummy - 1; index++)
 		{
-			int height_pha = (int)((double)fast_n * (history_fft_phase[index] / mx_pha));
+			int height_pha = (int)((double)slow_n * (history_fft_phase[index] + PI) / mx_pha);
 			draw_column(w_slow, index - 1, height_pha, 0, 0);
 		}
 	}

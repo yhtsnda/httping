@@ -17,6 +17,7 @@
 	#define BIO	void
 #endif
 
+#define PI (4 * atan(1.0))
 #define MY_DOUBLE_INF	999999999999999.9
 
 #ifdef TCP_TFO
