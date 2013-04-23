@@ -673,7 +673,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			total -> cur, total -> min, total -> avg / (double)total -> n, total -> max, calc_sd(total));
 
 		k = kalman_do(total -> cur);
-		mvwprintw(w_stats, 6, 0, "ok: %4d, fail: %4d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
+		mvwprintw(w_stats, 6, 0, "ok: %3d, fail: %3d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
 
 		if (max_x >= 44 * 2 + 1)
 		{
