@@ -1537,7 +1537,8 @@ int main(int argc, char *argv[])
 		char *sc = NULL, *scdummy = NULL;
 		char *fp = NULL;
 #if defined(linux) || defined(__FreeBSD__)
-		int re_tx = 0, pmtu = 0;
+		int re_tx = 0, pmtu = 0, tos = 0;
+		socklen_t tos_len = sizeof tos;
 #endif
 
 		dstart = get_ts();
@@ -1743,6 +1744,14 @@ persistent_loop:
 			}
 
 			rc = get_HTTP_headers(fd, ssl_h, &reply, &overflow, timeout);
+
+#if defined(linux) || defined(__FreeBSD__)
+			if (getsockopt(fd, IPPROTO_IP, IP_TOS,  &tos, &tos_len) == -1)
+			{
+				set_error("failed to obtain TOS info");
+				tos = -1;
+			}
+#endif
 
 			emit_headers(reply);
 
@@ -2100,7 +2109,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats, re_tx, pmtu);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos);
 #endif
 
 		free(sc);

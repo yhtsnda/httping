@@ -15,4 +15,19 @@
   - processing time / content-size stats
   - content-size stats
 
+- close() tijd meten:
+       SO_LINGER
+              Sets or gets the SO_LINGER option.  The argument is a linger structure.
+
+                  struct linger {
+                      int l_onoff;    /* linger active */
+                      int l_linger;   /* how many seconds to linger for */
+                  };
+
+              When  enabled, a close(2) or shutdown(2) will not return until all queued messages for the socket have
+              been successfully sent or the linger timeout has been reached.  Otherwise, the  call  returns  immedi‐
+              ately  and  the  closing  is done in the background.  When the socket is closed as part of exit(2), it
+              always lingers in the background.
+
+
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle
