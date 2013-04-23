@@ -488,6 +488,39 @@ void draw_fft(void)
 }
 #endif
 
+double calc_trend()
+{
+	unsigned int half = history_n / 2, index = 0;
+	double v1 = 0.0, v2 = 0.0;
+	int n_v1 = 0, n_v2 = 0;
+
+	for(index=0; index<half; index++)
+	{
+		if (!history_set[index])
+			continue;
+
+		v1 += history[index];
+		n_v1++;
+	}
+
+	for(index=half; index<history_n; index++)
+	{
+		if (!history_set[index])
+			continue;
+
+		v2 += history[index];
+		n_v2++;
+	}
+
+	if (n_v2 == 0 || n_v1 == 0)
+		return 0;
+
+	v1 /= (double)n_v1;
+	v2 /= (double)n_v2;
+
+	return (v1 - v2) / (v2 / 100.0);
+}
+
 void draw_graph(double val)
 {
 	int index = 0, loop_n = min(max_x, history_n), n = 0, n2 = 0;
@@ -621,6 +654,9 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 		if (max_x >= 44 * 2 + 1)
 		{
+			double trend = calc_trend();
+			char trend_dir = ' ';
+
 			mvwprintw(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
 			mvwprintw(w_stats, 1, 45, "t offst: %6.2f %6.2f %6.2f %6.2f %6.2f",
 				st_to -> cur, st_to -> min, st_to -> avg / (double)st_to -> n, st_to -> max, calc_sd(st_to));
@@ -629,6 +665,13 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			mvwprintw(w_stats, 2, 45, "tcp rtt: %6.2f %6.2f %6.2f %6.2f %6.2f",
 				tcp_rtt_stats -> cur, tcp_rtt_stats -> min, tcp_rtt_stats -> avg / (double)tcp_rtt_stats -> n, tcp_rtt_stats -> max, calc_sd(tcp_rtt_stats));
 #endif
+
+			if (trend < 0)
+				trend_dir = '-';
+			else if (trend > 0)
+				trend_dir = '+';
+
+			mvwprintw(w_stats, 7, 50, "trend: %c%.2f%%", trend_dir, fabs(trend));
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");
