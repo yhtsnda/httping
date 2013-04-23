@@ -355,6 +355,30 @@ void draw_column(WINDOW *win, int x, int height, char overflow, char limitter)
 		mvwchgat(win, win_h - 1, x, 1, A_REVERSE, C_GREEN, dummy);
 }
 
+void draw_rad_column(WINDOW *win, int x, double val)
+{
+	void *dummy = NULL;
+	int y = 0, end_y = 0, win_h = 0, win_w = 0;
+	int center_y = 0;
+
+	getmaxyx(win, win_h, win_w);
+	(void)win_w; /* silence warnings */
+
+	center_y = win_h / 2;
+	end_y = (int)((double)(win_h / 2) * ((val / PI) + 1.0));
+
+	if (end_y > center_y)
+	{
+		for(y=center_y; y<end_y; y++)
+			mvwchgat(win, y, x, 1, A_REVERSE, C_YELLOW, dummy);
+	}
+	else
+	{
+		for(y=end_y; y<center_y; y++)
+			mvwchgat(win, y, x, 1, A_REVERSE, C_YELLOW, dummy);
+	}
+}
+
 double get_cur_scc()
 {
         double scc_val = 0.0;
@@ -404,7 +428,7 @@ double get_cur_scc()
 #ifdef FW
 void draw_fft(void)
 {
-	double mx_mag = 0.0, mx_pha = 2.0 * PI;
+	double mx_mag = 0.0;
 	unsigned int index = 0, highest = 0;
 	int cx = 0, cy = 0;
 	/* double max_freq = hz / 2.0; */
@@ -466,8 +490,7 @@ void draw_fft(void)
 
 		for(index=1; index<dummy - 1; index++)
 		{
-			int height_pha = (int)((double)slow_n * (history_fft_phase[index] + PI) / mx_pha);
-			draw_column(w_slow, index - 1, height_pha, 0, 0);
+			draw_rad_column(w_slow, index - 1, history_fft_phase[index]);
 		}
 	}
 	else
