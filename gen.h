@@ -40,6 +40,7 @@ typedef struct
 {
 	double cur, min, avg, max, sd;
 	int n;
+	char valid;
 } stats_t;
 
 int enc_b64(char *source, int source_lenght, char *target);

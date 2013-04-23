@@ -639,6 +639,15 @@ void draw_graph(double val)
 	}
 }
 
+void show_stats_t(int y, int x, char *header, stats_t *data)
+{
+	if (data -> valid)
+	{
+		mvwprintw(w_stats, y, x, "%s: %6.2f %6.2f %6.2f %6.2f %6.2f", header,
+			data -> cur, data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
+	}
+}
+
 void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos)
 {
 	double k = 0.0;
@@ -653,24 +662,12 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		unsigned int buflen = 0;
 
 		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
-		mvwprintw(w_stats, 1, 0, "resolve: %6.2f %6.2f %6.2f %6.2f %6.2f",
-			resolve -> cur, resolve -> min, resolve -> avg / (double)resolve -> n, resolve -> max, calc_sd(resolve));
-		mvwprintw(w_stats, 2, 0, "connect: %6.2f %6.2f %6.2f %6.2f %6.2f",
-			connect -> cur, connect -> min, connect -> avg / (double)connect -> n, connect -> max, calc_sd(connect));
+		show_stats_t(1, 0, "resolve", resolve);
+		show_stats_t(2, 0, "connect", connect);
 		if (use_ssl)
-		{
-			mvwprintw(w_stats, 3, 0, "ssl   : %6.2f %6.2f %6.2f %6.2f %6.2f",
-				ssl_setup -> cur, ssl_setup -> min, ssl_setup -> avg / (double)ssl_setup -> n, ssl_setup -> max, calc_sd(ssl_setup));
-		}
-		else
-		{
-			mvwprintw(w_stats, 3, 0, "ssl   :");
-		}
-
-		mvwprintw(w_stats, 4, 0, "request: %6.2f %6.2f %6.2f %6.2f %6.2f",
-			request -> cur, request -> min, request -> avg / (double)request -> n, request -> max, calc_sd(request));
-		mvwprintw(w_stats, 5, 0, "total  : %6.2f %6.2f %6.2f %6.2f %6.2f",
-			total -> cur, total -> min, total -> avg / (double)total -> n, total -> max, calc_sd(total));
+			show_stats_t(3, 0, "ssl    ", ssl_setup);
+		show_stats_t(4, 0, "request", request);
+		show_stats_t(5, 0, "total  ", total);
 
 		k = kalman_do(total -> cur);
 		mvwprintw(w_stats, 6, 0, "ok: %3d, fail: %3d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
@@ -681,12 +678,10 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			char trend_dir = ' ';
 
 			mvwprintw(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
-			mvwprintw(w_stats, 1, 45, "t offst: %6.2f %6.2f %6.2f %6.2f %6.2f",
-				st_to -> cur, st_to -> min, st_to -> avg / (double)st_to -> n, st_to -> max, calc_sd(st_to));
+			show_stats_t(1, 45, "t offst", st_to);
 
 #if defined(linux) || defined(__FreeBSD__)
-			mvwprintw(w_stats, 2, 45, "tcp rtt: %6.2f %6.2f %6.2f %6.2f %6.2f",
-				tcp_rtt_stats -> cur, tcp_rtt_stats -> min, tcp_rtt_stats -> avg / (double)tcp_rtt_stats -> n, tcp_rtt_stats -> max, calc_sd(tcp_rtt_stats));
+			show_stats_t(2, 45, "tcp rtt", tcp_rtt_stats);
 #endif
 
 			if (trend < 0)

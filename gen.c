@@ -20,13 +20,14 @@ void update_statst(stats_t *data, double in)
 	data -> avg += in;
 	data -> sd += in * in;
 	(data -> n)++;
+	data -> valid = 1;
 }
 
 double calc_sd(stats_t *in)
 {
 	double avg = 0.0;
 
-	if (in -> n == 0)
+	if (in -> n == 0 || !in -> valid)
 		return 0;
 
 	avg = in -> avg / (double)in -> n;
