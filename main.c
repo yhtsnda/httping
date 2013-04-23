@@ -1536,6 +1536,9 @@ int main(int argc, char *argv[])
 		int age = -1;
 		char *sc = NULL, *scdummy = NULL;
 		char *fp = NULL;
+#if defined(linux) || defined(__FreeBSD__)
+		int re_tx = 0;
+#endif
 
 		dstart = get_ts();
 
@@ -1897,6 +1900,8 @@ persistent_loop:
 			/* printf("%d %d %d %d %d %d\n", info.tcpi_retransmits, info.tcpi_unacked, info.tcpi_sacked, info.tcpi_lost, info.tcpi_retrans, info.tcpi_fackets); */
 
 				update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
+
+				re_tx = info.tcpi_retransmits;
 			}
 #endif
 
@@ -2094,7 +2099,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats, re_tx);
 #endif
 
 		free(sc);
