@@ -1888,11 +1888,16 @@ persistent_loop:
 #endif
 
 #if defined(linux) || defined(__FreeBSD__)
-			if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && (info.tcpi_options & TCPI_OPT_SYN_DATA))
-				tfo_success = 1;
+			if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0)
+			{
+#ifdef TCP_TFO
+				if (info.tcpi_options & TCPI_OPT_SYN_DATA)
+					tfo_success = 1;
+#endif
 			/* printf("%d %d %d %d %d %d\n", info.tcpi_retransmits, info.tcpi_unacked, info.tcpi_sacked, info.tcpi_lost, info.tcpi_retrans, info.tcpi_fackets); */
 
-			update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
+				update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
+			}
 #endif
 
 			if (!persistent_connections)
