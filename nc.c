@@ -639,7 +639,7 @@ void draw_graph(double val)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -694,7 +694,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			else if (trend > 0)
 				trend_dir = '+';
 
-			mvwprintw(w_stats, 7, 50, "trend: %c%.2f%%  re-tx: %2d", trend_dir, fabs(trend), re_tx);
+			mvwprintw(w_stats, 7, 50, "trend: %c%.2f%%  re-tx: %2d, pmtu: %5d", trend_dir, fabs(trend), re_tx, pmtu);
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, "http result code: %s, SSL fingerprint: %s", last_connect_str, fp ? fp : "n/a");

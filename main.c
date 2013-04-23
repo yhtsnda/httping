@@ -1537,7 +1537,7 @@ int main(int argc, char *argv[])
 		char *sc = NULL, *scdummy = NULL;
 		char *fp = NULL;
 #if defined(linux) || defined(__FreeBSD__)
-		int re_tx = 0;
+		int re_tx = 0, pmtu = 0;
 #endif
 
 		dstart = get_ts();
@@ -1902,6 +1902,7 @@ persistent_loop:
 				update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
 
 				re_tx = info.tcpi_retransmits;
+				pmtu = info.tcpi_pmtu;
 			}
 #endif
 
@@ -2099,7 +2100,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats, re_tx);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats, re_tx, pmtu);
 #endif
 
 		free(sc);
