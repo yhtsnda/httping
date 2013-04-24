@@ -262,7 +262,7 @@ void emit_headers(char *in)
 	if (!shown && ncurses_mode && in != NULL && (len_in = strlen(in) - 4) > 0)
 	{
 		int pos = 0, pos_out = 0;
-		char *copy = (char *)malloc(len_in + 1);
+		char *copy = (char *)malloc(len_in + 1), *dummy = NULL;
 
 		for(pos=0; pos<len_in; pos++)
 		{
@@ -271,6 +271,11 @@ void emit_headers(char *in)
 		}
 
 		copy[pos_out] = 0x00;
+
+		/* in case more than the headers were sent */
+		dummy = strstr(copy, "\n\n");
+		if (dummy)
+			*dummy = 0x00;
 
 		slow_log("\n%s", copy);
 
@@ -334,7 +339,10 @@ void emit_error(int verbose, int seq, double start_ts)
 
 #ifdef NC
 	if (ncurses_mode)
+	{
 		slow_log("\n%s%s", ts ? ts : "", get_error());
+		update_terminal();
+	}
 	else
 #endif
 	if (!quiet && !machine_readable && !nagios_mode && !json_output)
@@ -885,14 +893,16 @@ void proxy_to_host_and_port(char *in, char **proxy_host, int *proxy_port)
 	}
 }
 
-void stats_close(int fd, stats_t *t_close, char is_failure)
+void stats_close(int *fd, stats_t *t_close, char is_failure)
 {
 	double t_start = get_ts(), t_end = -1;;
 
 	if (is_failure)
-		failure_close(fd);
+		failure_close(*fd);
 	else
-		close(fd);
+		close(*fd);
+
+	*fd = -1;
 
 	t_end = get_ts();
 
@@ -1660,16 +1670,14 @@ persistent_loop:
 				/* set fd blocking */
 				if (set_fd_blocking(fd) == -1)
 				{
-					stats_close(fd, &t_close, 1);
-					fd = -1;
+					stats_close(&fd, &t_close, 1);
 					break;
 				}
 
 				/* set socket to low latency */
 				if (set_tcp_low_latency(fd) == -1)
 				{
-					stats_close(fd, &t_close, 1);
-					fd = -1;
+					stats_close(&fd, &t_close, 1);
 					break;
 				}
 
@@ -1681,7 +1689,7 @@ persistent_loop:
 						update_statst(&t_ssl, ssl_handshake);
 					else
 					{
-						stats_close(fd, &t_close, 1);
+						stats_close(&fd, &t_close, 1);
 						fd = rc;
 
 						if (persistent_connections && ++persistent_tries < 2)
@@ -1731,8 +1739,7 @@ persistent_loop:
 				{
 					if (++persistent_tries < 2)
 					{
-						stats_close(fd, &t_close, 0);
-						fd = -1;
+						stats_close(&fd, &t_close, 0);
 						persistent_did_reconnect = 1;
 						goto persistent_loop;
 					}
@@ -1751,20 +1758,76 @@ persistent_loop:
 
 				emit_error(verbose, curncount, dstart);
 
-				stats_close(fd, &t_close, 1);
-				fd = -1;
+				stats_close(&fd, &t_close, 1);
 				err++;
 
 				break;
 			}
 
-			rc = get_HTTP_headers(fd, ssl_h, &reply, &overflow, timeout);
-
 #if defined(linux) || defined(__FreeBSD__)
-			if (getsockopt(fd, IPPROTO_IP, IP_TOS,  &tos, &tos_len) == -1)
+#ifdef NC
+			if (!use_ssl && ncurses_mode)
+			{
+				int t_rc = -1;
+				fd_set rfds;
+				FD_ZERO(&rfds);
+				FD_SET(fd, &rfds);
+
+				struct timeval tv;
+				tv.tv_sec = timeout;
+				tv.tv_usec = 0;
+
+				t_rc = select(fd + 1, &rfds, NULL, NULL, &tv);
+
+				if (t_rc == 1 && \
+					FD_ISSET(fd, &rfds) && \
+					getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && \
+					info.tcpi_unacked > 0)
+				{
+					static int in_transit_cnt = 0;
+
+					in_transit_cnt++;
+					if (in_transit_cnt == 4)
+						slow_log("\nNo longer emitting message about \"still data in transit\"");
+					else if (in_transit_cnt < 4)
+						slow_log("\nHTTP server started sending data with %d bytes still in transit", info.tcpi_unacked);
+				}
+
+				if (t_rc == 0)
+				{
+					stats_close(&fd, &t_close, 1);
+
+					rc = RC_TIMEOUT;
+					set_error("timeout sending to host");
+
+					emit_error(verbose, curncount, dstart);
+
+					err++;
+
+					break;
+				}
+			}
+#endif
+
+			if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &tos_len) == -1)
 			{
 				set_error("failed to obtain TOS info");
 				tos = -1;
+			}
+#endif
+
+			rc = get_HTTP_headers(fd, ssl_h, &reply, &overflow, timeout);
+
+#ifdef NC
+			if (ncurses_mode && !get_instead_of_head && overflow > 0)
+			{
+				static int more_data_cnt = 0;
+
+				more_data_cnt++;
+				if (more_data_cnt == 4)
+					slow_log("\nNo longer emitting message about \"more data than response headers\"");
+				else if (more_data_cnt < 4)
+					slow_log("\nHTTP server sent more data than just the response headers");
 			}
 #endif
 
@@ -1806,8 +1869,7 @@ persistent_loop:
 				{
 					set_error("'Content-Length'-header missing!");
 					emit_error(verbose, curncount, dstart);
-					stats_close(fd, &t_close, 1);
-					fd = -1;
+					stats_close(&fd, &t_close, 1);
 					break;
 				}
 
@@ -1828,8 +1890,7 @@ persistent_loop:
 				{
 					if (++persistent_tries < 2)
 					{
-						stats_close(fd, &t_close, 0);
-						fd = -1;
+						stats_close(&fd, &t_close, 0);
 						persistent_did_reconnect = 1;
 						goto persistent_loop;
 					}
@@ -1842,8 +1903,7 @@ persistent_loop:
 
 				emit_error(verbose, curncount, dstart);
 
-				stats_close(fd, &t_close, 1);
-				fd = -1;
+				stats_close(&fd, &t_close, 1);
 				err++;
 
 				break;
@@ -1921,7 +1981,6 @@ persistent_loop:
 				if (info.tcpi_options & TCPI_OPT_SYN_DATA)
 					tfo_success = 1;
 #endif
-			/* printf("%d %d %d %d %d %d\n", info.tcpi_retransmits, info.tcpi_unacked, info.tcpi_sacked, info.tcpi_lost, info.tcpi_retrans, info.tcpi_fackets); */
 
 				update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
 
@@ -1931,10 +1990,7 @@ persistent_loop:
 #endif
 
 			if (!persistent_connections)
-			{
-				stats_close(fd, &t_close, 0);
-				fd = -1;
-			}
+				stats_close(&fd, &t_close, 0);
 
 			dummy_ms = (dend - dafter_connect) * 1000.0;
 			update_statst(&t_request, dummy_ms);
