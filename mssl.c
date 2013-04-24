@@ -256,7 +256,7 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, i
 	{
 		if ((rc = mywrite(fd, request_headers, request_headers_len, timeout)) < RC_OK)
 		{
-			close(fd);
+			failure_close(fd);
 			set_error("Problem sending request to proxy");
 			return rc;
 		}
@@ -266,7 +266,7 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, i
 	if (rc != RC_OK)
 	{
 		free(response_headers);
-		close(fd);
+		failure_close(fd);
 		set_error("Problem retrieving proxy response");
 		return rc;
 	}
@@ -281,7 +281,7 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, i
 	if (!code)
 	{
 		free(response_headers);
-		close(fd);
+		failure_close(fd);
 		set_error("Invalid proxy response headers");
 		return RC_INVAL;
 	}

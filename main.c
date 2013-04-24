@@ -885,6 +885,20 @@ void proxy_to_host_and_port(char *in, char **proxy_host, int *proxy_port)
 	}
 }
 
+void stats_close(int fd, stats_t *t_close, char is_failure)
+{
+	double t_start = get_ts(), t_end = -1;;
+
+	if (is_failure)
+		failure_close(fd);
+	else
+		close(fd);
+
+	t_end = get_ts();
+
+	update_statst(t_close, (t_end - t_start) * 1000.0);
+}
+
 int main(int argc, char *argv[])
 {
 	char do_fetch_proxy_settings = 0;
@@ -944,7 +958,7 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total, t_resolve, t_ssl, stats_to, tcp_rtt_stats;
+	stats_t t_connect, t_request, t_total, t_resolve, t_ssl, t_close, stats_to, tcp_rtt_stats;
 	double total_took = 0;
 	char first_resolve = 1;
 	double graph_limit = MY_DOUBLE_INF;
@@ -957,6 +971,7 @@ int main(int argc, char *argv[])
 	init_statst(&t_request);
 	init_statst(&t_total);
 	init_statst(&t_ssl);
+	init_statst(&t_close);
 
 	init_statst(&stats_to);
 #if defined(linux) || defined(__FreeBSD__)
@@ -1645,7 +1660,7 @@ persistent_loop:
 				/* set fd blocking */
 				if (set_fd_blocking(fd) == -1)
 				{
-					close(fd);
+					stats_close(fd, &t_close, 1);
 					fd = -1;
 					break;
 				}
@@ -1653,7 +1668,7 @@ persistent_loop:
 				/* set socket to low latency */
 				if (set_tcp_low_latency(fd) == -1)
 				{
-					close(fd);
+					stats_close(fd, &t_close, 1);
 					fd = -1;
 					break;
 				}
@@ -1666,7 +1681,7 @@ persistent_loop:
 						update_statst(&t_ssl, ssl_handshake);
 					else
 					{
-						close(fd);
+						stats_close(fd, &t_close, 1);
 						fd = rc;
 
 						if (persistent_connections && ++persistent_tries < 2)
@@ -1716,7 +1731,7 @@ persistent_loop:
 				{
 					if (++persistent_tries < 2)
 					{
-						close(fd);
+						stats_close(fd, &t_close, 0);
 						fd = -1;
 						persistent_did_reconnect = 1;
 						goto persistent_loop;
@@ -1736,7 +1751,7 @@ persistent_loop:
 
 				emit_error(verbose, curncount, dstart);
 
-				close(fd);
+				stats_close(fd, &t_close, 1);
 				fd = -1;
 				err++;
 
@@ -1791,7 +1806,7 @@ persistent_loop:
 				{
 					set_error("'Content-Length'-header missing!");
 					emit_error(verbose, curncount, dstart);
-					close(fd);
+					stats_close(fd, &t_close, 1);
 					fd = -1;
 					break;
 				}
@@ -1813,7 +1828,7 @@ persistent_loop:
 				{
 					if (++persistent_tries < 2)
 					{
-						close(fd);
+						stats_close(fd, &t_close, 0);
 						fd = -1;
 						persistent_did_reconnect = 1;
 						goto persistent_loop;
@@ -1827,7 +1842,7 @@ persistent_loop:
 
 				emit_error(verbose, curncount, dstart);
 
-				close(fd);
+				stats_close(fd, &t_close, 1);
 				fd = -1;
 				err++;
 
@@ -1917,7 +1932,7 @@ persistent_loop:
 
 			if (!persistent_connections)
 			{
-				close(fd);
+				stats_close(fd, &t_close, 0);
 				fd = -1;
 			}
 
@@ -2109,7 +2124,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, use_ssl, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close);
 #endif
 
 		free(sc);

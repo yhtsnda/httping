@@ -21,7 +21,7 @@
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
 unsigned int max_x = 80, max_y = 25;
-int stats_h = 8;
+int stats_h = 9;
 int logs_n = 0, slow_n = 0, fast_n = 0;
 char **slow_history = NULL, **fast_history = NULL;
 int window_history_n = 0;
@@ -646,9 +646,13 @@ void show_stats_t(int y, int x, char *header, stats_t *data)
 		mvwprintw(w_stats, y, x, "%s: %6.2f %6.2f %6.2f %6.2f %6.2f", header,
 			data -> cur, data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
 	}
+	else
+	{
+		mvwprintw(w_stats, y, x, "%s: n/a", header);
+	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, char use_ssl, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -664,13 +668,13 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
 		show_stats_t(1, 0, "resolve", resolve);
 		show_stats_t(2, 0, "connect", connect);
-		if (use_ssl)
-			show_stats_t(3, 0, "ssl    ", ssl_setup);
+		show_stats_t(3, 0, "ssl    ", ssl_setup);
 		show_stats_t(4, 0, "request", request);
-		show_stats_t(5, 0, "total  ", total);
+		show_stats_t(5, 0, "close  ", close_st);
+		show_stats_t(6, 0, "total  ", total);
 
 		k = kalman_do(total -> cur);
-		mvwprintw(w_stats, 6, 0, "ok: %3d, fail: %3d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
+		mvwprintw(w_stats, 7, 0, "ok: %3d, fail: %3d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
 
 		if (max_x >= 44 * 2 + 1)
 		{
@@ -689,18 +693,18 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			else if (trend > 0)
 				trend_dir = '+';
 
-			mvwprintw(w_stats, 7, 48, "trend: %c%.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x", trend_dir, fabs(trend), re_tx, pmtu, tos);
+			mvwprintw(w_stats, 8, 48, "trend: %c%.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x", trend_dir, fabs(trend), re_tx, pmtu, tos);
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, "HTTP rc: %s, SSL fp: %s", last_connect_str, fp ? fp : "n/a");
 
 		if (buflen <= max_x)
-			mvwprintw(w_stats, 7, 0, "%s", buffer);
+			mvwprintw(w_stats, 8, 0, "%s", buffer);
 		else
 		{
 			static char prev_sf[48] = { 0 };
 
-			mvwprintw(w_stats, 7, 0, "http result code: %s", last_connect_str);
+			mvwprintw(w_stats, 8, 0, "http result code: %s", last_connect_str);
 
 			if (fp && strcmp(prev_sf, fp))
 			{

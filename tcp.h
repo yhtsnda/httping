@@ -3,3 +3,4 @@
 
 int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, char *msg_accepted);
 int set_tcp_low_latency(int sock);
+void failure_close(int fd);

@@ -18,6 +18,19 @@
 #include "io.h"
 #include "tcp.h"
 
+void failure_close(int fd)
+{
+	struct linger sl;
+
+	sl.l_onoff = 1;
+	sl.l_linger = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &sl, sizeof sl) == -1)
+		set_error("could not set TCP_NODELAY on socket (%s)", strerror(errno));
+
+	close(fd);
+}
+
 int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, char *msg_accepted)
 {
 	int     fd;
@@ -41,14 +54,14 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 		/* set reuse flags */
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof set) == -1)
 		{
-			close(fd);
+			failure_close(fd);
 			set_error("error setting sockopt to interface (%s)", strerror(errno));
 			return RC_INVAL;
 		}
 
 		if (bind(fd, bind_to, sizeof *bind_to) == -1)
 		{
-			close(fd);
+			failure_close(fd);
 			set_error("error binding to interface (%s)", strerror(errno));
 			return RC_INVAL;
 		}
@@ -57,7 +70,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	/* make fd nonblocking */
 	if (set_fd_nonblocking(fd) == -1)
 	{
-		close(fd);
+		failure_close(fd);
 		return RC_INVAL;
 	}
 
@@ -111,7 +124,7 @@ old_connect:
 			if (errno != EINPROGRESS)
 			{
 				set_error("problem connecting to host: %s", strerror(errno));
-				close(fd);
+				failure_close(fd);
 				return RC_INVAL;
 			}
 		}
@@ -122,12 +135,12 @@ old_connect:
 	if (rc == 0)
 	{
 		set_error("connect time out");
-		close(fd);
+		failure_close(fd);
 		return RC_TIMEOUT;	/* timeout */
 	}
 	else if (rc == -1)
 	{
-		close(fd);
+		failure_close(fd);
 
 		if (errno == EINTR)
 			return RC_CTRLC;/* ^C pressed */
@@ -145,7 +158,7 @@ old_connect:
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optvallen) == -1)
 		{
 			set_error("getsockopt failed (%s)", strerror(errno));
-			close(fd);
+			failure_close(fd);
 			return RC_INVAL;
 		}
 
@@ -157,7 +170,7 @@ old_connect:
 		errno = optval;
 	}
 
-	close(fd);
+	failure_close(fd);
 
 	set_error("could not connect (%s)", strerror(errno));
 

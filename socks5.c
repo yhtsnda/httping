@@ -46,14 +46,14 @@ int socks5connect(struct addrinfo *ai, int timeout, const char *socks5_username,
 
 	if ((rc = mywrite(fd, (char *)io_buffer, io_len, timeout)) < 0)
 	{
-		close(fd);
+		failure_close(fd);
 		return rc;
 	}
 
 	/* wait for reply telling selected authentication method */
 	if ((rc = myread(fd, (char *)io_buffer, 2, timeout)) < 0)
 	{
-		close(fd);
+		failure_close(fd);
 		return rc;
 	}
 
@@ -66,15 +66,15 @@ int socks5connect(struct addrinfo *ai, int timeout, const char *socks5_username,
 
 	if (io_buffer[1] == 0x00)
 	{
-		// printf("socks5connect: \"no authentication at all\" selected by server\n");
+		/* printf("socks5connect: \"no authentication at all\" selected by server\n"); */
 	}
 	else if (io_buffer[1] == 0x02)
 	{
-		// printf("socks5connect: selected username/password authentication\n");
+		/* printf("socks5connect: selected username/password authentication\n"); */
 	}
 	else
 	{
-		close(fd);
+		failure_close(fd);
 		set_error("socks5connect: socks5 refuses our authentication methods: %02x", io_buffer[1]);
 		return RC_INVAL;
 	}
@@ -96,14 +96,14 @@ int socks5connect(struct addrinfo *ai, int timeout, const char *socks5_username,
 
 		if ((rc = mywrite(fd, (char *)io_buffer, io_len + 1, timeout)) < 0)
 		{
-			close(fd);
+			failure_close(fd);
 			set_error("socks5connect: failed transmitting username/password to socks5 server");
 			return rc;
 		}
 
 		if ((rc = myread(fd, (char *)io_buffer, 2, timeout)) < 0)
 		{
-			close(fd);
+			failure_close(fd);
 			set_error("socks5connect: failed receiving authentication reply");
 			return rc;
 		}
@@ -142,14 +142,14 @@ int socks5connect(struct addrinfo *ai, int timeout, const char *socks5_username,
 
 	if ((rc = mywrite(fd, (char *)io_buffer, 10, timeout)) < 0)
 	{
-		close(fd);
+		failure_close(fd);
 		set_error("socks5connect: failed to transmit associate request");
 		return rc;
 	}
 
 	if ((rc = myread(fd, (char *)io_buffer, 10, timeout)) < 0)
 	{
-		close(fd);
+		failure_close(fd);
 		set_error("socks5connect: command reply receive failure");
 		return rc;
 	}
