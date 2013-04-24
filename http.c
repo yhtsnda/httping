@@ -28,7 +28,7 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 
 	for(;;)
 	{
-		int rrc;
+		int rrc = -1;
 		int now_n = len - len_in;
 
 #ifndef NO_SSL

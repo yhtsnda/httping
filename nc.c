@@ -587,55 +587,58 @@ void draw_graph(double val)
 		n2++;
 	}
 
-	avg2 /= (double)n2;
-	sd2 = sqrt((sd2 / (double)n2) - pow(avg2, 2.0));
-
-	mi = max(mi, avg2 - sd2);
-	ma = min(ma, avg2 + sd2);
-	diff = ma - mi;
-
-	if (diff == 0.0)
-		diff = 1.0;
-
-	wattron(w_line1, A_REVERSE);
-	mvwprintw(w_line1, 0, 0, "graph range: %7.2fms - %7.2fms    ", mi, ma);
-	wattroff(w_line1, A_REVERSE);
-	wnoutrefresh(w_line1);
-
-	/* fprintf(stderr, "%d| %f %f %f %f\n", h_stats.n, mi, avg, ma, sd); */
-
-	for(index=0; index<loop_n; index++)
+	if (n2)
 	{
-		char overflow = 0, limitter = 0;
-		double val = 0, height = 0;
-		int i_h = 0, x = max_x - (1 + index);
+		avg2 /= (double)n2;
+		sd2 = sqrt((sd2 / (double)n2) - pow(avg2, 2.0));
 
-		if (!history_set[index])
+		mi = max(mi, avg2 - sd2);
+		ma = min(ma, avg2 + sd2);
+		diff = ma - mi;
+
+		if (diff == 0.0)
+			diff = 1.0;
+
+		wattron(w_line1, A_REVERSE);
+		mvwprintw(w_line1, 0, 0, "graph range: %7.2fms - %7.2fms    ", mi, ma);
+		wattroff(w_line1, A_REVERSE);
+		wnoutrefresh(w_line1);
+
+		/* fprintf(stderr, "%d| %f %f %f %f\n", h_stats.n, mi, avg, ma, sd); */
+
+		for(index=0; index<loop_n; index++)
 		{
-			mvwchgat(w_stats, stats_h - 1, x, 1, A_REVERSE, C_CYAN, NULL);
-			continue;
+			char overflow = 0, limitter = 0;
+			double val = 0, height = 0;
+			int i_h = 0, x = max_x - (1 + index);
+
+			if (!history_set[index])
+			{
+				mvwchgat(w_stats, stats_h - 1, x, 1, A_REVERSE, C_CYAN, NULL);
+				continue;
+			}
+
+			if (history[index] < graph_limit)
+				val = history[index];
+			else
+			{
+				val = graph_limit;
+				limitter = 1;
+			}
+
+			height = (val - mi) / diff;
+
+			if (height > 1.0)
+			{
+				height = 1.0;
+				overflow = 1;
+			}
+
+			i_h = (int)(height * stats_h);
+			/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
+
+			draw_column(w_stats, x, i_h, overflow, limitter);
 		}
-
-		if (history[index] < graph_limit)
-			val = history[index];
-		else
-		{
-			val = graph_limit;
-			limitter = 1;
-		}
-
-		height = (val - mi) / diff;
-
-		if (height > 1.0)
-		{
-			height = 1.0;
-			overflow = 1;
-		}
-
-		i_h = (int)(height * stats_h);
-		/* fprintf(stderr, "%d %f %f %d %d\n", index, history[index], height, i_h, overflow); */
-
-		draw_column(w_stats, x, i_h, overflow, limitter);
 	}
 }
 

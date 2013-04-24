@@ -116,7 +116,7 @@ makefile.inc:
 clean:
 	$(RMDIR) $(OBJS) $(TARGET) makefile.inc *~ core cov-int
 
-package: clean
+package:
 	# source package
 	$(RMDIR) $(PACKAGE)*
 	$(MKDIR) $(PACKAGE)
