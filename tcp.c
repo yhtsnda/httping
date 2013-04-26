@@ -31,7 +31,7 @@ void failure_close(int fd)
 	close(fd);
 }
 
-int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, char *msg_accepted)
+int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, char *msg_accepted, int max_mtu)
 {
 	int     fd;
 	int 	rc;
@@ -72,6 +72,16 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	{
 		failure_close(fd);
 		return RC_INVAL;
+	}
+
+	if (max_mtu >= 0)
+	{
+		if (setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &max_mtu, sizeof max_mtu) == -1)
+		{
+			failure_close(fd);
+			set_error("error setting MTU size (%s)", strerror(errno));
+			return RC_INVAL;
+		}
 	}
 
 	/* wait for connection */

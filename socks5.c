@@ -22,7 +22,7 @@ int socks5connect(struct addrinfo *ai, int timeout, const char *socks5_username,
 	uint32_t addr = 0;
 	unsigned char io_buffer[256] = { 0 };
 	int io_len = 0, rc = -1;
-	int fd = connect_to(NULL, ai, timeout, NULL, NULL, 0, NULL);
+	int fd = connect_to(NULL, ai, timeout, NULL, NULL, 0, NULL, -1);
 
 	if (fd < 0)
 		return fd;

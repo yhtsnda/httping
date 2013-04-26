@@ -1,4 +1,4 @@
-- multiple threads!
+- multiple threads! (?)
 
 - koppelen aan iets externs? dus een thread die v/e ander programma eea opvangt en dan meeneemt in de logging? (gps bijv.)
 
@@ -16,5 +16,9 @@
   - content-size stats
 
 - timeout in float
+
+- multiple urls
+
+- iets met de SIOCOUTQ ioctl?
 
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle

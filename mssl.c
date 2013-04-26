@@ -248,7 +248,7 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, i
 
 	request_headers_len += snprintf(&request_headers[request_headers_len], sizeof request_headers - request_headers_len, "\r\n");
 
-	fd = connect_to(bind_to, ai_use_proxy, timeout, tfo, request_headers, request_headers_len, &rh_sent);
+	fd = connect_to(bind_to, ai_use_proxy, timeout, tfo, request_headers, request_headers_len, &rh_sent, -1);
 	if (fd < 0)
 		return fd;
 

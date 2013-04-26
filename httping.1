@@ -144,8 +144,14 @@ Not only draw the magnitude of the fourier transform, draw the phase as well.
 .B "\-\-graph\-limit x"
 If values measured are bigger than x, then they're limitted to x.
 .TP
+.B "\-\-max\-mtu x"
+Maximum MTU to use. Cannot be larger than network interface MTU.
+.TP
 .B "\-\-no\-host\-header"
 Do not put a "Host:"-header in the request header.
+.TP
+.B "\-\-no\-tcp\-nodelay"
+Do not disable "tcp delay" (Naggle).
 .TP
 .B "\-\-proxy\-user x"
 Use username 'x' to authenticate against proxy (http/socks5) server (optional).

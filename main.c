@@ -975,6 +975,8 @@ int main(int argc, char *argv[])
 	char nc_graph = 1;
 	char adaptive_interval = 0;
 	double show_slow_log = MY_DOUBLE_INF;
+	char use_tcp_nodelay = 1;
+	int max_mtu = -1;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1047,6 +1049,8 @@ int main(int argc, char *argv[])
 		{"ai",	0, NULL, 12 },
 		{"slow-log",	0, NULL, 13 },
 		{"draw-phase",	0, NULL, 14 },
+		{"no-tcp-nodelay",	0, NULL, 15 },
+		{"max-mtu", 1, NULL, 16 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1066,6 +1070,14 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 16:
+				max_mtu = atoi(optarg);
+				break;
+
+			case 15:
+				use_tcp_nodelay = 0;
+				break;
+
 			case 14:
 				draw_phase = 1;
 				break;
@@ -1356,6 +1368,9 @@ int main(int argc, char *argv[])
 				return 1;
 		}
 	}
+
+	if (max_mtu >= 0 && (proxy_host || use_ssl))
+		error_exit("Cannot combine maximum MTU size setting with proxy connections or SSL");
 
 	if (do_fetch_proxy_settings)
 		fetch_proxy_settings(&proxy_user, &proxy_password, &proxy_host, &proxy_port, use_ssl, use_ipv6);
@@ -1651,9 +1666,9 @@ persistent_loop:
 					fd = connect_ssl_proxy((struct sockaddr *)bind_to, ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, &use_tfo);
 #endif
 				else if (proxy_host)
-					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &use_tfo, request, req_len, &req_sent);
+					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &use_tfo, request, req_len, &req_sent, -1);
 				else
-					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &use_tfo, request, req_len, &req_sent);
+					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &use_tfo, request, req_len, &req_sent, max_mtu);
 			}
 
 			if (fd == RC_CTRLC)	/* ^C pressed */
@@ -1675,7 +1690,7 @@ persistent_loop:
 				}
 
 				/* set socket to low latency */
-				if (set_tcp_low_latency(fd) == -1)
+				if (use_tcp_nodelay && set_tcp_low_latency(fd) == -1)
 				{
 					stats_close(&fd, &t_close, 1);
 					break;
