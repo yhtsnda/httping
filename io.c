@@ -15,7 +15,7 @@
 #include "gen.h"
 #include "error.h"
 
-ssize_t read_to(int fd, char *whereto, size_t len, int timeout)
+ssize_t read_to(int fd, char *whereto, size_t len, double timeout)
 {
 	for(;;)
 	{
@@ -26,8 +26,8 @@ ssize_t read_to(int fd, char *whereto, size_t len, int timeout)
 		FD_ZERO(&rfds);
 		FD_SET(fd, &rfds);
 
-		to.tv_sec  = timeout / 1000;
-		to.tv_usec = (timeout - (to.tv_sec * 1000)) * 1000;
+		to.tv_sec  = (long)(timeout / 1000.0);
+		to.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
 		rc = select(fd + 1, &rfds, NULL, NULL, &to);
 		if (rc == 0)
@@ -48,7 +48,7 @@ ssize_t read_to(int fd, char *whereto, size_t len, int timeout)
 	}
 }
 
-ssize_t myread(int fd, char *whereto, size_t len, int timeout)
+ssize_t myread(int fd, char *whereto, size_t len, double timeout)
 {
 	ssize_t cnt=0;
 
@@ -61,8 +61,8 @@ ssize_t myread(int fd, char *whereto, size_t len, int timeout)
 		FD_ZERO(&rfds);
 		FD_SET(fd, &rfds);
 
-		to.tv_sec  = timeout / 1000;
-		to.tv_usec = (timeout - (to.tv_sec * 1000)) * 1000;
+		to.tv_sec  = (long)(timeout / 1000.0);
+		to.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
 		rc = select(fd + 1, &rfds, NULL, NULL, &to);
 		if (rc == 0)
@@ -108,7 +108,7 @@ ssize_t myread(int fd, char *whereto, size_t len, int timeout)
 	return cnt;
 }
 
-ssize_t mywrite(int fd, char *wherefrom, size_t len, int timeout)
+ssize_t mywrite(int fd, char *wherefrom, size_t len, double timeout)
 {
 	ssize_t cnt=0;
 
@@ -121,8 +121,8 @@ ssize_t mywrite(int fd, char *wherefrom, size_t len, int timeout)
 		FD_ZERO(&wfds);
 		FD_SET(fd, &wfds);
 
-		to.tv_sec  = timeout / 1000;
-		to.tv_usec = (timeout - (to.tv_sec * 1000)) * 1000;
+		to.tv_sec  = (long)(timeout / 1000.0);
+		to.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
 		rc = select(fd + 1, NULL, &wfds, NULL, &to);
 		if (rc == 0)

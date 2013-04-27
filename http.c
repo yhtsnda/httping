@@ -16,7 +16,7 @@
 #include "str.h"
 #include "utils.h"
 
-int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, int timeout)
+int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, double timeout)
 {
 	int len_in=0, len=4096;
 	char *buffer = (char *)malloc(len + 1);
@@ -77,7 +77,7 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, in
 	return rc;
 }
 
-int dumb_get_HTTP_headers(int socket_h, char **headers, int timeout)
+int dumb_get_HTTP_headers(int socket_h, char **headers, double timeout)
 {
 	int len_in=0, len=4096;
 	char *buffer = (char *)malloc(len);

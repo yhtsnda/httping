@@ -124,14 +124,14 @@ int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 	return cnt;
 }
 
-int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, int timeout, double *ssl_handshake)
+int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, double timeout, double *ssl_handshake)
 {
 	int dummy = -1;
 	double dstart = get_ts();
 
 	struct timeval tv;
-	tv.tv_sec  = timeout / 1000;
-	tv.tv_usec = (timeout - (tv.tv_sec * 1000)) * 1000;
+	tv.tv_sec  = (long)(timeout / 1000.0);
+	tv.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
 	*ssl_handshake = -1.0;
 
@@ -225,7 +225,7 @@ char * get_fingerprint(SSL *ssl_h)
 	return string;
 }
 
-int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, int timeout, const char *proxy_user, const char *proxy_password, const char *hostname, int portnr, char *tfo)
+int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, double timeout, const char *proxy_user, const char *proxy_password, const char *hostname, int portnr, char *tfo)
 {
 	int fd = -1, rc = -1;
 	char request_headers[4096] = { 0 };

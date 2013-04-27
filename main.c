@@ -924,7 +924,7 @@ int main(int argc, char *argv[])
 	char wait_set = 0;
 	int audible = 0;
 	int ok = 0, err = 0;
-	int timeout=30;
+	double timeout = 30.0;
 	char show_statuscodes = 0;
 	char use_ssl = 0;
 	const char *ok_str = "200";
@@ -1269,7 +1269,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 't':
-				timeout = atoi(optarg);
+				timeout = atof(optarg);
 				break;
 
 			case 'I':
@@ -1488,7 +1488,7 @@ int main(int argc, char *argv[])
 	signal(SIGINT, handler);
 	signal(SIGTERM, handler);
 
-	timeout *= 1000;	/* change to ms */
+	timeout *= 1000.0;	/* change to ms */
 
 	struct sockaddr_in6 addr;
 	struct addrinfo *ai = NULL, *ai_use = NULL;
@@ -1789,8 +1789,8 @@ persistent_loop:
 				FD_SET(fd, &rfds);
 
 				struct timeval tv;
-				tv.tv_sec = timeout;
-				tv.tv_usec = 0;
+				tv.tv_sec = (long)(timeout / 1000.0) % 1000000;
+				tv.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
 				t_rc = select(fd + 1, &rfds, NULL, NULL, &tv);
 

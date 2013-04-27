@@ -31,7 +31,7 @@ void failure_close(int fd)
 	close(fd);
 }
 
-int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char *tfo, char *msg, int msg_len, char *msg_accepted, int max_mtu)
+int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, double timeout, char *tfo, char *msg, int msg_len, char *msg_accepted, int max_mtu)
 {
 	int     fd;
 	int 	rc;
@@ -88,8 +88,8 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, int timeout, char 
 	FD_ZERO(&wfds);
 	FD_SET(fd, &wfds);
 
-	to.tv_sec  = timeout / 1000;
-	to.tv_usec = (timeout - (to.tv_sec * 1000)) * 1000;
+	to.tv_sec  = (long)(timeout / 1000.0);
+	to.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
 	/* connect to peer */
 #ifdef TCP_TFO
