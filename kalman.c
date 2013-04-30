@@ -17,7 +17,7 @@ void kalman_init(double ideal_value)
 	/* the noise in the system (FIXME?) */
 	Q = 0.022;
 	R = 0.617;
-	z_real = ideal_value; /* 0.5; // the ideal value we wish to measure */
+	z_real = ideal_value; /* 0.5;  the ideal value we wish to measure */
 
 	first = 1;
 }
@@ -37,7 +37,7 @@ double kalman_do(double z_measured)
 	/* calculate the Kalman gain */
 	K = P_temp * (1.0/(P_temp + R));
 	/* measure */
-	/*z_measured = z_real + frand()*0.09; //the real measurement plus noise*/
+	/*z_measured = z_real + frand()*0.09; the real measurement plus noise*/
 	/* correct */
 	x_est = x_temp_est + K * (z_measured - x_temp_est); 
 	P = (1- K) * P_temp;

@@ -130,7 +130,7 @@ old_connect:
 
 		if (rc == -1)
 		{
-			// problem connecting
+			/* problem connecting */
 			if (errno != EINPROGRESS)
 			{
 				set_error("problem connecting to host: %s", strerror(errno));

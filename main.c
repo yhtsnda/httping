@@ -12,6 +12,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
@@ -968,7 +969,7 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total, t_resolve, t_ssl, t_close, stats_to, tcp_rtt_stats;
+	stats_t t_connect, t_request, t_total, t_resolve, t_write, t_ssl, t_close, stats_to, tcp_rtt_stats;
 	double total_took = 0;
 	char first_resolve = 1;
 	double graph_limit = MY_DOUBLE_INF;
@@ -977,9 +978,11 @@ int main(int argc, char *argv[])
 	double show_slow_log = MY_DOUBLE_INF;
 	char use_tcp_nodelay = 1;
 	int max_mtu = -1;
+	int write_sleep = 1000; /* in us (microseconds), determines resolution of transmit time determination */
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
+	init_statst(&t_write);
 	init_statst(&t_request);
 	init_statst(&t_total);
 	init_statst(&t_ssl);
@@ -1567,7 +1570,7 @@ int main(int argc, char *argv[])
 
 	while((curncount < count || count == -1) && stop == 0)
 	{
-		double dstart = -1.0, dend = -1.0, dafter_connect = 0.0, dafter_resolve = 0.0;
+		double dstart = -1.0, dend = -1.0, dafter_connect = 0.0, dafter_resolve = 0.0, dafter_write_complete = 0.0;
 		char *reply = NULL;
 		double Bps = 0;
 		char is_compressed = 0;
@@ -1747,6 +1750,30 @@ persistent_loop:
 				else
 					rc = req_len;
 			}
+
+			/* wait for data transmit(!) to complete,
+			   e.g. until the transmitbuffers are empty and the data was
+			   sent to the next hop
+			 */
+			for(;;)
+			{
+				int bytes_left = 0;
+				int i_rc = ioctl(fd, TIOCOUTQ, &bytes_left);
+
+				if (i_rc == -1 || bytes_left == 0)
+					break;
+
+				/* this keeps it somewhat from becoming a busy loop
+				 * I know of no other way to wait for the kernel to
+				 * finish the transmission
+				 */
+				usleep(write_sleep);
+			}
+
+			dafter_write_complete = get_ts();
+
+			dummy_ms = (dafter_write_complete - dafter_connect) * 1000.0;
+			update_statst(&t_write, dummy_ms);
 
 			if (rc != req_len)
 			{
@@ -2007,7 +2034,7 @@ persistent_loop:
 			if (!persistent_connections)
 				stats_close(&fd, &t_close, 0);
 
-			dummy_ms = (dend - dafter_connect) * 1000.0;
+			dummy_ms = (dend - dafter_write_complete) * 1000.0;
 			update_statst(&t_request, dummy_ms);
 
 			dummy_ms = (dend - dstart) * 1000.0;
@@ -2195,7 +2222,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write);
 #endif
 
 		free(sc);
