@@ -2037,7 +2037,7 @@ persistent_loop:
 			headers_len = 0;
 			if (reply)
 			{
-				headers_len = strlen(reply) + 4;
+				headers_len = strlen(reply) + 4 - overflow;
 				free(reply);
 				reply = NULL;
 			}
