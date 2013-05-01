@@ -11,6 +11,8 @@
 #define RC_CTRLC	-3
 #define RC_INVAL	-4
 
+#define RECV_BUFFER_SIZE (128 * 1024)
+
 #ifdef NO_SSL
 	#define SSL	void
 	#define SSL_CTX	void

@@ -972,8 +972,6 @@ int main(int argc, char *argv[])
 	int nagios_exit_code = 2;
 	double avg_httping_time = -1.0;
 	int get_instead_of_head = 0;
-	char *buffer = NULL;
-	int buffer_size = 131072;
 	char show_Bps = 0, ask_compression = 0;
 	double Bps_min = 1 << 30, Bps_max = -Bps_min;
 	long long int Bps_avg = 0;
@@ -1097,8 +1095,6 @@ int main(int argc, char *argv[])
 	};
 
 	signal(SIGPIPE, SIG_IGN);
-
-	buffer = (char *)malloc(buffer_size);
 
 	while((c = getopt_long(argc, argv, "DKEA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
 	{
@@ -1990,6 +1986,8 @@ persistent_loop:
 
 			if (get_instead_of_head && show_Bps)
 			{
+				int buffer_size = RECV_BUFFER_SIZE;
+				char *buffer = (char *)malloc(buffer_size);
 				double dl_start = get_ts(), dl_end;
 				double cur_limit = Bps_limit;
 
@@ -2019,6 +2017,8 @@ persistent_loop:
 					if (cur_limit != -1 && bytes_transferred >= cur_limit)
 						break;
 				}
+
+				free(buffer);
 
 				dl_end = get_ts();
 
@@ -2356,7 +2356,6 @@ error_exit:
 
 	freeaddrinfo(ai);
 	free(request);
-	free(buffer);
 	free(get);
 	free(hostname);
 	free(complete_url);
