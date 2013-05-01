@@ -88,7 +88,7 @@ void new_version_alert(void)
 			new_version = 1;
 	}
 
-	if (new_version && time(NULL) % 3 == 0)
+	if (new_version)
 	{
 		struct utsname buf;
 		FILE *fh = fopen("/tmp/httping.dat", "w");
