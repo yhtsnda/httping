@@ -668,7 +668,7 @@ void show_stats_t(int y, int x, char *header, stats_t *data, char abbreviate)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st, stats_t *t_write, int n_cookies, char abbreviate)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st, stats_t *t_write, int n_cookies, char abbreviate, stats_t *stats_header_size)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -707,6 +707,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 #if defined(linux) || defined(__FreeBSD__)
 			show_stats_t(2, 45, "tcp rtt", tcp_rtt_stats, abbreviate);
 #endif
+			show_stats_t(3, 45, "headers", stats_header_size, abbreviate);
 
 			if (trend < 0)
 				trend_dir = '-';

@@ -1053,7 +1053,7 @@ int main(int argc, char *argv[])
 	int n_aggregates = 0;
 	aggregate_t *aggregates = NULL;
 	char *au_dummy = NULL, *ap_dummy = NULL;
-	stats_t t_connect, t_request, t_total, t_resolve, t_write, t_ssl, t_close, stats_to, tcp_rtt_stats;
+	stats_t t_connect, t_request, t_total, t_resolve, t_write, t_ssl, t_close, stats_to, tcp_rtt_stats, stats_header_size;
 	double total_took = 0;
 	char first_resolve = 1;
 	double graph_limit = MY_DOUBLE_INF;
@@ -1078,6 +1078,7 @@ int main(int argc, char *argv[])
 #if defined(linux) || defined(__FreeBSD__)
 	init_statst(&tcp_rtt_stats);
 #endif
+	init_statst(&stats_header_size);
 
 	static struct option long_options[] =
 	{
@@ -2041,6 +2042,8 @@ persistent_loop:
 				reply = NULL;
 			}
 
+			update_statst(&stats_header_size, headers_len);
+
 			if (rc < 0)
 			{
 				if (persistent_connections)
@@ -2362,7 +2365,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_dynamic_cookies, abbreviate);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_dynamic_cookies, abbreviate, &stats_header_size);
 #endif
 
 		free(sc);

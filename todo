@@ -12,7 +12,6 @@
 - if max_x > ...
   - processing time / content-size stats
   - content-size stats
-  - headers size stats?
 
 - multiple urls
 
