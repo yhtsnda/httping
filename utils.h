@@ -8,5 +8,11 @@ void free_splitted_string(char **list, int n);
 
 void str_add(char **to, const char *what, ...);
 
+#define GIGA 1000000000.0
+#define MEGA 1000000.0
+#define KILO 1000.0
+
+char * format_value(double value, int digits_sig, int digits_nsig, char abbreviate);
+
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))

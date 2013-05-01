@@ -17,6 +17,7 @@
 #ifdef FW
 #include "fft.h"
 #endif
+#include "utils.h"
 
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
@@ -641,24 +642,33 @@ void draw_graph(double val)
 	}
 }
 
-void show_stats_t(int y, int x, char *header, stats_t *data)
+void show_stats_t(int y, int x, char *header, stats_t *data, char abbreviate)
 {
 	if (data -> valid)
 	{
-		if (data -> cur_valid)
-			mvwprintw(w_stats, y, x, "%s: %6.2f %6.2f %6.2f %6.2f %6.2f", header,
-				data -> cur, data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
-		else
-			mvwprintw(w_stats, y, x, "%s: %6.2s %6.2f %6.2f %6.2f %6.2f", header,
-				"", data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
+		char *cur_str = format_value(data -> cur, 6, 2, abbreviate);
+		char *min_str = format_value(data -> min, 6, 2, abbreviate);
+		char *avg_str = format_value(data -> avg / (double)data -> n, 6, 2, abbreviate);
+		char *max_str = format_value(data -> max, 6, 2, abbreviate);
+		char *sd_str  = format_value(calc_sd(data), 6, 2, abbreviate);
+
+		mvwprintw(w_stats, y, x, "%s: %s %s %s %s %s", header,
+			data -> cur_valid ? cur_str : "   n/a",
+			min_str, avg_str, max_str, sd_str);
+
+		free(sd_str);
+		free(max_str);
+		free(avg_str);
+		free(min_str);
+		free(cur_str);
 	}
 	else
 	{
-		mvwprintw(w_stats, y, x, "%s: n/a", header);
+		mvwprintw(w_stats, y, x, "%s:    n/a", header);
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st, stats_t *t_write, int n_cookies)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st, stats_t *t_write, int n_cookies, char abbreviate)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -668,20 +678,23 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 	if (n_ok)
 	{
-		char buffer[4096] = { 0 };
+		char buffer[4096] = { 0 }, *scc_str = NULL, *kalman_str = NULL;
 		unsigned int buflen = 0;
 
 		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", "latest", "min", "avg", "max", "sd");
-		show_stats_t(1, 0, "resolve", resolve);
-		show_stats_t(2, 0, "connect", connect);
-		show_stats_t(3, 0, "ssl    ", ssl_setup);
-		show_stats_t(4, 0, "send   ", t_write);
-		show_stats_t(5, 0, "request", request);
-		show_stats_t(6, 0, "close  ", close_st);
-		show_stats_t(7, 0, "total  ", total);
+		show_stats_t(1, 0, "resolve", resolve,   abbreviate);
+		show_stats_t(2, 0, "connect", connect,   abbreviate);
+		show_stats_t(3, 0, "ssl    ", ssl_setup, abbreviate);
+		show_stats_t(4, 0, "send   ", t_write,   abbreviate);
+		show_stats_t(5, 0, "request", request,   abbreviate);
+		show_stats_t(6, 0, "close  ", close_st,  abbreviate);
+		show_stats_t(7, 0, "total  ", total,     abbreviate);
 
-		k = kalman_do(total -> cur);
-		mvwprintw(w_stats, 8, 0, "ok: %3d, fail: %3d%s, scc: %.3f, kalman: %.3f", n_ok, n_fail, use_tfo ? ", with TFO" : "", get_cur_scc(), k);
+		scc_str    = format_value(get_cur_scc(), 5, 3, abbreviate);
+		kalman_str = format_value(kalman_do(total -> cur), 5, 3, abbreviate);
+		mvwprintw(w_stats, 8, 0, "ok: %3d, fail: %3d%s, scc: %s, kalman: %s", n_ok, n_fail, use_tfo ? ", with TFO" : "", scc_str, kalman_str);
+		free(kalman_str);
+		free(scc_str);
 
 		if (max_x >= 44 * 2 + 1)
 		{
@@ -689,10 +702,10 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			char trend_dir = ' ';
 
 			mvwprintw(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
-			show_stats_t(1, 45, "t offst", st_to);
+			show_stats_t(1, 45, "t offst", st_to, abbreviate);
 
 #if defined(linux) || defined(__FreeBSD__)
-			show_stats_t(2, 45, "tcp rtt", tcp_rtt_stats);
+			show_stats_t(2, 45, "tcp rtt", tcp_rtt_stats, abbreviate);
 #endif
 
 			if (trend < 0)
@@ -702,7 +715,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 			mvwprintw(w_stats, 8, 48, "# cookies: %d", n_cookies);
 
-			mvwprintw(w_stats, 9, 48, "trend: %c%.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x", trend_dir, fabs(trend), re_tx, pmtu, tos);
+			mvwprintw(w_stats, 9, 48, "trend: %c%6.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x", trend_dir, fabs(trend), re_tx, pmtu, tos);
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, "HTTP rc: %s, SSL fp: %s", last_connect_str, fp ? fp : "n/a");

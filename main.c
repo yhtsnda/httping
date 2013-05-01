@@ -1064,6 +1064,7 @@ int main(int argc, char *argv[])
 	int max_mtu = -1;
 	int write_sleep = 500; /* in us (microseconds), determines resolution of transmit time determination */
 	char keep_cookies = 0;
+	char abbreviate = 0;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1140,6 +1141,7 @@ int main(int argc, char *argv[])
 		{"no-tcp-nodelay",	0, NULL, 15 },
 		{"max-mtu", 1, NULL, 16 },
 		{"keep-cookies", 0, NULL, 17 },
+		{"abbreviate", 0, NULL, 18 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1157,6 +1159,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 18:
+				abbreviate = 1;
+				break;
+
 			case 17:
 				keep_cookies = 1;
 				break;
@@ -1860,7 +1866,7 @@ persistent_loop:
 				int bytes_left = 0;
 				int i_rc = ioctl(fd, TIOCOUTQ, &bytes_left);
 
-				if (i_rc == -1 || bytes_left == 0)
+				if (i_rc == -1 || bytes_left == 0 || stop)
 					break;
 
 				/* this keeps it somewhat from becoming a busy loop
@@ -2246,10 +2252,30 @@ persistent_loop:
 				else
 					str_add(&line, "%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
+				char *tot_str = format_value(t_total.cur, 6, 2, abbreviate);
+
 				if (split)
-					str_add(&line, "time=%.2f+%.2f+%.2f+%.2f+%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur_valid ? t_resolve.cur : -1, t_connect.cur_valid ? t_connect.cur : -1, t_write.cur, t_request.cur, t_close.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+				{
+					char *res_str = t_resolve.cur_valid ? format_value(t_resolve.cur, 6, 2, abbreviate) : strdup("   n/a");
+					char *con_str = t_connect.cur_valid ? format_value(t_connect.cur, 6, 2, abbreviate) : strdup("   n/a");
+					char *wri_str = format_value(t_write.cur, 6, 2, abbreviate);
+					char *req_str = format_value(t_request.cur, 6, 2, abbreviate);
+					char *clo_str = format_value(t_close.cur, 6, 2, abbreviate);
+
+					str_add(&line, "time=%s+%s+%s+%s+%s%s=%s%s%s%s ms %s%s%s", res_str, con_str, wri_str, req_str, clo_str, sep, unsep, ms_color, tot_str, c_white, c_cyan, sc?sc:"", c_white);
+
+					free(clo_str);
+					free(req_str);
+					free(wri_str);
+					free(con_str);
+					free(res_str);
+				}
 				else
-					str_add(&line, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+				{
+					str_add(&line, "time=%s%s%s ms %s%s%s", ms_color, tot_str, c_white, c_cyan, sc?sc:"", c_white);
+				}
+
+				free(tot_str);
 
 				if (persistent_did_reconnect)
 				{
@@ -2336,7 +2362,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_dynamic_cookies);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_dynamic_cookies, abbreviate);
 #endif
 
 		free(sc);

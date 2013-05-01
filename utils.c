@@ -5,6 +5,7 @@
 #define _GNU_SOURCE
 #endif
 #include <errno.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +15,7 @@
 #include <time.h>
 
 #include "error.h"
+#include "utils.h"
 
 double get_ts(void)
 {
@@ -81,4 +83,37 @@ void str_add(char **to, const char *what, ...)
 	(*to)[len_to + len_what] = 0x00;
 
 	free(buffer);
+}
+
+char * format_value(double value, int digits_sig, int digits_nsig, char abbreviate)
+{
+	char *out = NULL, *mul = "";
+	double a = fabs(value);
+	double div = 1.0;
+
+	if (!abbreviate)
+	{
+	}
+	else if (a >= GIGA)
+	{
+		div = GIGA;
+		mul = "G";
+	}
+	else if (a >= MEGA)
+	{
+		div = MEGA;
+		mul = "M";
+	}
+	else if (a >= KILO)
+	{
+		div = KILO;
+		mul = "k";
+	}
+
+	if (mul[0])
+		digits_sig--;
+
+	(void)asprintf(&out, "%*.*f%s", digits_sig, digits_nsig, value / div, mul);
+
+	return out;
 }
