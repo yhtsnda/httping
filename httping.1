@@ -183,6 +183,9 @@ Put a timestamp before the result-lines. Use -v to also show a date.
 .B "\-V"
 Show the version and exit.
 
+.SH OUTPUT
+In split mode (-S) something like "time=0.08+24.09+23.17+15.64+0.02=62.98 ms" is shown. The first value is the time it took to resolve the hostname (or -1 if it did not resolve in this iteration, e.g. in "resolve once" (-r) mode), then the time it took to connect (or -1 for example in persistent connection (-Q, HTTP v1.1), after that the time it took to put the request on the wire, then the time it took for the HTTP server to process the request and send it back and lastly the time it took to close the connection.
+
 .SH GRAPH
 The graph in the ncurses uses colors to encode a meaning. Green: value is less than 1 block. Red: the value did not fit in the graph. Blue: the value was limitted by --graph-limit. Cyan: no measurement for that point in time.
 

@@ -1618,6 +1618,7 @@ int main(int argc, char *argv[])
 			double their_est_ts = -1.0, toff_diff_ts = -1.0;
 			char tfo_success = 0;
 			double ssl_handshake = 0.0;
+			char cur_have_resolved = 0;
 #if defined(linux) || defined(__FreeBSD__)
 			struct tcp_info info;
 			socklen_t info_len = sizeof(struct tcp_info);
@@ -1671,17 +1672,19 @@ persistent_loop:
 
 				get_addr(ai_use, &addr);
 
-				have_resolved = 1;
+				cur_have_resolved = have_resolved = 1;
 			}
 
-			dafter_resolve = get_ts();
-			dummy_ms = (dafter_resolve - dstart) * 1000.0;
-			update_statst(&t_resolve, dummy_ms);
+			if (cur_have_resolved)
+			{
+				dafter_resolve = get_ts();
+				dummy_ms = (dafter_resolve - dstart) * 1000.0;
+				update_statst(&t_resolve, dummy_ms);
+			}
 
 			free(request);
 			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
-printf("%s", request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
@@ -1750,7 +1753,11 @@ printf("%s", request);
 
 			if (did_reconnect)
 			{
-				dummy_ms = (dafter_connect - dafter_resolve) * 1000.0;
+				if (cur_have_resolved)
+					dummy_ms = (dafter_connect - dafter_resolve) * 1000.0;
+				else
+					dummy_ms = (dafter_connect - dstart) * 1000.0;
+
 				update_statst(&t_connect, dummy_ms - ssl_handshake);
 			}
 
@@ -2175,7 +2182,7 @@ printf("%s", request);
 					str_add(&line, "%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					str_add(&line, "time=%.2f+%.2f+%.2f+%.2f+%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur_valid ? t_connect.cur : -1, t_write.cur, t_request.cur, t_close.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+					str_add(&line, "time=%.2f+%.2f+%.2f+%.2f+%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur_valid ? t_resolve.cur : -1, t_connect.cur_valid ? t_connect.cur : -1, t_write.cur, t_request.cur, t_close.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 				else
 					str_add(&line, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 
