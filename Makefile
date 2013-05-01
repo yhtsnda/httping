@@ -114,7 +114,7 @@ makefile.inc:
 	./configure
 
 clean:
-	$(RMDIR) $(OBJS) $(TARGET) makefile.inc *~ core cov-int
+	$(RMDIR) $(OBJS) $(TARGET) *~ core cov-int
 
 package:
 	# source package
@@ -126,7 +126,11 @@ package:
 	$(RMDIR) $(PACKAGE)
 
 check:
-	cppcheck -v --enable=all --std=c++11 --inconclusive -I. . 2> err.txt
+	cppcheck -v --force -j 3 --enable=all --std=c++11 --inconclusive -I. . 2> err.txt
+	#
+	make clean
+	./configure --with-tfo --with-ncurses --with-openssl --with-fftw3
+	scan-build make
 
 coverity: makefile.inc
 	rm -rf cov-int

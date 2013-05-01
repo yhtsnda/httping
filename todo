@@ -16,8 +16,6 @@
   - content-size stats
   - headers size stats?
 
-- timeout in float
-
 - multiple urls
 
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle

@@ -21,6 +21,12 @@ void update_statst(stats_t *data, double in)
 	data -> sd += in * in;
 	(data -> n)++;
 	data -> valid = 1;
+	data -> cur_valid = 1;
+}
+
+void reset_statst_cur(stats_t *data)
+{
+	data -> cur_valid = 0;
 }
 
 double calc_sd(stats_t *in)

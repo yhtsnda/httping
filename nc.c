@@ -645,8 +645,12 @@ void show_stats_t(int y, int x, char *header, stats_t *data)
 {
 	if (data -> valid)
 	{
-		mvwprintw(w_stats, y, x, "%s: %6.2f %6.2f %6.2f %6.2f %6.2f", header,
-			data -> cur, data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
+		if (data -> cur_valid)
+			mvwprintw(w_stats, y, x, "%s: %6.2f %6.2f %6.2f %6.2f %6.2f", header,
+				data -> cur, data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
+		else
+			mvwprintw(w_stats, y, x, "%s: %6.2s %6.2f %6.2f %6.2f %6.2f", header,
+				"", data -> min, data -> avg / (double)data -> n, data -> max, calc_sd(data));
 	}
 	else
 	{
@@ -654,7 +658,7 @@ void show_stats_t(int y, int x, char *header, stats_t *data)
 	}
 }
 
-void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st, stats_t *t_write)
+void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t *total, stats_t *ssl_setup, int n_ok, int n_fail, const char *last_connect_str, const char *fp, char use_tfo, char dg, stats_t *st_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *close_st, stats_t *t_write, int n_cookies)
 {
 	double k = 0.0;
 	char force_redraw = 0;
@@ -695,6 +699,8 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 				trend_dir = '-';
 			else if (trend > 0)
 				trend_dir = '+';
+
+			mvwprintw(w_stats, 8, 48, "# cookies: %d", n_cookies);
 
 			mvwprintw(w_stats, 9, 48, "trend: %c%.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x", trend_dir, fabs(trend), re_tx, pmtu, tos);
 		}

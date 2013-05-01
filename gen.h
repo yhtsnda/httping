@@ -40,13 +40,14 @@ typedef struct
 {
 	double cur, min, avg, max, sd;
 	int n;
-	char valid;
+	char valid, cur_valid;
 } stats_t;
 
 int enc_b64(char *source, int source_lenght, char *target);
 
 void init_statst(stats_t *data);
 void update_statst(stats_t *data, double in);
+void reset_statst_cur(stats_t *data);
 double calc_sd(stats_t *in);
 
 #endif

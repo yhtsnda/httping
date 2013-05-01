@@ -289,7 +289,7 @@ void emit_headers(char *in)
 #endif
 }
 
-void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes)
+void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes, stats_t *t_ssl, stats_t *t_write, stats_t *t_close, int n_cookies, stats_t *stats_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *t_total)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -297,10 +297,12 @@ void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t
 	printf("\"status\" : \"%d\", ", ok);
 	printf("\"seq\" : \"%d\", ", seq);
 	printf("\"start_ts\" : \"%f\", ", start_ts);
-	printf("\"resolve_ms\" : \"%e\", ", t_resolve -> cur);
-	printf("\"connect_ms\" : \"%e\", ", t_connect -> cur);
+	if (t_resolve -> cur_valid)
+		printf("\"resolve_ms\" : \"%e\", ", t_resolve -> cur);
+	if (t_connect -> cur_valid)
+		printf("\"connect_ms\" : \"%e\", ", t_connect -> cur);
 	printf("\"request_ms\" : \"%e\", ", t_request -> cur);
-	printf("\"total_ms\" : \"%e\", ", t_resolve -> cur + t_connect -> cur + t_request -> cur);
+	printf("\"total_ms\" : \"%e\", ", t_total -> cur);
 	printf("\"http_code\" : \"%d\", ", http_code);
 	printf("\"msg\" : \"%s\", ", msg);
 	printf("\"header_size\" : \"%d\", ", header_size);
@@ -310,6 +312,18 @@ void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t
 	printf("\"ssl_fingerprint\" : \"%s\", ", ssl_fp ? ssl_fp : "");
 	printf("\"time_offset\" : \"%f\", ", toff_diff_ts);
 	printf("\"tfo_succes\" : \"%s\" ", tfo_succes ? "true" : "false");
+	if (t_ssl -> cur_valid)
+		printf("\"ssl_ms\" : \"%e\", ", t_ssl -> cur);
+	printf("\"write\" : \"%e\", ", t_write -> cur);
+	printf("\"close\" : \"%e\", ", t_close -> cur);
+	printf("\"cookies\" : \"%d\", ", n_cookies);
+	if (stats_to -> cur_valid)
+		printf("\"to\" : \"%e\", ", stats_to -> cur);
+	if (tcp_rtt_stats -> cur_valid)
+		printf("\"tcp_rtt_stats\" : \"%e\", ", tcp_rtt_stats -> cur);
+	printf("\"re_tx\" : \"%d\", ", re_tx);
+	printf("\"pmtu\" : \"%d\", ", pmtu);
+	printf("\"tos\" : \"%02x\", ", tos);
 	printf("}");
 }
 
@@ -350,7 +364,7 @@ void emit_error(int verbose, int seq, double start_ts)
 		printf("%s%s%s%s\n", ts ? ts : "", c_error, get_error(), c_normal);
 
 	if (json_output)
-		emit_json(0, seq, start_ts, NULL, NULL, NULL, -1, get_error(), -1, -1, -1, "", "", -1, 0);
+		emit_json(0, seq, start_ts, NULL, NULL, NULL, -1, get_error(), -1, -1, -1, "", "", -1, 0, NULL, NULL, NULL, 0, NULL, NULL, 0, 0, 0, NULL);
 
 	clear_error();
 
@@ -393,9 +407,9 @@ char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, const char *cookie, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
+char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **cookies, int n_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
 {
-	char *request = (char *)malloc(strlen(get) + 8192);
+	char *request = NULL;
 	char pb[128] = { 0 };
 
 	if (proxy_buster)
@@ -409,7 +423,7 @@ char * create_request_header(const char *get, char use_proxy_host, char get_inst
 	}
 
 	if (use_proxy_host)
-		sprintf(request, "%s %s%s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", get, pb, persistent_connections?'1':'0');
+		str_add(&request, "%s %s%s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", get, pb, persistent_connections?'1':'0');
 	else
 	{
 		const char *dummy = get, *slash = NULL;
@@ -420,29 +434,29 @@ char * create_request_header(const char *get, char use_proxy_host, char get_inst
 
 		slash = strchr(dummy, '/');
 		if (slash)
-			sprintf(request, "%s %s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", slash, persistent_connections?'1':'0');
+			str_add(&request, "%s %s HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", slash, persistent_connections?'1':'0');
 		else
-			sprintf(request, "%s / HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", persistent_connections?'1':'0');
+			str_add(&request, "%s / HTTP/1.%c\r\n", get_instead_of_head?"GET":"HEAD", persistent_connections?'1':'0');
 	}
 
 	if (hostname)
-		sprintf(&request[strlen(request)], "Host: %s\r\n", hostname);
+		str_add(&request, "Host: %s\r\n", hostname);
 
 	if (useragent)
-		sprintf(&request[strlen(request)], "User-Agent: %s\r\n", useragent);
+		str_add(&request, "User-Agent: %s\r\n", useragent);
 	else
-		sprintf(&request[strlen(request)], "User-Agent: HTTPing v" VERSION "\r\n");
+		str_add(&request, "User-Agent: HTTPing v" VERSION "\r\n");
 
 	if (referer)
-		sprintf(&request[strlen(request)], "Referer: %s\r\n", referer);
+		str_add(&request, "Referer: %s\r\n", referer);
 
 	if (ask_compression)
-		sprintf(&request[strlen(request)], "Accept-Encoding: gzip,deflate\r\n");
+		str_add(&request, "Accept-Encoding: gzip,deflate\r\n");
 
 	if (no_cache)
 	{
-		sprintf(&request[strlen(request)], "Pragma: no-cache\r\n");
-		sprintf(&request[strlen(request)], "Cache-Control: no-cache\r\n");
+		str_add(&request, "Pragma: no-cache\r\n");
+		str_add(&request, "Cache-Control: no-cache\r\n");
 	}
 
 	/* Basic Authentification */
@@ -453,7 +467,8 @@ char * create_request_header(const char *get, char use_proxy_host, char get_inst
 
 		sprintf(auth_string, "%s:%s", auth_usr, auth_password); 
 		enc_b64(auth_string, strlen(auth_string), b64_auth_string);
-		sprintf(&request[strlen(request)], "Authorization: Basic %s\r\n", b64_auth_string);
+
+		str_add(&request, "Authorization: Basic %s\r\n", b64_auth_string);
 	}
 
 	/* proxy authentication */
@@ -464,17 +479,23 @@ char * create_request_header(const char *get, char use_proxy_host, char get_inst
 
 		sprintf(ppa_string, "%s:%s", proxy_user, proxy_password); 
 		enc_b64(ppa_string, strlen(ppa_string), b64_ppa_string);
-		sprintf(&request[strlen(request)], "Proxy-Authorization: Basic %s\r\n", b64_ppa_string);
+
+		str_add(&request, "Proxy-Authorization: Basic %s\r\n", b64_ppa_string);
 	}
 
 	/* Cookie Insertion */
-	if (cookie)
-		sprintf(&request[strlen(request)], "Cookie: %s;\r\n", cookie);
+	if (cookies)
+	{
+		int index = 0;
+
+		for(index=0; index<n_cookies; index++)
+			str_add(&request, "Cookie: %s\r\n", cookies[index]);
+	}
 
 	if (persistent_connections)
-		sprintf(&request[strlen(request)], "Connection: keep-alive\r\n");
+		str_add(&request, "Connection: keep-alive\r\n");
 
-	strcat(request, "\r\n");
+	str_add(&request, "\r\n");
 
 	return request;
 }
@@ -796,20 +817,20 @@ const char *get_location(const char *host, int port, char use_ssl, char *reply)
 
 		if (head)
 		{
-			char buffer[4096];
+			char *buffer = NULL;
 			char *dest = head + 11;
 
 			if (lf)
 				*lf = 0x00;
 
 			if (memcmp(dest, "http", 4) == 0)
-				snprintf(buffer, sizeof buffer, "%s", dest);
+				str_add(&buffer, "%s", dest);
 			else
-				snprintf(buffer, sizeof buffer, "http%s://%s:%d%s", use_ssl ? "s" : "", host, port, dest);
+				str_add(&buffer, "http%s://%s:%d%s", use_ssl ? "s" : "", host, port, dest);
 
 			free(copy);
 
-			return strdup(buffer);
+			return buffer;
 		}
 
 		free(copy);
@@ -910,6 +931,15 @@ void stats_close(int *fd, stats_t *t_close, char is_failure)
 	update_statst(t_close, (t_end - t_start) * 1000.0);
 }
 
+void add_cookie(char ***cookies, int *n_cookies, char *in)
+{
+	*cookies = (char **)realloc(*cookies, (*n_cookies + 1) * sizeof(char *));
+
+	*cookies[*n_cookies] = strdup(in);
+
+	(*n_cookies)++;
+}
+
 int main(int argc, char *argv[])
 {
 	char do_fetch_proxy_settings = 0;
@@ -934,7 +964,8 @@ int main(int argc, char *argv[])
 	const char *referer = NULL;
 	const char *auth_password = NULL;
 	const char *auth_usr = NULL;
-	const char *cookie = NULL;
+	char **cookies = NULL;
+	int n_cookies = 0;
 	char resolve_once = 0;
 	char have_resolved = 0;
 	double nagios_warn=0.0, nagios_crit=0.0;
@@ -1249,11 +1280,9 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'h':
-				{
-					char dummy_buffer[4096] = { 0 };
-					snprintf(dummy_buffer, sizeof dummy_buffer, "http://%s/", optarg);
-					url = strdup(dummy_buffer);
-				}
+				free(url);
+				url = NULL;
+				str_add(&url, "http://%s/", optarg);
 				break;
 
 			case 'p':
@@ -1343,7 +1372,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'C':
-				cookie = optarg;
+				add_cookie(&cookies, &n_cookies, optarg);
 				break;
 
 			case 'F':
@@ -1658,7 +1687,7 @@ persistent_loop:
 			update_statst(&t_resolve, dummy_ms);
 
 			free(request);
-			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookie, proxy_buster, proxy_user, proxy_password);
+			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookies, n_cookies, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
@@ -2052,14 +2081,14 @@ persistent_loop:
 
 			if (json_output)
 			{
-				char current_host[1024] = "?";
+				char current_host[4096] = { 0 };
 
 				if (proxy_host)
 					snprintf(current_host, sizeof current_host, "%s", hostname);
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success);
+				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success, &t_ssl, &t_write, &t_close, n_cookies, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_total);
 			}
 			else if (machine_readable)
 			{
@@ -2089,10 +2118,9 @@ persistent_loop:
 			}
 			else if (!quiet && !nagios_mode && t_total.cur >= offset_show)
 			{
-				char line[4096] = { 0 };
-				int pos = 0;
+				char *line = NULL;
 				const char *ms_color = c_green;
-				char current_host[1024] = "?";
+				char current_host[4096] = { 0 };
 				char *operation = !persistent_connections ? "connected to" : "pinged host";
 				const char *sep = c_bright, *unsep = c_normal;
 
@@ -2101,9 +2129,9 @@ persistent_loop:
 					char *ts = get_ts_str(verbose);
 
 					if (ncurses_mode)
-						pos += snprintf(&line[pos], sizeof line - pos, "[%s] ", ts);
+						str_add(&line, "[%s] ", ts);
 					else
-						pos += snprintf(&line[pos], sizeof line - pos, "%s ", ts);
+						str_add(&line, "%s ", ts);
 
 					free(ts);
 				}
@@ -2133,53 +2161,53 @@ persistent_loop:
 					ms_color = c_yellow;
 
 				if (!ncurses_mode)
-					pos += snprintf(&line[pos], sizeof line - pos, "%s%s ", c_white, operation);
+					str_add(&line, "%s%s ", c_white, operation);
 
 				if (persistent_connections && show_bytes_xfer)
-					pos += snprintf(&line[pos], sizeof line - pos, "%s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
+					str_add(&line, "%s%s%s%s%s:%s%d%s (%d/%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, len, c_blue, curncount-1, c_white);
 				else
-					pos += snprintf(&line[pos], sizeof line - pos, "%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
+					str_add(&line, "%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					pos += snprintf(&line[pos], sizeof line - pos, "time=%.2f+%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur, sep, unsep, t_request.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+					str_add(&line, "time=%.2f+%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur, sep, unsep, t_request.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 				else
-					pos += snprintf(&line[pos], sizeof line - pos, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+					str_add(&line, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 
 				if (persistent_did_reconnect)
 				{
-					pos += snprintf(&line[pos], sizeof line - pos, " %sC%s", c_magenta, c_white);
+					str_add(&line, " %sC%s", c_magenta, c_white);
 					persistent_did_reconnect = 0;
 				}
 
 				if (show_Bps)
 				{
-					pos += snprintf(&line[pos], sizeof line - pos, " %dKB/s", (int)Bps / 1024);
+					str_add(&line, " %dKB/s", (int)Bps / 1024);
 					if (show_bytes_xfer)
-						pos += snprintf(&line[pos], sizeof line - pos, " %dKB", (int)(bytes_transferred / 1024));
+						str_add(&line, " %dKB", (int)(bytes_transferred / 1024));
 					if (ask_compression)
 					{
-						pos += snprintf(&line[pos], sizeof line - pos, " (");
+						str_add(&line, " (");
 						if (!is_compressed)
-							pos += snprintf(&line[pos], sizeof line - pos, "not ");
-						pos += snprintf(&line[pos], sizeof line - pos, "compressed)");
+							str_add(&line, "not ");
+						str_add(&line, "compressed)");
 					}
 				}
 
 				if (use_ssl && show_fp && fp != NULL)
 				{
-					pos += snprintf(&line[pos], sizeof line - pos, " %s", fp);
+					str_add(&line, " %s", fp);
 				}
 
 				if (verbose > 0 && their_ts > 0)
 				{
 					/*  if diff_ts > 0, then their clock is running too fast */
-					pos += snprintf(&line[pos], sizeof line - pos, " toff=%d", (int)toff_diff_ts);
+					str_add(&line, " toff=%d", (int)toff_diff_ts);
 				}
 
 				if (verbose > 0 && age > 0)
-					pos += snprintf(&line[pos], sizeof line - pos, " age=%d", age);
+					str_add(&line, " age=%d", age);
 
-				pos += snprintf(&line[pos], sizeof line - pos, "%s", c_normal);
+				str_add(&line, "%s", c_normal);
 
 				if (audible)
 				{
@@ -2192,7 +2220,7 @@ persistent_loop:
 
 #ifdef TCP_TFO
 				if (tfo_success)
-					pos += snprintf(&line[pos], sizeof line - pos, " F");
+					str_add(&line, " F");
 #endif
 
 #ifdef NC
@@ -2208,6 +2236,8 @@ persistent_loop:
 					printf("%s\n", line);
 
 				do_aggregates(t_total.cur, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose, show_ts);
+
+				free(line);
 			}
 
 			if (show_statuscodes && ok_str != NULL && sc != NULL)
@@ -2228,7 +2258,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_cookies);
 #endif
 
 		free(sc);
@@ -2258,6 +2288,18 @@ persistent_loop:
 
 			usleep((useconds_t)(cur_sleep * 1000000.0));
 		}
+
+		reset_statst_cur(&t_resolve);
+		reset_statst_cur(&t_connect);
+		reset_statst_cur(&t_write);
+		reset_statst_cur(&t_request);
+		reset_statst_cur(&t_total);
+		reset_statst_cur(&t_ssl);
+		reset_statst_cur(&t_close);
+		reset_statst_cur(&stats_to);
+#if defined(linux) || defined(__FreeBSD__)
+		reset_statst_cur(&tcp_rtt_stats);
+#endif
 	}
 
 #ifdef NC
