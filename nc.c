@@ -667,7 +667,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		char buffer[4096] = { 0 };
 		unsigned int buflen = 0;
 
-		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", "cur", "min", "avg", "max", "sd");
+		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", "latest", "min", "avg", "max", "sd");
 		show_stats_t(1, 0, "resolve", resolve);
 		show_stats_t(2, 0, "connect", connect);
 		show_stats_t(3, 0, "ssl    ", ssl_setup);

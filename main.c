@@ -978,7 +978,7 @@ int main(int argc, char *argv[])
 	double show_slow_log = MY_DOUBLE_INF;
 	char use_tcp_nodelay = 1;
 	int max_mtu = -1;
-	int write_sleep = 1000; /* in us (microseconds), determines resolution of transmit time determination */
+	int write_sleep = 500; /* in us (microseconds), determines resolution of transmit time determination */
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1588,6 +1588,7 @@ int main(int argc, char *argv[])
 
 		for(;;)
 		{
+			char did_reconnect = 0;
 			int rc = -1;
 			int persistent_tries = 0;
 			int len = 0, overflow = 0, headers_len = 0;
@@ -1672,6 +1673,8 @@ persistent_loop:
 					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &use_tfo, request, req_len, &req_sent, -1);
 				else
 					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &use_tfo, request, req_len, &req_sent, max_mtu);
+
+				did_reconnect = 1;
 			}
 
 			if (fd == RC_CTRLC)	/* ^C pressed */
@@ -1723,8 +1726,11 @@ persistent_loop:
 
 			dafter_connect = get_ts();
 
-			dummy_ms = (dafter_connect - dafter_resolve) * 1000.0;
-			update_statst(&t_connect, dummy_ms - ssl_handshake);
+			if (did_reconnect)
+			{
+				dummy_ms = (dafter_connect - dafter_resolve) * 1000.0;
+				update_statst(&t_connect, dummy_ms - ssl_handshake);
+			}
 
 			if (fd < 0)
 			{
