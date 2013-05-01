@@ -16,6 +16,7 @@
 #include "error.h"
 #include "gen.h"
 #include "io.h"
+#include "main.h"
 #include "tcp.h"
 
 void failure_close(int fd)
@@ -139,6 +140,9 @@ old_connect:
 			}
 		}
 	}
+
+	if (stop)
+		return RC_CTRLC;
 
 	/* wait for connection */
 	rc = select(fd + 1, NULL, &wfds, NULL, &to);
