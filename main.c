@@ -2169,7 +2169,7 @@ persistent_loop:
 					str_add(&line, "%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s ", c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
 				if (split)
-					str_add(&line, "time=%.2f+%.2f%s+%s%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur, sep, unsep, t_request.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
+					str_add(&line, "time=%.2f+%.2f+%.2f+%.2f+%.2f%s=%s%s%.2f%s ms %s%s%s", t_resolve.cur, t_connect.cur_valid ? t_connect.cur : -1, t_write.cur, t_request.cur, t_close.cur, sep, unsep, ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 				else
 					str_add(&line, "time=%s%.2f%s ms %s%s%s", ms_color, t_total.cur, c_white, c_cyan, sc?sc:"", c_white);
 
@@ -2291,11 +2291,11 @@ persistent_loop:
 
 		reset_statst_cur(&t_resolve);
 		reset_statst_cur(&t_connect);
+		reset_statst_cur(&t_ssl);
 		reset_statst_cur(&t_write);
 		reset_statst_cur(&t_request);
-		reset_statst_cur(&t_total);
-		reset_statst_cur(&t_ssl);
 		reset_statst_cur(&t_close);
+		reset_statst_cur(&t_total);
 		reset_statst_cur(&stats_to);
 #if defined(linux) || defined(__FreeBSD__)
 		reset_statst_cur(&tcp_rtt_stats);
