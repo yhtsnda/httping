@@ -83,7 +83,6 @@ if [ $? -eq 0 ] || [ $F_FW -eq 1 ] ; then
 	FW="FW=yes"
 else
 	echo \- this system does NOT have the FFTW3 development libraries - they are optional and only usefull when also including ncurses
-cat $FILE2
 	FW=""
 fi
 
