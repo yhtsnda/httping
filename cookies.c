@@ -34,7 +34,7 @@ void free_cookies(char **dynamic_cookies, int n_dynamic_cookies)
 	free(dynamic_cookies);
 }
 
-void get_cookies(const char *headers, char ***dynamic_cookies, int *n_dynamic_cookies)
+void get_cookies(const char *headers, char ***dynamic_cookies, int *n_dynamic_cookies, char ***static_cookies, int *n_static_cookies)
 {
 	int index = 0;
 	char **header_lines = NULL;
@@ -44,6 +44,7 @@ void get_cookies(const char *headers, char ***dynamic_cookies, int *n_dynamic_co
 
 	for(index=0; index<n_header_lines; index++)
 	{
+		char use_static = 0;
 		char *result = NULL;
 		int cparts_index = 0;
 		char **cparts = NULL;
@@ -62,7 +63,10 @@ void get_cookies(const char *headers, char ***dynamic_cookies, int *n_dynamic_co
 				part++;
 
 			if (strncmp(part, "expires=", 8) == 0)
+			{
+				use_static = 1;
 				continue;
+			}
 
 			if (strncmp(part, "path=", 5) == 0)
 				continue;
@@ -78,7 +82,10 @@ void get_cookies(const char *headers, char ***dynamic_cookies, int *n_dynamic_co
 
 		free_splitted_string(cparts, n_cparts);
 
-		add_cookie(dynamic_cookies, n_dynamic_cookies, result);
+		if (use_static)
+			add_cookie(static_cookies, n_static_cookies, result);
+		else
+			add_cookie(dynamic_cookies, n_dynamic_cookies, result);
 
 		free(result);
 	}

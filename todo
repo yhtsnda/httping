@@ -5,6 +5,8 @@
 - http 302 volgen?
 
 - reply with cookies
+  - keep track of persistent-cookies (the ones with an expire in the future): do not delete those
+    - persistent: add to static?
 
 - o2oo-achtig rapport?
 

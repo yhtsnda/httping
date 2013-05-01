@@ -1916,7 +1916,7 @@ persistent_loop:
 				dynamic_cookies = NULL;
 				n_dynamic_cookies = 0;
 
-				get_cookies(reply, &dynamic_cookies, &n_dynamic_cookies);
+				get_cookies(reply, &dynamic_cookies, &n_dynamic_cookies, &static_cookies, &n_static_cookies);
 			}
 
 			if ((show_statuscodes || machine_readable || json_output || ncurses_mode) && reply != NULL)
