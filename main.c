@@ -66,6 +66,68 @@ char ncurses_mode = 0;
 
 int fd = -1;
 
+void new_version_alert(void)
+{
+	char new_version = 0;
+	FILE *fh = fopen("/tmp/httping.dat", "r");
+	if (!fh)
+		new_version = 1;
+	else
+	{
+		char buffer[4096], *dummy = 0x00;
+
+		fgets(buffer, sizeof buffer, fh);
+
+		fclose(fh);
+
+		dummy = strchr(buffer, '\n');
+		if (dummy)
+			*dummy = 0x00;
+
+		if (strcmp(buffer, VERSION) != 0)
+			new_version = 1;
+	}
+
+	if (new_version && time(NULL) % 3 == 0)
+	{
+		struct utsname buf;
+		FILE *fh = fopen("/tmp/httping.dat", "w");
+		if (fh)
+		{
+			fprintf(fh, "%s\n", VERSION);
+
+			fclose(fh);
+		}
+
+		printf("Welcome to the new HTTPing version " VERSION "!\n\n");
+#ifdef NC
+		printf("Did you know that with -K you can start a fullscreen GUI version with nice graphs and lots more information? And that you can disable the moving graphs with -D?\n");
+#ifndef FW
+		printf("And if you compile this program with libfftw3, that it can also show a fourier transform of the measured values?\n");
+#endif
+#else
+		printf("Did you know that if you compile this program with NCURSES, that it then includes a nice GUI with lots more information and graphs?\n");
+#endif
+
+#if !defined(TCP_TFO) && defined(linux)
+		if (uname(&buf) == 0)
+		{
+			char **rparts = NULL;
+			int n_rparts = 0;
+
+			split_string(buf.release, ".", &rparts, &n_rparts);
+
+			if (n_rparts >= 2 && ((atoi(rparts[0]) >= 3 && atoi(rparts[1]) >= 6) || atoi(rparts[0]) >= 4))
+				printf("This program supports TCP Fast Open! (if compiled in and only on Linux kernels 3.6 or more recent) See the readme.txt how to enable this.\n");
+
+			free_splitted_string(rparts, n_rparts);
+		}
+#endif
+
+		printf("\n\n");
+	}
+}
+
 void version(void)
 {
 	fprintf(stderr, "HTTPing v" VERSION ", (C) 2003-2013 folkert@vanheusden.com\n");
@@ -235,6 +297,8 @@ void usage(const char *me)
 
 	fprintf(stderr, "Example:\n");
 	fprintf(stderr, "\t%s %s%s -s -Z\n\n", me, host, has_color ? " -Y" : "");
+
+	new_version_alert();
 }
 
 void emit_statuslines(double run_time)
@@ -931,68 +995,6 @@ void stats_close(int *fd, stats_t *t_close, char is_failure)
 	update_statst(t_close, (t_end - t_start) * 1000.0);
 }
 
-void new_version_alert(void)
-{
-	char new_version = 0;
-	FILE *fh = fopen("/tmp/httping.dat", "r");
-	if (!fh)
-		new_version = 1;
-	else
-	{
-		char buffer[4096], *dummy = 0x00;
-
-		fgets(buffer, sizeof buffer, fh);
-
-		fclose(fh);
-
-		dummy = strchr(buffer, '\n');
-		if (dummy)
-			*dummy = 0x00;
-
-		if (strcmp(buffer, VERSION) != 0)
-			new_version = 1;
-	}
-
-	if (new_version && time(NULL) % 3 == 0)
-	{
-		struct utsname buf;
-		FILE *fh = fopen("/tmp/httping.dat", "w");
-		if (fh)
-		{
-			fprintf(fh, "%s\n", VERSION);
-
-			fclose(fh);
-		}
-
-		printf("Welcome to the new HTTPing version " VERSION "!\n\n");
-#ifdef NC
-		printf("Did you know that with -K you can start a fullscreen GUI version with nice graphs and lots more information? And that you can disable the moving graphs with -D?\n");
-#ifndef FW
-		printf("And if you compile this program with libfftw3, that it can also show a fourier transform of the measured values?\n");
-#endif
-#else
-		printf("Did you know that if you compile this program with NCURSES, that it then includes a nice GUI with lots more information and graphs?\n");
-#endif
-
-#if !defined(TCP_TFO) && defined(linux)
-		if (uname(&buf) == 0)
-		{
-			char **rparts = NULL;
-			int n_rparts = 0;
-
-			split_string(buf.release, ".", &rparts, &n_rparts);
-
-			if (n_rparts >= 2 && ((atoi(rparts[0]) >= 3 && atoi(rparts[1]) >= 6) || atoi(rparts[0]) >= 4))
-				printf("This program supports TCP Fast Open! (if compiled in and only on Linux kernels 3.6 or more recent) See the readme.txt how to enable this.\n");
-
-			free_splitted_string(rparts, n_rparts);
-		}
-#endif
-
-		printf("\n\n");
-	}
-}
-
 int main(int argc, char *argv[])
 {
 	char do_fetch_proxy_settings = 0;
@@ -1062,8 +1064,6 @@ int main(int argc, char *argv[])
 	int max_mtu = -1;
 	int write_sleep = 500; /* in us (microseconds), determines resolution of transmit time determination */
 	char keep_cookies = 0;
-
-	/* new_version_alert(); */
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
