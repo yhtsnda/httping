@@ -39,6 +39,7 @@
 #ifdef NC
 #include "nc.h"
 #endif
+#include "cookies.h"
 
 volatile int stop = 0;
 
@@ -407,8 +408,9 @@ char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **cookies, int n_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
+char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **static_cookies, int n_static_cookies, char **dynamic_cookies, int n_dynamic_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
 {
+	int index;
 	char *request = NULL;
 	char pb[128] = { 0 };
 
@@ -483,14 +485,11 @@ char * create_request_header(const char *get, char use_proxy_host, char get_inst
 		str_add(&request, "Proxy-Authorization: Basic %s\r\n", b64_ppa_string);
 	}
 
-	/* Cookie Insertion */
-	if (cookies)
-	{
-		int index = 0;
-
-		for(index=0; index<n_cookies; index++)
-			str_add(&request, "Cookie: %s\r\n", cookies[index]);
-	}
+	/* Cookie insertion */
+	for(index=0; index<n_static_cookies; index++)
+		str_add(&request, "Cookie: %s\r\n", static_cookies[index]);
+	for(index=0; index<n_dynamic_cookies; index++)
+		str_add(&request, "Cookie: %s\r\n", dynamic_cookies[index]);
 
 	if (persistent_connections)
 		str_add(&request, "Connection: keep-alive\r\n");
@@ -931,15 +930,6 @@ void stats_close(int *fd, stats_t *t_close, char is_failure)
 	update_statst(t_close, (t_end - t_start) * 1000.0);
 }
 
-void add_cookie(char ***cookies, int *n_cookies, char *in)
-{
-	*cookies = (char **)realloc(*cookies, (*n_cookies + 1) * sizeof(char *));
-
-	*cookies[*n_cookies] = strdup(in);
-
-	(*n_cookies)++;
-}
-
 int main(int argc, char *argv[])
 {
 	char do_fetch_proxy_settings = 0;
@@ -964,8 +954,8 @@ int main(int argc, char *argv[])
 	const char *referer = NULL;
 	const char *auth_password = NULL;
 	const char *auth_usr = NULL;
-	char **cookies = NULL;
-	int n_cookies = 0;
+	char **static_cookies = NULL, **dynamic_cookies = NULL;
+	int n_static_cookies = 0, n_dynamic_cookies = 0;
 	char resolve_once = 0;
 	char have_resolved = 0;
 	double nagios_warn=0.0, nagios_crit=0.0;
@@ -1008,6 +998,7 @@ int main(int argc, char *argv[])
 	char use_tcp_nodelay = 1;
 	int max_mtu = -1;
 	int write_sleep = 500; /* in us (microseconds), determines resolution of transmit time determination */
+	char keep_cookies = 0;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1083,6 +1074,7 @@ int main(int argc, char *argv[])
 		{"draw-phase",	0, NULL, 14 },
 		{"no-tcp-nodelay",	0, NULL, 15 },
 		{"max-mtu", 1, NULL, 16 },
+		{"keep-cookies", 0, NULL, 17 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1100,6 +1092,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 17:
+				keep_cookies = 1;
+				break;
+
 			case 16:
 				max_mtu = atoi(optarg);
 				break;
@@ -1368,7 +1364,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'C':
-				add_cookie(&cookies, &n_cookies, optarg);
+				add_cookie(&static_cookies, &n_static_cookies, optarg);
 				break;
 
 			case 'F':
@@ -1683,8 +1679,9 @@ persistent_loop:
 			update_statst(&t_resolve, dummy_ms);
 
 			free(request);
-			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, cookies, n_cookies, proxy_buster, proxy_user, proxy_password);
+			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
+printf("%s", request);
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
@@ -1906,6 +1903,15 @@ persistent_loop:
 
 			emit_headers(reply);
 
+			if (reply)
+			{
+				free_cookies(dynamic_cookies, n_dynamic_cookies);
+				dynamic_cookies = NULL;
+				n_dynamic_cookies = 0;
+
+				get_cookies(reply, &dynamic_cookies, &n_dynamic_cookies);
+			}
+
 			if ((show_statuscodes || machine_readable || json_output || ncurses_mode) && reply != NULL)
 			{
 				/* statuscode is in first line behind
@@ -2088,7 +2094,7 @@ persistent_loop:
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, "getnameinfo() failed: %d (%s)", errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success, &t_ssl, &t_write, &t_close, n_cookies, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_total);
+				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success, &t_ssl, &t_write, &t_close, n_dynamic_cookies, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_total);
 			}
 			else if (machine_readable)
 			{
@@ -2258,7 +2264,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_cookies);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_dynamic_cookies);
 #endif
 
 		free(sc);
@@ -2354,6 +2360,8 @@ error_exit:
 	if (json_output)
 		printf("\n]\n");
 
+	free_cookies(static_cookies, n_static_cookies);
+	free_cookies(dynamic_cookies, n_dynamic_cookies);
 	freeaddrinfo(ai);
 	free(request);
 	free(get);

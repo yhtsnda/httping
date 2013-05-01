@@ -45,7 +45,7 @@ void split_string(const char *in, const char *split, char ***list, int *list_n)
 		if (!term)
 			break;
 
-		pc += split_len;
+		pc = term + split_len;
 	}
 
 	free(copy);
