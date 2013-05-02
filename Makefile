@@ -136,6 +136,7 @@ check:
 	scan-build make
 
 coverity: makefile.inc
+	make clean
 	rm -rf cov-int
 	CC=gcc cov-build --dir cov-int make all
 	tar vczf ~/site/coverity/httping.tgz README cov-int/
