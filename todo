@@ -9,6 +9,12 @@
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
 
+- kleuren in ncurses mode
+
+- translate gettext
+
+- -A en -J vrijmaken
+
 - if max_x > ...
   - processing time / content-size stats
   - content-size stats

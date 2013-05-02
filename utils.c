@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
+#include <libintl.h>
 
 #include "error.h"
 #include "utils.h"
@@ -23,7 +24,7 @@ double get_ts(void)
        	struct timezone tz;
 
 	if (gettimeofday(&ts, &tz) == -1)
-		error_exit("gettimeofday failed");
+		error_exit(gettext("gettimeofday failed"));
 
 	return (double)ts.tv_sec + ((double)ts.tv_usec)/1000000.0 + (double)(tz.tz_minuteswest * 60);
 }

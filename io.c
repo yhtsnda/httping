@@ -2,6 +2,7 @@
 /* $Revision$ */
 
 #include <errno.h>
+#include <libintl.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -39,7 +40,7 @@ ssize_t read_to(int fd, char *whereto, size_t len, double timeout)
 			if (errno == EINTR)
 				return RC_CTRLC;
 
-			set_error("myread::select failed: %s", strerror(errno));
+			set_error(gettext("myread::select failed: %s"), strerror(errno));
 
 			return RC_SHORTREAD;
 		}
@@ -74,7 +75,7 @@ ssize_t myread(int fd, char *whereto, size_t len, double timeout)
 			if (errno == EINTR)
 				return RC_CTRLC;
 
-			set_error("myread::select failed: %s", strerror(errno));
+			set_error(gettext("myread::select failed: %s"), strerror(errno));
 
 			return RC_SHORTREAD;
 		}
@@ -90,7 +91,7 @@ ssize_t myread(int fd, char *whereto, size_t len, double timeout)
 				if (errno == EINTR)
 					return RC_CTRLC;
 
-				set_error("myread::read failed: %s", strerror(errno));
+				set_error(gettext("myread::read failed: %s"), strerror(errno));
 
 				return RC_SHORTREAD;
 			}
@@ -134,7 +135,7 @@ ssize_t mywrite(int fd, char *wherefrom, size_t len, double timeout)
 			if (errno == EINTR)
 				return RC_CTRLC;
 
-			set_error("mywrite::select failed: %s", strerror(errno));
+			set_error(gettext("mywrite::select failed: %s"), strerror(errno));
 
 			return RC_SHORTWRITE;
 		}
@@ -148,7 +149,7 @@ ssize_t mywrite(int fd, char *wherefrom, size_t len, double timeout)
 			if (errno == EINTR)
 				return RC_CTRLC;
 
-			set_error("mywrite::write failed: %s", strerror(errno));
+			set_error(gettext("mywrite::write failed: %s"), strerror(errno));
 
 			return RC_SHORTWRITE;
 		}
@@ -170,7 +171,7 @@ int set_fd_nonblocking(int fd)
         /* set fd to non-blocking */
         if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
 	{
-		fprintf(stderr, "set_fd_nonblocking failed! (%s)\n", strerror(errno));
+		fprintf(stderr, gettext("set_fd_nonblocking failed! (%s)\n"), strerror(errno));
 
                 return -1;
 	}
@@ -183,7 +184,7 @@ int set_fd_blocking(int fd)
         /* set fd to blocking */
         if (fcntl(fd, F_SETFL, 0) == -1)
 	{
-		fprintf(stderr, "set_fd_blocking failed! (%s)\n", strerror(errno));
+		fprintf(stderr, gettext("set_fd_blocking failed! (%s)\n"), strerror(errno));
 
                 return -1;
 	}

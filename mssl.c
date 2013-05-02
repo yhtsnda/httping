@@ -2,6 +2,7 @@
 /* $Revision$ */
 
 #include <errno.h>
+#include <libintl.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -75,7 +76,7 @@ int READ_SSL(SSL *ssl_h, char *whereto, int len)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				set_error("READ_SSL: io-error: %s", strerror(errno));
+				set_error(gettext("READ_SSL: io-error: %s"), strerror(errno));
 				return -1;
 			}
 		}
@@ -106,7 +107,7 @@ int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 		{
 			if (errno != EINTR && errno != EAGAIN)
 			{
-				set_error("WRITE_SSL: io-error: %s", strerror(errno));
+				set_error(gettext("WRITE_SSL: io-error: %s"), strerror(errno));
 				return -1;
 			}
 		}
@@ -137,13 +138,13 @@ int connect_ssl(int fd, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, double ti
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv) == -1)
 	{
-		set_error("problem setting receive timeout (%s)", strerror(errno));
+		set_error(gettext("problem setting receive timeout (%s)"), strerror(errno));
 		return -1;
 	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv) == -1)
 	{
-		set_error("problem setting transmit timeout (%s)", strerror(errno));
+		set_error(gettext("problem setting transmit timeout (%s)"), strerror(errno));
 		return -1;
 	}
 
@@ -155,7 +156,7 @@ int connect_ssl(int fd, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, double ti
 	dummy = SSL_connect(*ssl_h);
 	if (dummy <= 0)
 	{
-		set_error("problem starting SSL connection: %d", SSL_get_error(*ssl_h, dummy));
+		set_error(gettext("problem starting SSL connection: %d"), SSL_get_error(*ssl_h, dummy));
 		return -1;
 	}
 
@@ -255,7 +256,7 @@ int connect_ssl_proxy(int fd, struct addrinfo *ai, double timeout, const char *p
 	{
 		if ((rc = mywrite(fd, request_headers, request_headers_len, timeout)) < RC_OK)
 		{
-			set_error("Problem sending request to proxy");
+			set_error(gettext("Problem sending request to proxy"));
 			return rc;
 		}
 	}
@@ -264,7 +265,7 @@ int connect_ssl_proxy(int fd, struct addrinfo *ai, double timeout, const char *p
 	if (rc != RC_OK)
 	{
 		free(response_headers);
-		set_error("Problem retrieving proxy response");
+		set_error(gettext("Problem retrieving proxy response"));
 		return rc;
 	}
 
@@ -278,14 +279,14 @@ int connect_ssl_proxy(int fd, struct addrinfo *ai, double timeout, const char *p
 	if (!code)
 	{
 		free(response_headers);
-		set_error("Invalid proxy response headers");
+		set_error(gettext("Invalid proxy response headers"));
 		return RC_INVAL;
 	}
 
 	if (atoi(code + 1) != 200)
 	{
 		free(response_headers);
-		set_error("Proxy indicated error: %s", code + 1);
+		set_error(gettext("Proxy indicated error: %s"), code + 1);
 		return RC_INVAL;
 	}
 

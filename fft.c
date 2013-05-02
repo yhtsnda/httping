@@ -1,4 +1,5 @@
 /* $Revision$ */
+#include <libintl.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,16 +18,16 @@ void fft_init(int sample_rate_in)
 
 	pin  = (double *)malloc(sizeof(double) * sample_rate_in);
 	if (!pin)
-		error_exit("failed allocating memory for fft (1)");
+		error_exit(gettext("failed allocating memory for fft (1)"));
 
 	pout = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * sample_rate_in + 1);
 	if (!pout)
-		error_exit("failed allocating memory for fft (2)");
+		error_exit(gettext("failed allocating memory for fft (2)"));
 
 	/* init fftw */
 	plan = fftw_plan_dft_r2c_1d(sample_rate_in, pin, pout, FFTW_ESTIMATE);
 	if (!plan)
-		error_exit("failed calculating plan for fft");
+		error_exit(gettext("failed calculating plan for fft"));
 }
 
 void fft_free(void)

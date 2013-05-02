@@ -1,6 +1,7 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 /* $Revision$ */
 
+#include <libintl.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -19,7 +20,7 @@ void error_exit(char *format, ...)
 	(void)vfprintf(stderr, format, ap);
 	va_end(ap);
 
-	fprintf(stderr, "\n\nerrno=%d which means %s (if applicable)\n", errno, strerror(errno));
+	fprintf(stderr, gettext("\n\nerrno=%d which means %s (if applicable)\n"), errno, strerror(errno));
 
 	exit(1);
 }
@@ -35,7 +36,7 @@ void set_error(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	if (vsnprintf(last_error, sizeof last_error, fmt, ap) >= buffer_size)
-		error_exit("Error message '%s' truncated", last_error);
+		error_exit(gettext("Error message '%s' truncated"), last_error);
 	va_end(ap);
 }
 
