@@ -63,33 +63,11 @@ void get_addr(struct addrinfo *ai_use, struct sockaddr_in6 *addr)
 
 int resolve_host_ipv4(const char *host, struct sockaddr_in *addr)
 {
-	struct hostent *hostdnsentries;
-
-	hostdnsentries = gethostbyname(host);
+	struct hostent *hostdnsentries = gethostbyname(host);
 
 	if (hostdnsentries == NULL)
 	{
-		switch(h_errno)
-		{
-			case HOST_NOT_FOUND:
-				set_error("The specified host is unknown.");
-				break;
-
-			case NO_ADDRESS:
-				set_error("The requested name is valid but does not have an IP address.");
-				break;
-
-			case NO_RECOVERY:
-				set_error("A non-recoverable name server error occurred.");
-				break;
-
-			case TRY_AGAIN:
-				set_error("A temporary error occurred on an authoritative name server. Try again later.");
-				break;
-
-			default:
-				set_error("Could not resolve %s for an unknown reason (%d)", host, h_errno);
-		}
+		set_error("Problem resolving %s (IPv4): %s", host, hstrerror(h_errno));
 
 		return -1;
 	}
