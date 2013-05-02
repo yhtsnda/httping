@@ -20,13 +20,7 @@
 
 - SPDY
 
-- send/recv buffer size
-	int ret, sock, sock_buf_size = ...;
-	ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&sock_buf_size, sizeof(sock_buf_size));
-
-	ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&sock_buf_size, sizeof(sock_buf_size));
-
-- warning als erquest headers > 4KB en > 8KB zijn
+- first request: show request headers size / data
 
 - cookies uit chrome/firefox/etc cache halen
 

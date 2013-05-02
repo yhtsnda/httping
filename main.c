@@ -726,15 +726,14 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 
 		if (cur_ts - a -> last_ts >= a -> interval)
 		{
-			char line[4096] = { 0 };
-			int pos = 0;
+			char *line = NULL;
 			double avg = a -> n_values ? a -> value / (double)a -> n_values : -1.0;
 			char *ts = get_ts_str(verbose);
 
-			pos += snprintf(&line[pos], sizeof line - pos, "%s", show_ts ? ts : "");
-			pos += snprintf(&line[pos], sizeof line - pos, "AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
-
+			str_add(&line, "%s", show_ts ? ts : "");
 			free(ts);
+
+			str_add(&line, "AGG[%d]: %d values, min/avg/max%s = %.1f/%.1f/%.1f", a -> interval, a -> n_values, verbose ? "/sd" : "", a -> min, avg, a -> max);
 
 			if (verbose)
 			{
@@ -743,10 +742,10 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 				if (a -> n_values)
 					sd = sqrt((a -> sd / (double)a -> n_values) - pow(avg, 2.0));
 
-				pos += snprintf(&line[pos], sizeof line - pos, "/%.1f", sd);
+				str_add(&line, "/%.1f", sd);
 			}
 
-			pos += snprintf(&line[pos], sizeof line - pos, " ms");
+			str_add(&line, " ms");
 
 #ifdef NC
 			if (ncurses_mode)
@@ -754,6 +753,8 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 			else
 #endif
 			printf("%s\n", line);
+
+			free(line);
 
 			aggregates[index].value =
 			aggregates[index].sd    = 0.0;
@@ -1787,6 +1788,31 @@ persistent_loop:
 			free(request);
 			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password);
 			req_len = strlen(request);
+
+			if (req_len >= 4096)
+			{
+				char *line = NULL;
+				static int notify_cnt = 0;
+
+				notify_cnt++;
+
+				if (notify_cnt == 4)
+					str_add(&line, "Will no longer inform about request headers too large.");
+				else if (notify_cnt < 4)
+					str_add(&line, "Request headers > 4KB! (%d bytes) This may give failures with some HTTP servers.", req_len);
+
+				if (line)
+				{
+#ifdef NC
+					if (ncurses_mode)
+						slow_log("\n%s", line);
+					else
+#endif
+						printf("%s\n", line);
+				}
+
+				free(line);
+			}
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
