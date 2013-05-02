@@ -13,6 +13,8 @@
 
 #define RECV_BUFFER_SIZE (128 * 1024)
 
+#define SPAM_FILE "/tmp/httping.dat"
+
 #define MAX_SHOW_SUPPRESSION 3
 
 #ifdef NO_SSL

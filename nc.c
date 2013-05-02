@@ -22,7 +22,6 @@
 
 char win_resize = 0;
 WINDOW *w_stats = NULL, *w_line1 = NULL, *w_slow = NULL, *w_line2 = NULL, *w_fast = NULL;
-unsigned int max_x = 80, max_y = 25;
 int stats_h = 10;
 int logs_n = 0, slow_n = 0, fast_n = 0;
 char **slow_history = NULL, **fast_history = NULL;
@@ -40,34 +39,6 @@ char draw_phase = 0;
 char pause_graphs = 0;
 
 typedef enum { C_WHITE = 0, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN, C_RED } color_t;
-
-void determine_terminal_size(unsigned int *max_y, unsigned int *max_x)
-{
-        struct winsize size;
-
-        *max_x = *max_y = 0;
-
-        if (ioctl(1, TIOCGWINSZ, &size) == 0)
-        {
-                *max_y = size.ws_row;
-                *max_x = size.ws_col;
-        }
-
-        if (!*max_x || !*max_y)
-        {
-                char *dummy = getenv("COLUMNS");
-                if (dummy)
-                        *max_x = atoi(dummy);
-                else
-                        *max_x = 80;
-
-                dummy = getenv("LINES");
-                if (dummy)
-                        *max_x = atoi(dummy);
-                else
-                        *max_x = 24;
-        }
-}
 
 void update_terminal(void)
 {
