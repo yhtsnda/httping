@@ -1,6 +1,6 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 /* $Revision$ */
 
-int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, double timeout, char *tfo, char *msg, int msg_len, char *msg_accepted, int max_mtu);
-int set_tcp_low_latency(int sock);
+int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer_size, int tx_buffer_size, int max_mtu, char use_no_delay);
+int connect_to(int fd, struct addrinfo *ai, double timeout, char *tfo, char *msg, int msg_len, char *msg_accepted);
 void failure_close(int fd);

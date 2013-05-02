@@ -16,16 +16,15 @@
 #include "res.h"
 #include "tcp.h"
 
-int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_username, const char *socks5_password, const char *host, int port, char abort_on_resolve_failure)
+int socks5connect(int fd, struct addrinfo *ai, double timeout, const char *socks5_username, const char *socks5_password, const char *host, int port, char abort_on_resolve_failure)
 {
 	struct sockaddr_in sai;
 	uint32_t addr = 0;
 	unsigned char io_buffer[256] = { 0 };
 	int io_len = 0, rc = -1;
-	int fd = connect_to(NULL, ai, timeout, NULL, NULL, 0, NULL, -1);
 
-	if (fd < 0)
-		return fd;
+	if ((rc = connect_to(fd, ai, timeout, NULL, NULL, 0, NULL)) < 0)
+		return rc;
 
 	/* inform socks server about the auth. methods we support */
 	if (socks5_username != NULL)
@@ -45,21 +44,14 @@ int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_userna
 	}
 
 	if ((rc = mywrite(fd, (char *)io_buffer, io_len, timeout)) < 0)
-	{
-		failure_close(fd);
 		return rc;
-	}
 
 	/* wait for reply telling selected authentication method */
 	if ((rc = myread(fd, (char *)io_buffer, 2, timeout)) < 0)
-	{
-		failure_close(fd);
 		return rc;
-	}
 
 	if (io_buffer[0] != 0x05)
 	{
-		close(fd);
 		set_error("socks5connect: reply with requested authentication method does not say version 5 (%02x)", io_buffer[0]);
 		return RC_INVAL;
 	}
@@ -74,7 +66,6 @@ int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_userna
 	}
 	else
 	{
-		failure_close(fd);
 		set_error("socks5connect: socks5 refuses our authentication methods: %02x", io_buffer[1]);
 		return RC_INVAL;
 	}
@@ -86,7 +77,6 @@ int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_userna
 
 		if (socks5_username == NULL || socks5_password == NULL)
 		{
-			close(fd);
 			set_error("socks5connect: socks5 server requests username/password authentication");
 			return RC_INVAL;
 		}
@@ -96,21 +86,18 @@ int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_userna
 
 		if ((rc = mywrite(fd, (char *)io_buffer, io_len + 1, timeout)) < 0)
 		{
-			failure_close(fd);
 			set_error("socks5connect: failed transmitting username/password to socks5 server");
 			return rc;
 		}
 
 		if ((rc = myread(fd, (char *)io_buffer, 2, timeout)) < 0)
 		{
-			failure_close(fd);
 			set_error("socks5connect: failed receiving authentication reply");
 			return rc;
 		}
 
 		if (io_buffer[1] != 0x00)
 		{
-			close(fd);
 			set_error("socks5connect: password authentication failed");
 			return RC_INVAL;
 		}
@@ -142,14 +129,12 @@ int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_userna
 
 	if ((rc = mywrite(fd, (char *)io_buffer, 10, timeout)) < 0)
 	{
-		failure_close(fd);
 		set_error("socks5connect: failed to transmit associate request");
 		return rc;
 	}
 
 	if ((rc = myread(fd, (char *)io_buffer, 10, timeout)) < 0)
 	{
-		failure_close(fd);
 		set_error("socks5connect: command reply receive failure");
 		return rc;
 	}
@@ -157,24 +142,21 @@ int socks5connect(struct addrinfo *ai, double timeout, const char *socks5_userna
 	/* verify reply */
 	if (io_buffer[0] != 0x05)
 	{
-		close(fd);
 		set_error("socks5connect: bind request replies with version other than 0x05 (%02x)", io_buffer[0]);
 		return RC_INVAL;
 	}
 
 	if (io_buffer[1] != 0x00)
 	{
-		close(fd);
 		set_error("socks5connect: failed to connect (%02x)", io_buffer[1]);
 		return RC_INVAL;
 	}
 
 	if (io_buffer[3] != 0x01)
 	{
-		close(fd);
 		set_error("socks5connect: only accepting bind-replies with IPv4 address (%02x)", io_buffer[3]);
 		return RC_INVAL;
 	}
 
-	return fd;
+	return RC_OK;
 }

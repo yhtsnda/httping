@@ -32,12 +32,22 @@ void failure_close(int fd)
 	close(fd);
 }
 
-int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, double timeout, char *tfo, char *msg, int msg_len, char *msg_accepted, int max_mtu)
+int set_no_delay(int fd)
 {
-	int     fd;
-	int 	rc;
-	struct timeval to;
-	fd_set wfds;
+	int flag = 1;
+
+	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
+	{
+		set_error("could not set TCP_NODELAY on socket (%s)", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer_size, int tx_buffer_size, int max_mtu, char use_no_delay)
+{
+	int fd = -1;
 
 	/* create socket */
 	fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
@@ -55,35 +65,64 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, double timeout, ch
 		/* set reuse flags */
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof set) == -1)
 		{
-			failure_close(fd);
 			set_error("error setting sockopt to interface (%s)", strerror(errno));
 			return RC_INVAL;
 		}
 
 		if (bind(fd, bind_to, sizeof *bind_to) == -1)
 		{
-			failure_close(fd);
 			set_error("error binding to interface (%s)", strerror(errno));
 			return RC_INVAL;
 		}
-	}
-
-	/* make fd nonblocking */
-	if (set_fd_nonblocking(fd) == -1)
-	{
-		failure_close(fd);
-		return RC_INVAL;
 	}
 
 	if (max_mtu >= 0)
 	{
 		if (setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &max_mtu, sizeof max_mtu) == -1)
 		{
-			failure_close(fd);
 			set_error("error setting MTU size (%s)", strerror(errno));
 			return RC_INVAL;
 		}
 	}
+
+	if (use_no_delay)
+	{
+		int rc = -1;
+
+		if ((rc = set_no_delay(fd)) != 0)
+			return rc;
+	}
+
+	if (tx_buffer_size > 0)
+        {
+		if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&tx_buffer_size, sizeof tx_buffer_size) == -1)
+		{
+			set_error("error setting transmit buffer size (%s)", strerror(errno));
+			return RC_INVAL;
+		}
+	}
+
+	if (recv_buffer_size > 0)
+        {
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&recv_buffer_size, sizeof recv_buffer_size) == -1)
+		{
+			set_error("error setting receive buffer size (%s)", strerror(errno));
+			return RC_INVAL;
+		}
+	}
+
+	return fd;
+}
+
+int connect_to(int fd, struct addrinfo *ai, double timeout, char *tfo, char *msg, int msg_len, char *msg_accepted)
+{
+	int rc = -1;
+	struct timeval to;
+	fd_set wfds;
+
+	/* make fd nonblocking */
+	if (set_fd_nonblocking(fd) == -1)
+		return RC_INVAL;
 
 	/* wait for connection */
 	FD_ZERO(&wfds);
@@ -101,7 +140,7 @@ int connect_to(struct sockaddr *bind_to, struct addrinfo *ai, double timeout, ch
 		if(rc == msg_len)
 			*msg_accepted = 1;
 		if(errno == 0)
-			return fd;
+			return RC_OK;
 		if(errno == ENOTSUP)
 		{
 			printf("TCP TFO Not Supported. Please check if \"/proc/sys/net/ipv4/tcp_fastopen\" is 1. Disabling TFO for now.\n");
@@ -126,7 +165,7 @@ old_connect:
 		if (rc == 0)
 		{
 			/* connection made, return */
-			return fd;
+			return RC_OK;
 		}
 
 		if (rc == -1)
@@ -135,7 +174,6 @@ old_connect:
 			if (errno != EINPROGRESS)
 			{
 				set_error("problem connecting to host: %s", strerror(errno));
-				failure_close(fd);
 				return RC_INVAL;
 			}
 		}
@@ -149,13 +187,10 @@ old_connect:
 	if (rc == 0)
 	{
 		set_error("connect time out");
-		failure_close(fd);
 		return RC_TIMEOUT;	/* timeout */
 	}
 	else if (rc == -1)
 	{
-		failure_close(fd);
-
 		if (errno == EINTR)
 			return RC_CTRLC;/* ^C pressed */
 
@@ -172,34 +207,18 @@ old_connect:
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optvallen) == -1)
 		{
 			set_error("getsockopt failed (%s)", strerror(errno));
-			failure_close(fd);
 			return RC_INVAL;
 		}
 
 		/* no error? */
 		if (optval == 0)
-			return fd;
+			return RC_OK;
 
 		/* don't ask */
 		errno = optval;
 	}
 
-	failure_close(fd);
-
 	set_error("could not connect (%s)", strerror(errno));
 
 	return RC_INVAL;
-}
-
-int set_tcp_low_latency(int sock)
-{
-	int flag = 1;
-
-	if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
-	{
-		set_error("could not set TCP_NODELAY on socket (%s)", strerror(errno));
-		return -1;
-	}
-
-	return 0;
 }

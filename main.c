@@ -193,6 +193,7 @@ void help_long(void)
 	fprintf(stderr, "--proxy-password       \n");
 	fprintf(stderr, "--proxy-password-file  \n");
 	fprintf(stderr, "--quiet                -q\n");
+	fprintf(stderr, "--recv-buffer          receive buffer size\n");
 	fprintf(stderr, "--referer              -R\n");
 	fprintf(stderr, "--resolve-once         -r\n");
 	fprintf(stderr, "--result-string        -e\n");
@@ -212,6 +213,7 @@ void help_long(void)
 	fprintf(stderr, "--threshold-yellow     from what ping value to show the value in yellow\n");
 	fprintf(stderr, "--timeout              -t\n");
 	fprintf(stderr, "--timestamp / --ts     put a timestamp before the measured values, use -v to include the date and -vv to show in microseconds\n");
+	fprintf(stderr, "--tx-buffer            transmit buffer size\n");
 	fprintf(stderr, "--url                  -g\n");
 	fprintf(stderr, "--user-agent           -I\n");
 	fprintf(stderr, "--username             -U\n");
@@ -1074,6 +1076,7 @@ int main(int argc, char *argv[])
 	char keep_cookies = 0;
 	char abbreviate = 0;
 	char *divert_connect = NULL;
+	int recv_buffer_size = -1, tx_buffer_size = -1;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1153,6 +1156,8 @@ int main(int argc, char *argv[])
 		{"keep-cookies", 0, NULL, 17 },
 		{"abbreviate", 0, NULL, 18 },
 		{"divert-connect", 1, NULL, 19 },
+		{"recv-buffer", 1, NULL, 20 },
+		{"tx-buffer", 1, NULL, 21 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1170,6 +1175,14 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 21:
+				tx_buffer_size = atoi(optarg);
+				break;
+
+			case 20:
+				recv_buffer_size = atoi(optarg);
+				break;
+
 			case 19:
 				divert_connect = optarg;
 				break;
@@ -1777,16 +1790,34 @@ persistent_loop:
 
 			if ((persistent_connections && fd < 0) || !persistent_connections)
 			{
-				if (proxy_host && proxy_is_socks5)
-					fd = socks5connect(ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, abort_on_resolve_failure);
-#ifndef NO_SSL
-				else if (proxy_host && use_ssl)
-					fd = connect_ssl_proxy((struct sockaddr *)bind_to, ai_use_proxy, timeout, proxy_user, proxy_password, hostname, portnr, &use_tfo);
-#endif
+				int rc = -1;
+				struct addrinfo *ai_dummy = proxy_host ? ai_use_proxy : ai_use;
+
+				fd = create_socket((struct sockaddr *)bind_to, ai_dummy, recv_buffer_size, tx_buffer_size, max_mtu, use_tcp_nodelay);
+				if (fd < 0)
+					rc = fd; /* FIXME need to fix this, this is ugly */
 				else if (proxy_host)
-					fd = connect_to((struct sockaddr *)bind_to, ai_use_proxy, timeout, &use_tfo, request, req_len, &req_sent, -1);
+				{
+					if (proxy_is_socks5)
+						rc = socks5connect(fd, ai_dummy, timeout, proxy_user, proxy_password, hostname, portnr, abort_on_resolve_failure);
+#ifndef NO_SSL
+					else if (use_ssl)
+						rc = connect_ssl_proxy(fd, ai_dummy, timeout, proxy_user, proxy_password, hostname, portnr, &use_tfo);
+#endif
+					else
+						rc = connect_to(fd, ai_dummy, timeout, &use_tfo, request, req_len, &req_sent);
+				}
 				else
-					fd = connect_to((struct sockaddr *)bind_to, ai_use, timeout, &use_tfo, request, req_len, &req_sent, max_mtu);
+				{
+
+					rc = connect_to(fd, ai_dummy, timeout, &use_tfo, request, req_len, &req_sent);
+				}
+
+				if (rc < 0)
+				{
+					failure_close(fd);
+					fd = rc; /* FIXME need to fix this */
+				}
 
 				did_reconnect = 1;
 			}
@@ -1804,13 +1835,6 @@ persistent_loop:
 			{
 				/* set fd blocking */
 				if (set_fd_blocking(fd) == -1)
-				{
-					stats_close(&fd, &t_close, 1);
-					break;
-				}
-
-				/* set socket to low latency */
-				if (use_tcp_nodelay && set_tcp_low_latency(fd) == -1)
 				{
 					stats_close(&fd, &t_close, 1);
 					break;

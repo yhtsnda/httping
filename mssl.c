@@ -124,7 +124,7 @@ int WRITE_SSL(SSL *ssl_h, const char *wherefrom, int len)
 	return cnt;
 }
 
-int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, double timeout, double *ssl_handshake)
+int connect_ssl(int fd, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, double timeout, double *ssl_handshake)
 {
 	int dummy = -1;
 	double dstart = get_ts();
@@ -135,13 +135,13 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, dou
 
 	*ssl_handshake = -1.0;
 
-	if (setsockopt(socket_h, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv) == -1)
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv) == -1)
 	{
 		set_error("problem setting receive timeout (%s)", strerror(errno));
 		return -1;
 	}
 
-	if (setsockopt(socket_h, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv) == -1)
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv) == -1)
 	{
 		set_error("problem setting transmit timeout (%s)", strerror(errno));
 		return -1;
@@ -149,7 +149,7 @@ int connect_ssl(int socket_h, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, dou
 
 	*ssl_h = SSL_new(client_ctx);
 
-	*s_bio = BIO_new_socket(socket_h, BIO_NOCLOSE);
+	*s_bio = BIO_new_socket(fd, BIO_NOCLOSE);
 	SSL_set_bio(*ssl_h, *s_bio, *s_bio);
 
 	dummy = SSL_connect(*ssl_h);
@@ -225,9 +225,9 @@ char * get_fingerprint(SSL *ssl_h)
 	return string;
 }
 
-int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, double timeout, const char *proxy_user, const char *proxy_password, const char *hostname, int portnr, char *tfo)
+int connect_ssl_proxy(int fd, struct addrinfo *ai, double timeout, const char *proxy_user, const char *proxy_password, const char *hostname, int portnr, char *tfo)
 {
-	int fd = -1, rc = -1;
+	int rc = -1;
 	char request_headers[4096] = { 0 };
 	int request_headers_len = -1;
 	char rh_sent = 0;
@@ -248,15 +248,13 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, d
 
 	request_headers_len += snprintf(&request_headers[request_headers_len], sizeof request_headers - request_headers_len, "\r\n");
 
-	fd = connect_to(bind_to, ai_use_proxy, timeout, tfo, request_headers, request_headers_len, &rh_sent, -1);
-	if (fd < 0)
-		return fd;
+	if ((rc = connect_to(fd, ai, timeout, tfo, request_headers, request_headers_len, &rh_sent)) < 0)
+		return rc;
 
 	if (!rh_sent)
 	{
 		if ((rc = mywrite(fd, request_headers, request_headers_len, timeout)) < RC_OK)
 		{
-			failure_close(fd);
 			set_error("Problem sending request to proxy");
 			return rc;
 		}
@@ -266,7 +264,6 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, d
 	if (rc != RC_OK)
 	{
 		free(response_headers);
-		failure_close(fd);
 		set_error("Problem retrieving proxy response");
 		return rc;
 	}
@@ -281,7 +278,6 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, d
 	if (!code)
 	{
 		free(response_headers);
-		failure_close(fd);
 		set_error("Invalid proxy response headers");
 		return RC_INVAL;
 	}
@@ -289,12 +285,11 @@ int connect_ssl_proxy(struct sockaddr *bind_to, struct addrinfo *ai_use_proxy, d
 	if (atoi(code + 1) != 200)
 	{
 		free(response_headers);
-		close(fd);
 		set_error("Proxy indicated error: %s", code + 1);
 		return RC_INVAL;
 	}
 
 	free(response_headers);
 
-	return fd;
+	return RC_OK;
 }
