@@ -20,4 +20,10 @@
 
 - SPDY
 
+- send/recv buffer size
+	int ret, sock, sock_buf_size = ...;
+	ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&sock_buf_size, sizeof(sock_buf_size));
+
+	ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&sock_buf_size, sizeof(sock_buf_size));
+
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle
