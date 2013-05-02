@@ -1887,6 +1887,10 @@ persistent_loop:
 				if (i_rc == -1 || bytes_left == 0 || stop)
 					break;
 
+				dafter_write_complete = get_ts();
+				if (dafter_write_complete - dafter_connect >= timeout)
+					break;
+
 				/* this keeps it somewhat from becoming a busy loop
 				 * I know of no other way to wait for the kernel to
 				 * finish the transmission
