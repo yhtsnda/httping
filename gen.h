@@ -13,6 +13,8 @@
 
 #define RECV_BUFFER_SIZE (128 * 1024)
 
+#define MAX_SHOW_SUPPRESSION 3
+
 #ifdef NO_SSL
 	#define SSL	void
 	#define SSL_CTX	void

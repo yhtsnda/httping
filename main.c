@@ -1796,9 +1796,9 @@ persistent_loop:
 
 				notify_cnt++;
 
-				if (notify_cnt == 4)
+				if (notify_cnt == MAX_SHOW_SUPPRESSION + 1)
 					str_add(&line, "Will no longer inform about request headers too large.");
-				else if (notify_cnt < 4)
+				else if (notify_cnt <= MAX_SHOW_SUPPRESSION)
 					str_add(&line, "Request headers > 4KB! (%d bytes) This may give failures with some HTTP servers.", req_len);
 
 				if (line)
@@ -2007,9 +2007,9 @@ persistent_loop:
 					static int in_transit_cnt = 0;
 
 					in_transit_cnt++;
-					if (in_transit_cnt == 4)
+					if (in_transit_cnt == MAX_SHOW_SUPPRESSION + 1)
 						slow_log("\nNo longer emitting message about \"still data in transit\"");
-					else if (in_transit_cnt < 4)
+					else if (in_transit_cnt <= MAX_SHOW_SUPPRESSION)
 						slow_log("\nHTTP server started sending data with %d bytes still in transit", info.tcpi_unacked);
 				}
 
@@ -2044,9 +2044,9 @@ persistent_loop:
 				static int more_data_cnt = 0;
 
 				more_data_cnt++;
-				if (more_data_cnt == 4)
+				if (more_data_cnt == MAX_SHOW_SUPPRESSION + 1)
 					slow_log("\nNo longer emitting message about \"more data than response headers\"");
-				else if (more_data_cnt < 4)
+				else if (more_data_cnt <= MAX_SHOW_SUPPRESSION)
 					slow_log("\nHTTP server sent more data than just the response headers");
 			}
 #endif
