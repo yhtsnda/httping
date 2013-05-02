@@ -28,4 +28,6 @@
 
 - warning als erquest headers > 4KB en > 8KB zijn
 
+- cookies uit chrome/firefox/etc cache halen
+
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle
