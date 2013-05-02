@@ -128,11 +128,10 @@ package:
 	$(ARCHIVE) $(PACKAGE) | $(COMPRESS) > $(PACKAGE).tgz
 	$(RMDIR) $(PACKAGE)
 
-check:
+check: makefile.inc
 	cppcheck -v --force -j 3 --enable=all --std=c++11 --inconclusive -I. . 2> err.txt
 	#
 	make clean
-	./configure --with-tfo --with-ncurses --with-openssl --with-fftw3
 	scan-build make
 
 coverity: makefile.inc
