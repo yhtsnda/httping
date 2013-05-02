@@ -160,6 +160,7 @@ void help_long(void)
 	fprintf(stderr, "--cookie               -C\n");
 	fprintf(stderr, "--count                -c\n");
 	fprintf(stderr, "--data-limit           -L\n");
+	fprintf(stderr, "--divert-connect       connect to a different host than in the URL given\n");
 #if defined(NC) && defined(FW)
 	fprintf(stderr, "--draw-phase           draw phase (fourier transform) in gui\n");
 #endif
@@ -171,6 +172,8 @@ void help_long(void)
 	fprintf(stderr, "--host-port            -x\n");
 	fprintf(stderr, "--interval             -i\n");
 	fprintf(stderr, "--ipv6                 -6\n");
+	fprintf(stderr, "--keep-cookies         return the cookies given by the HTTP server in the following request(s)\n");
+	fprintf(stderr, "--max-mtu              limit the MTU size\n");
 	fprintf(stderr, "--nagios-mode-1        -n\n");
 	fprintf(stderr, "--nagios-mode-2        -n\n");
 #ifdef NC
@@ -178,6 +181,8 @@ void help_long(void)
 #endif
 	fprintf(stderr, "--no-cache             -Z\n");
 	fprintf(stderr, "--no-graph             -D\n");
+	fprintf(stderr, "--no-host-header       do not add \"Host:\"-line to the request headers\n");
+	fprintf(stderr, "--no-tcp-nodelay       do not disable Naggle\n");
 	fprintf(stderr, "--ok-result-codes      -o (only for -m)\n");
 	fprintf(stderr, "--parseable-output     -m\n");
 	fprintf(stderr, "--password             -P\n");
@@ -195,6 +200,9 @@ void help_long(void)
 	fprintf(stderr, "--show-statusodes      -s\n");
 	fprintf(stderr, "--show-transfer-speed  -b\n");
 	fprintf(stderr, "--show-xfer-speed-compressed  -B\n");
+#ifdef NC
+	fprintf(stderr, "--slow-log             when the duration is x or more, show ping line in the slow log window (the middle window)\n");
+#endif
 	fprintf(stderr, "--split-time           -S\n");
 #ifdef TCP_TFO
 	fprintf(stderr, "--tcp-fast-open        -F\n");
@@ -1065,6 +1073,7 @@ int main(int argc, char *argv[])
 	int write_sleep = 500; /* in us (microseconds), determines resolution of transmit time determination */
 	char keep_cookies = 0;
 	char abbreviate = 0;
+	char *divert_connect = NULL;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -1143,6 +1152,7 @@ int main(int argc, char *argv[])
 		{"max-mtu", 1, NULL, 16 },
 		{"keep-cookies", 0, NULL, 17 },
 		{"abbreviate", 0, NULL, 18 },
+		{"divert-connect", 1, NULL, 19 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 #ifdef FW
@@ -1160,6 +1170,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 19:
+				divert_connect = optarg;
+				break;
+
 			case 18:
 				abbreviate = 1;
 				break;
@@ -1621,15 +1635,16 @@ int main(int argc, char *argv[])
 	}
 	else if (resolve_once)
 	{
+		char *res_host = divert_connect ? divert_connect : hostname;
 #ifdef NC
 		if (ncurses_mode)
 		{
-			slow_log("\nResolving hostname %s", hostname);
+			slow_log("\nResolving hostname %s", res_host);
 			update_terminal();
 		}
 #endif
 
-		if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
+		if (resolve_host(res_host, &ai, use_ipv6, portnr) == -1)
 		{
 			err++;
 			emit_error(verbose, -1, started_at);
@@ -1641,7 +1656,7 @@ int main(int argc, char *argv[])
 		ai_use = select_resolved_host(ai, use_ipv6);
 		if (!ai_use)
 		{
-			set_error("No valid IPv4 or IPv6 address found for %s", hostname);
+			set_error("No valid IPv4 or IPv6 address found for %s", res_host);
 
 			if (abort_on_resolve_failure)
 				error_exit(get_error());
@@ -1701,12 +1716,14 @@ int main(int argc, char *argv[])
 persistent_loop:
 			if ((!resolve_once || (resolve_once == 1 && have_resolved == 0)) && fd == -1 && proxy_host == NULL)
 			{
+				char *res_host = divert_connect ? divert_connect : hostname;
+
 				memset(&addr, 0x00, sizeof addr);
 
 #ifdef NC
 				if (ncurses_mode && first_resolve)
 				{
-					slow_log("\nResolving hostname %s", hostname);
+					slow_log("\nResolving hostname %s", res_host);
 					update_terminal();
 					first_resolve = 0;
 				}
@@ -1719,7 +1736,7 @@ persistent_loop:
 					ai_use = ai = NULL;
 				}
 
-				if (resolve_host(hostname, &ai, use_ipv6, portnr) == -1)
+				if (resolve_host(res_host, &ai, use_ipv6, portnr) == -1)
 				{
 					err++;
 					emit_error(verbose, curncount, dstart);
@@ -1732,7 +1749,7 @@ persistent_loop:
 				ai_use = select_resolved_host(ai, use_ipv6);
 				if (!ai_use)
 				{
-					set_error("No valid IPv4 or IPv6 address found for %s", hostname);
+					set_error("No valid IPv4 or IPv6 address found for %s", res_host);
 					emit_error(verbose, curncount, dstart);
 					err++;
 

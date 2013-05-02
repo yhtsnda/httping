@@ -15,6 +15,6 @@
 
 - multiple urls
 
-- url pingen maar een ander ip gebruiken
+- help groeperen, dus switches per type
 
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle
