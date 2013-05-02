@@ -5,11 +5,46 @@
 
 void add_cookie(char ***cookies, int *n_cookies, char *in)
 {
-	*cookies = (char **)realloc(*cookies, (*n_cookies + 1) * sizeof(char *));
+	char *in_copy = strdup(in), *is = strchr(in_copy, '=');
+	int index = 0, found_at = -1;
 
-	(*cookies)[*n_cookies] = strdup(in);
+	if (is)
+		*is = 0x00;
 
-	(*n_cookies)++;
+	for(index=0; index<*n_cookies; index++)
+	{
+		char *dummy = strdup((*cookies)[index]);
+
+		is = strchr(dummy, '=');
+		if (is)
+			*is = 0x00;
+
+		if (strcmp(in_copy, dummy) == 0)
+		{
+			found_at = index;
+			free(dummy);
+			break;
+		}
+
+		free(dummy);
+	}
+
+	if (found_at >= 0)
+	{
+		free((*cookies)[found_at]);
+
+		(*cookies)[found_at] = strdup(in);
+	}
+	else
+	{
+		*cookies = (char **)realloc(*cookies, (*n_cookies + 1) * sizeof(char *));
+
+		(*cookies)[*n_cookies] = strdup(in);
+
+		(*n_cookies)++;
+	}
+
+	free(in_copy);
 }
 
 void combine_cookie_lists(char ***destc, int *n_dest, char **src, int n_src)
