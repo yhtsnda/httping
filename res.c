@@ -17,16 +17,24 @@
 
 int resolve_host(const char *host, struct addrinfo **ai, char use_ipv6, int portnr)
 {
+	int rc = -1;
 	char servname[10];
 	struct addrinfo myaddr;
+
 	memset(&myaddr, 0, sizeof myaddr);
+
 	/* myaddr.ai_flags = AI_PASSIVE; */
 	myaddr.ai_socktype = SOCK_STREAM;
 	myaddr.ai_protocol = IPPROTO_TCP;
 	myaddr.ai_family = use_ipv6 ? AF_INET6 : AF_INET;
 	snprintf(servname, sizeof servname, "%d", portnr);
 
-	return getaddrinfo(host, servname, &myaddr, ai);
+	rc = getaddrinfo(host, servname, &myaddr, ai);
+
+	if (rc != 0)
+		set_error("Resolving %s %sfailed: %s", host, use_ipv6 ? "(IPv6) " : "", gai_strerror(rc));
+
+	return rc;
 }
 
 struct addrinfo * select_resolved_host(struct addrinfo *ai, char use_ipv6)
