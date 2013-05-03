@@ -2059,7 +2059,8 @@ persistent_loop:
 
 				if (curncount & 1)
 				{
-					printf("%s", c_bright);
+					str_add(&line, "%s", c_bright);
+
 					sep = c_normal;
 					unsep = c_bright;
 				}

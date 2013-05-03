@@ -171,13 +171,13 @@ void myprintloc(WINDOW *w, int y, int x, const char *fmt, ...)
 	{
 		int index = 0;
 
-		for(index=0; index<line_len;)
+		for(index=0; index<line_len; index++)
 		{
-			int clr = C_WHITE, att = A_NORMAL;
+			static int clr = C_WHITE, att = A_NORMAL;
 
 			if (line[index] == COLOR_ESCAPE[0])
 			{
-				switch(line[index + 1])
+				switch(line[++index])
 				{
 					case '1':
 						clr = C_RED;
@@ -209,16 +209,12 @@ void myprintloc(WINDOW *w, int y, int x, const char *fmt, ...)
 				}
 
 				wattr_set(w, att, clr, NULL);
-
-				index += 2;
 			}
 			else
 			{
-				waddch(w, line[index++]);
+				waddch(w, line[index]);
 			}
 		}
-
-		wattr_set(w, A_NORMAL, C_WHITE, NULL);
 	}
 	else
 	{
