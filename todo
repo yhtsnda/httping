@@ -9,8 +9,6 @@
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
 
-- kleuren in ncurses mode
-
 - translate gettext
 
 - -A, -H en -J vrijmaken
