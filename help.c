@@ -95,21 +95,23 @@ void version(void)
 
 void format_help(const char *short_str, const char *long_str, const char *descr)
 {
-	int par_width = SWITCHES_COLUMN_WIDTH, max_wrap_width = MAX_WORD_SIZE_WRAP;
+	int par_width = SWITCHES_COLUMN_WIDTH, max_wrap_width = par_width / 2, cur_par_width = 0;
 	int descr_width = max_x - (par_width + 1);
 	char *line = NULL, *p = (char *)descr;
 	char first = 1;
 
-	if (long_str)
+	if (long_str && short_str)
 		str_add(&line, "%s / %s", short_str, long_str);
+	else if (long_str)
+		str_add(&line, "%s", long_str);
 	else
 		str_add(&line, "%s", short_str);
 
-	fprintf(stderr, "%-*s ", par_width, line);
+	cur_par_width = fprintf(stderr, "%-*s ", par_width, line);
 
 	free(line);
 
-	if (par_width + 1 >= max_x)
+	if (par_width + 1 >= max_x || cur_par_width >= max_x)
 	{
 		fprintf(stderr, "%s\n", descr);
 		return;
@@ -117,29 +119,41 @@ void format_help(const char *short_str, const char *long_str, const char *descr)
 
 	for(;strlen(p);)
 	{
-		char *n = &p[min((int)strlen(p), descr_width - 1)], *kn = n, *copy = NULL;
-		int n_len = 0, cur_len = 0;
+		char *n =  NULL, *kn = NULL, *copy = NULL;
+		int n_len = 0, len_after_ww = 0, len_before_ww = 0;
+		int str_len = 0, cur_descr_width = first ? max_x - cur_par_width : descr_width;
 
 		while(*p == ' ')
 			p++;
 
-		n = &p[min((int)strlen(p), descr_width - 1)];
+		str_len = strlen(p);
+		if (!str_len)
+			break;
+
+		len_before_ww = min(str_len, cur_descr_width);
+
+		n = &p[len_before_ww];
 		kn = n;
 
-		while (*n != ' ' && n_len < max_wrap_width)
-		{
-			n--;
-			n_len++;
+		if (str_len > cur_descr_width)
+		{ 
+			while (*n != ' ' && n_len < max_wrap_width)
+			{
+				n--;
+				n_len++;
+			}
+
+			if (n_len >= max_wrap_width)
+				n = kn;
 		}
 
-		if (n_len >= max_wrap_width)
-			n = kn;
+		len_after_ww = (int)(n - p);
+		if (len_after_ww <= 0)
+			break;
 
-		cur_len = (int)(n - p);
-
-		copy = (char *)malloc(cur_len + 1);
-		memcpy(copy, p, cur_len);
-		copy[cur_len] = 0x00;
+		copy = (char *)malloc(len_after_ww + 1);
+		memcpy(copy, p, len_after_ww);
+		copy[len_after_ww] = 0x00;
 
 		if (first)
 			first = 0;
@@ -153,46 +167,29 @@ void format_help(const char *short_str, const char *long_str, const char *descr)
 		p = n;
 	}
 }
-
-void help_long(void)
+void usage(const char *me)
 {
+	char *dummy = NULL, has_color = 0;
+	char host[256] = { 0 };
+
+#if 0
 	fprintf(stderr, gettext("--aggregate x[,y[,z]]  show an aggregate each x[/y[/z[/etc]]] seconds\n"));
 	fprintf(stderr, gettext("--ai / --adaptive-interval  execute pings at multiples of interval relative to start, default on in ncurses output mode\n"));
-	fprintf(stderr, gettext("--audible-ping         -a\n"));
-	fprintf(stderr, gettext("--basic-auth           -A\n"));
-	fprintf(stderr, gettext("--bind-to              -y\n"));
-	fprintf(stderr, gettext("--colors               -Y\n"));
-	fprintf(stderr, gettext("--cookie               -C\n"));
-	fprintf(stderr, gettext("--count                -c\n"));
-	fprintf(stderr, gettext("--data-limit           -L\n"));
 	fprintf(stderr, gettext("--divert-connect       connect to a different host than in the URL given\n"));
 #if defined(NC) && defined(FW)
 	fprintf(stderr, gettext("--draw-phase           draw phase (fourier transform) in gui\n"));
 #endif
-	fprintf(stderr, gettext("--nagios-mode-2        -n\n"));
-	fprintf(stderr, gettext("--flood                -f\n"));
-	fprintf(stderr, gettext("--get-request          -G\n"));
 	fprintf(stderr, gettext("--graph-limit x        do not scale to values above x\n"));
-	fprintf(stderr, gettext("--hostname             -h\n"));
-	fprintf(stderr, gettext("--host-port            -x\n"));
-	fprintf(stderr, gettext("--interval             -i\n"));
-	fprintf(stderr, gettext("--ipv6                 -6\n"));
 	fprintf(stderr, gettext("--keep-cookies         return the cookies given by the HTTP server in the following request(s)\n"));
 	fprintf(stderr, gettext("--max-mtu              limit the MTU size\n"));
-	fprintf(stderr, gettext("--nagios-mode-1        -n\n"));
-	fprintf(stderr, gettext("--nagios-mode-2        -n\n"));
 #ifdef NC
-	fprintf(stderr, gettext("--ncurses              -K\n"));
 #endif
-	fprintf(stderr, gettext("--no-cache             -Z\n"));
-	fprintf(stderr, gettext("--no-graph             -D\n"));
 	fprintf(stderr, gettext("--no-host-header       do not add \"Host:\"-line to the request headers\n"));
 	fprintf(stderr, gettext("--no-tcp-nodelay       do not disable Naggle\n"));
 	fprintf(stderr, gettext("--ok-result-codes      -o (only for -m)\n"));
 	fprintf(stderr, gettext("--parseable-output     -m\n"));
 	fprintf(stderr, gettext("--password             -P\n"));
 	fprintf(stderr, gettext("--persistent-connections  -Q\n"));
-	fprintf(stderr, gettext("--port                 -p\n"));
 	fprintf(stderr, gettext("--proxy-buster x       adds \"&x=[random value]\" to the request URL\n"));
 	fprintf(stderr, gettext("--proxy-user           \n"));
 	fprintf(stderr, gettext("--proxy-password       \n"));
@@ -228,64 +225,59 @@ void help_long(void)
 #endif
 	fprintf(stderr, gettext("--version              -V\n"));
 	fprintf(stderr, gettext("--help                 -H\n"));
-}
-
-void usage(const char *me)
-{
-	char *dummy = NULL, has_color = 0;
-	char host[256] = { 0 };
-
-	fprintf(stderr, gettext("\n-g url         url (e.g. -g http://localhost/)\n"));
-	fprintf(stderr, gettext("-h hostname    hostname (e.g. localhost)\n"));
-	fprintf(stderr, gettext("-p portnr      portnumber (e.g. 80)\n"));
-	fprintf(stderr, gettext("-x host:port   hostname+portnumber of proxyserver\n"));
-	fprintf(stderr, gettext("-5             proxy is a socks5 server\n"));
-	fprintf(stderr, gettext("-c count       how many times to connect\n"));
-	fprintf(stderr, gettext("-i interval    delay between each connect\n"));
-	fprintf(stderr, gettext("-t timeout     timeout (default: 30s)\n"));
-	fprintf(stderr, gettext("-Z             ask any proxies on the way not to cache the requests\n"));
-	fprintf(stderr, gettext("-Q             use a persistent connection. adds a 'C' to the output if httping had to reconnect\n"));
-	fprintf(stderr, gettext("-6             use IPv6\n"));
-	fprintf(stderr, gettext("-s             show statuscodes\n"));
-	fprintf(stderr, gettext("-S             split time in connect-time and processing time\n"));
-	fprintf(stderr, gettext("-G             do a GET request instead of HEAD (read the contents of the page as well)\n"));
-	fprintf(stderr, gettext("-b             show transfer speed in KB/s (use with -G)\n"));
-	fprintf(stderr, gettext("-B             like -b but use compression if available\n"));
-	fprintf(stderr, gettext("-L x           limit the amount of data transferred (for -b) to 'x' (in bytes)\n"));
-	fprintf(stderr, gettext("-X             show the number of KB transferred (for -b)\n"));
+#endif
+	format_help("-g url", NULL, gettext("URL to ping (e.g. -g http://localhost/)"));
+	format_help("-h hostname", "--hostname", gettext("hostname to ping (e.g. localhost) - use either -g or -h"));
+	format_help("-p portnr", "--port", gettext("portnumber (e.g. 80) - use with -h"));
+	format_help("-x host:port", "--proxy", gettext("-x host:port   hostname+portnumber of proxyserver"));
+	format_help("-5", NULL, gettext("proxy is a socks5 server"));
+	format_help("-c count", "--count", gettext("how many times to connect"));
+	format_help("-i interval", "--interval", gettext("delay between each connect"));
+	format_help("-t timeout", NULL, gettext("timeout (default: 30s)"));
+	format_help("-Z", "--no-cache", gettext("ask any proxies on the way not to cache the requests"));
+	format_help("-Q", NULL, gettext("use a persistent connection. adds a 'C' to the output if httping had to reconnect"));
+	format_help("-6", "--ipv6", gettext("use IPv6"));
+	format_help("-s", NULL, gettext("show statuscodes"));
+	format_help("-S", NULL, gettext("split time in connect-time and processing time"));
+	format_help("-G", "--get-request", gettext("do a GET request instead of HEAD (read the contents of the page as well)"));
+	format_help("-b", NULL, gettext("show transfer speed in KB/s (use with -G)"));
+	format_help("-B", NULL, gettext("like -b but use compression if available"));
+	format_help("-L x", "--data-limit", gettext("limit the amount of data transferred (for -b) to 'x' (in bytes)"));
+	format_help("-X", NULL, gettext("show the number of KB transferred (for -b)"));
 #ifndef NO_SSL
-	fprintf(stderr, gettext("-l             connect using SSL\n"));
-	fprintf(stderr, gettext("-z             show fingerprint (SSL)\n"));
+	format_help("-l", NULL, gettext("connect using SSL"));
+	format_help("-z", NULL, gettext("show fingerprint (SSL)"));
 #endif
-	fprintf(stderr, gettext("-f             flood connect (no delays)\n"));
-	fprintf(stderr, gettext("-a             audible ping\n"));
-	fprintf(stderr, gettext("-m             give machine parseable output (see also -o and -e)\n"));
-	fprintf(stderr, gettext("-M             json output, cannot be combined with -m\n"));
-	fprintf(stderr, gettext("-o rc,rc,...   what http results codes indicate 'ok' comma seperated WITHOUT spaces inbetween default is 200, use with -e\n"));
-	fprintf(stderr, gettext("-e str         string to display when http result code doesn't match\n"));
-	fprintf(stderr, gettext("-I str         use 'str' for the UserAgent header\n"));
-	fprintf(stderr, gettext("-R str         use 'str' for the Referer header\n"));
-	format_help("-r", NULL, "resolve hostname only once (usefull when pinging roundrobin DNS: also takes the first DNS lookup out of the loop so that the first measurement is also correct)");
-	fprintf(stderr, gettext("-W             do not abort the program if resolving failed: keep retrying\n"));
-	fprintf(stderr, gettext("-n warn,crit   Nagios-mode: return 1 when avg. response time >= warn, 2 if >= crit, otherwhise return 0\n"));
-	fprintf(stderr, gettext("-N x           Nagios mode 2: return 0 when all fine, 'x'\n when anything failes\n"));
-	fprintf(stderr, gettext("-y ip[:port]   bind to ip-address (and thus interface) [/port]\n"));
-	fprintf(stderr, gettext("-q             quiet, only returncode\n"));
-	fprintf(stderr, gettext("-A             Activate Basic authentication\n"));
-	fprintf(stderr, gettext("-U username    needed for authentication\n"));
-	fprintf(stderr, gettext("-P password    needed for authentication\n"));
-	fprintf(stderr, gettext("-T x           read the password fom the file 'x' (replacement for -P)\n"));
-	fprintf(stderr, gettext("-C cookie=value Add a cookie to the request\n"));
-	fprintf(stderr, gettext("-Y             add colors\n"));
-	fprintf(stderr, gettext("-E             fetch proxy settings from environment variables\n"));
-	fprintf(stderr, gettext("-K             ncurses mode\n"));
+	format_help("-f", "--flood", gettext("flood connect (no delays)"));
+	format_help("-a", "--audible-ping", gettext("audible ping"));
+	format_help("-m", NULL, gettext("give machine parseable output (see also -o and -e)"));
+	format_help("-M", NULL, gettext("json output, cannot be combined with -m"));
+	format_help("-o rc,rc,...", NULL, gettext("what http results codes indicate 'ok' comma seperated WITHOUT spaces inbetween default is 200, use with -e"));
+	format_help("-e str", NULL, gettext("string to display when http result code doesn't match"));
+	format_help("-I str", NULL, gettext("use 'str' for the UserAgent header"));
+	format_help("-R str", NULL, gettext("use 'str' for the Referer header"));
+	format_help("-r", NULL, gettext("resolve hostname only once (usefull when pinging roundrobin DNS: also takes the first DNS lookup out of the loop so that the first measurement is also correct)"));
+	format_help("-W", NULL, gettext("do not abort the program if resolving failed: keep retrying"));
+	format_help("-n warn,crit", "--nagios-mode-1 / --nagios-mode-2", gettext("Nagios-mode: return 1 when avg. response time >= warn, 2 if >= crit, otherwhise return 0"));
+	format_help("-N x", NULL, gettext("Nagios mode 2: return 0 when all fine, 'x' when anything failes"));
+	format_help("-y ip[:port]", "--bind-to", gettext("bind to ip-address (and thus interface) [/port]"));
+	format_help("-q", NULL, gettext("quiet, only returncode"));
+	format_help("-A", "--basic-auth", gettext("activate basic authentication"));
+	format_help("-U username", NULL, gettext("needed for authentication"));
+	format_help("-P password", NULL, gettext("needed for authentication"));
+	format_help("-T x", NULL, gettext("read the password fom the file 'x' (replacement for -P)"));
+	format_help("-C cookie=value", "--cookie", gettext("add a cookie to the request"));
+	format_help("-Y", "--colors", gettext("add colors"));
+	format_help("-E", NULL, gettext("fetch proxy settings from environment variables"));
+	format_help("-K", "--ncurses / --gui", gettext("ncurses/GUI mode"));
+	format_help("-D", "--no-graph", gettext("do not show graphs (in ncurses/GUI mode)"));
 #ifdef TCP_TFO
-	fprintf(stderr, gettext("-F             \"TCP fast open\" (TFO), reduces the latency of TCP connects\n"));
+	format_help("-F", NULL, gettext("\"TCP fast open\" (TFO), reduces the latency of TCP connects"));
 #endif
-	fprintf(stderr, gettext("-v             verbose mode\n"));
-	fprintf(stderr, gettext("-V             show the version\n\n"));
+	format_help("-v", NULL, gettext("verbose mode"));
+	format_help("-V", NULL, gettext("show the version"));
 	fprintf(stderr, gettext("\n"));
-	fprintf(stderr, gettext("-J             list long options\n"));
+	format_help("-J", NULL, gettext("list long options"));
 	fprintf(stderr, gettext("NOTE: not all functionality has a \"short\" switch, so not all are listed here! Please check -J too.\n"));
 	fprintf(stderr, gettext("\n"));
 

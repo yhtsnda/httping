@@ -890,7 +890,7 @@ int main(int argc, char *argv[])
 		{"url",		1, NULL, 'g' },
 		{"hostname",	1, NULL, 'h' },
 		{"port",	1, NULL, 'p' },
-		{"host-port",	1, NULL, 'x' },
+		{"proxy",	1, NULL, 'x' },
 		{"count",	1, NULL, 'c' },
 		{"persistent-connections",	0, NULL, 'Q' },
 		{"interval",	1, NULL, 'i' },
@@ -952,6 +952,7 @@ int main(int argc, char *argv[])
 		{"tx-buffer", 1, NULL, 21 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
+		{"gui",	0, NULL, 'K' },
 #ifdef FW
 		{"no-graph",	0, NULL, 'D' },
 #endif
@@ -963,7 +964,7 @@ int main(int argc, char *argv[])
 
 	signal(SIGPIPE, SIG_IGN);
 
-	while((c = getopt_long(argc, argv, "DKEA5MvYWT:JZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
+	while((c = getopt_long(argc, argv, "DKEA5MvYWT:ZQ6Sy:XL:bBg:h:p:c:i:Gx:t:o:e:falqsmV?I:R:rn:N:zP:U:C:F", long_options, NULL)) != -1)
 	{
 		switch(c)
 		{
@@ -1096,10 +1097,6 @@ int main(int argc, char *argv[])
 			case 'T':
 				auth_password = read_file(optarg);
 				break;
-
-			case 'J':
-				help_long();
-				return 0;
 
 			case 'Z':
 				no_cache = 1;
