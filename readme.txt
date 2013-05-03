@@ -14,7 +14,7 @@ Please note that TCP fast open requires a Linux kernel of version 3.7 or more re
 'fftw3' support is only usefull if you include the ncurses interface.
 
 Debian package names:
-	ncurses requires libncurses5-dev
+	ncurses requires libncursesw5-dev
 	fftw3 requires libfftw3-dev
 	openssl requires libssl-dev
 

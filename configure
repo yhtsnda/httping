@@ -59,7 +59,7 @@ else
 	TFO=""
 fi
 
-$CC -O0 -lncurses -o $FILE test_ncurses.c 2> $FILE2
+$CC -O0 -lncursesw -o $FILE test_ncurses.c 2> $FILE2
 if [ $? -eq 0 ] || [ $F_NC -eq 1 ] ; then
 	echo \+ system has ncurses development libraries
 	NC="NC=yes"
