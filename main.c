@@ -76,8 +76,13 @@ void determine_terminal_size(int *max_y, int *max_x)
 
         *max_x = *max_y = 0;
 
+	if (!isatty(1))
+	{
+		*max_y = 24;
+		*max_x = 80;
+	}
 #ifdef TIOCGWINSZ
-        if (ioctl(1, TIOCGWINSZ, &size) == 0)
+        else if (ioctl(1, TIOCGWINSZ, &size) == 0)
         {
                 *max_y = size.ws_row;
                 *max_x = size.ws_col;

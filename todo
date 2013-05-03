@@ -22,10 +22,7 @@
 
 - multiple urls
 
-- audible ping in ncurses mode
-
 - help groeperen, dus switches per type
-  misschien een show_help(short, long, descr) waarbij descr op vaste positie begint (tenzij pos > max_x) en dan wrapped op max_x (wordwrap if aantal_chars < 5) en dan doorgaat op pos
 
 - SPDY
 
