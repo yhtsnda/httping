@@ -1,4 +1,4 @@
-#define SWITCHES_COLUMN_WIDTH	14
+#define SWITCHES_COLUMN_WIDTH	24
 
 void new_version_alert(void);
 void version(void);

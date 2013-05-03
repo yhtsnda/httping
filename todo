@@ -13,7 +13,8 @@
 
 - translate gettext
 
-- -A en -J vrijmaken
+- -A, -H en -J vrijmaken
+  - -M en -n tot 1 optie maken
 
 - if max_x > ...
   - processing time / content-size stats

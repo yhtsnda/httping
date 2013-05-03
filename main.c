@@ -958,7 +958,7 @@ int main(int argc, char *argv[])
 #endif
 #endif
 		{"version",	0, NULL, 'V' },
-		{"help",	0, NULL, 'H' },
+		{"help",	0, NULL, 22 },
 		{NULL,		0, NULL, 0   }
 	};
 
@@ -1263,7 +1263,7 @@ int main(int argc, char *argv[])
 #endif
 				break;
  
-			case 'H':
+			case 22:
 				version();
 
 				usage(argv[0]);

@@ -32,7 +32,7 @@ double hz = 1.0;
 
 double *history = NULL, *history_temp = NULL, *history_fft_magn = NULL, *history_fft_phase = NULL;
 char *history_set = NULL;
-unsigned int history_n = 0;
+int history_n = 0;
 
 char draw_phase = 0;
 
@@ -52,7 +52,7 @@ void update_terminal(void)
 void create_windows(void)
 {
 	char *r_a = gettext("realloc issue");
-	unsigned int nr = 0;
+	int nr = 0;
 
 	if (w_stats)
 	{
@@ -357,7 +357,7 @@ double get_cur_scc()
         double scc_val = 0.0;
         double prev_val = 0.0, u0 = 0.0;
         double t[3] = { 0 };
-        unsigned int loop = 0, n = 0;
+        int loop = 0, n = 0;
 	char first = 1;
 
         t[0] = t[1] = t[2] = 0.0;
@@ -402,11 +402,11 @@ double get_cur_scc()
 void draw_fft(void)
 {
 	double mx_mag = 0.0;
-	unsigned int index = 0, highest = 0;
+	int index = 0, highest = 0;
 	int cx = 0, cy = 0;
 	/* double max_freq = hz / 2.0; */
 	double highest_freq = 0, avg_freq_index = 0.0, total_val = 0.0, avg_freq = 0.0;
-	unsigned int dummy = 0;
+	int dummy = 0;
 
 	getyx(w_slow, cy, cx);
 
@@ -458,17 +458,15 @@ void draw_fft(void)
 		for(y=0; y<slow_n; y++)
 			mvwchgat(w_slow, y, dummy, 1, A_REVERSE, C_WHITE, NULL);
 
-		for(index=0; index<(unsigned int)slow_n; index++)
+		for(index=0; index<slow_n; index++)
 			mvwchgat(w_slow, index, 0, max_x, A_NORMAL, C_WHITE, NULL);
 
 		for(index=1; index<dummy - 1; index++)
-		{
 			draw_rad_column(w_slow, index - 1, history_fft_phase[index]);
-		}
 	}
 	else
 	{
-		for(index=0; index<(unsigned int)slow_n; index++)
+		for(index=0; index<slow_n; index++)
 			mvwchgat(w_slow, index, max_x / 2, max_x / 2, A_NORMAL, C_WHITE, NULL);
 	}
 
@@ -486,7 +484,7 @@ void draw_fft(void)
 
 double calc_trend()
 {
-	unsigned int half = history_n / 2, index = 0;
+	int half = history_n / 2, index = 0;
 	double v1 = 0.0, v2 = 0.0;
 	int n_v1 = 0, n_v2 = 0;
 
@@ -652,7 +650,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 	if (n_ok)
 	{
 		char buffer[4096] = { 0 }, *scc_str = NULL, *kalman_str = NULL;
-		unsigned int buflen = 0;
+		int buflen = 0;
 
 		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", gettext("latest"), gettext("min"), gettext("avg"), gettext("max"), gettext("sd"));
 		show_stats_t(1, 0, gettext("resolve"), resolve,   abbreviate);
