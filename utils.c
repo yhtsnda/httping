@@ -1,9 +1,7 @@
 /* Released under GPLv2 with exception for the OpenSSL library. See license.txt */
 /* $Revision$ */
 
-#ifdef __GNUC__
 #define _GNU_SOURCE
-#endif
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>

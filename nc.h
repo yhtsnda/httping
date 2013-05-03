@@ -4,7 +4,7 @@
 extern char win_resize;
 extern char draw_phase;
 
-void init_ncurses_ui(double graph_limit_in, double hz_in);
+void init_ncurses_ui(double graph_limit_in, double hz_in, char use_colors);
 void end_ncurses(void);
 void fast_log(const char *fmt, ...);
 void slow_log(const char *fmt, ...);

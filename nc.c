@@ -1,9 +1,10 @@
 /* $Revision$ */
+#define _GNU_SOURCE
+#include <stdio.h>
 #include <libintl.h>
 #include <math.h>
 #include <poll.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,7 @@
 #include <ncurses.h>
 
 #include "error.h"
+#include "colors.h"
 #include "gen.h"
 #include "main.h"
 #include "kalman.h"
@@ -26,6 +28,7 @@ int stats_h = 10;
 int logs_n = 0, slow_n = 0, fast_n = 0;
 char **slow_history = NULL, **fast_history = NULL;
 int window_history_n = 0;
+char use_colors = 0;
 
 double graph_limit = MY_DOUBLE_INF;
 double hz = 1.0;
@@ -152,6 +155,95 @@ void create_windows(void)
 	signal(SIGWINCH, handler);
 }
 
+void myprintloc(WINDOW *w, int y, int x, const char *fmt, ...)
+{
+	char *line = NULL;
+	int line_len = 0;
+	va_list ap;
+
+	va_start(ap, fmt);
+	line_len = vasprintf(&line, fmt, ap);
+	va_end(ap);
+
+	wmove(w, y, x);
+
+	if (use_colors)
+	{
+		int index = 0;
+
+		for(index=0; index<line_len;)
+		{
+			int clr = C_WHITE, att = A_NORMAL;
+
+			if (line[index] == COLOR_ESCAPE[0])
+			{
+				switch(line[index + 1])
+				{
+					case '1':
+						clr = C_RED;
+						break;
+					case '2':
+						clr = C_BLUE;
+						break;
+					case '3':
+						clr = C_GREEN;
+						break;
+					case '4':
+						clr = C_YELLOW;
+						break;
+					case '5':
+						clr = C_MAGENTA;
+						break;
+					case '6':
+						clr = C_CYAN;
+						break;
+					case '7':
+						clr = C_WHITE;
+						break;
+					case '8':
+						att = A_BOLD;
+						break;
+					case '9':
+						att = A_NORMAL;
+						break;
+				}
+
+				wattr_set(w, att, clr, NULL);
+
+				index += 2;
+			}
+			else
+			{
+				waddch(w, line[index++]);
+			}
+		}
+
+		wattr_set(w, A_NORMAL, C_WHITE, NULL);
+	}
+	else
+	{
+		mvwprintw(w, y, x, "%s", line);
+	}
+
+	free(line);
+}
+
+void myprint(WINDOW *w, const char *what)
+{
+	if (use_colors)
+	{
+		int y = -1, x = -1;
+
+		getyx(w, y, x);
+
+		myprintloc(w, y, x, what);
+	}
+	else
+	{
+		wprintw(w, what);
+	}
+}
+
 void recreate_terminal(void)
 {
 	int index = 0;
@@ -168,9 +260,9 @@ void recreate_terminal(void)
 	for(index = window_history_n - 1; index >= 0; index--)
 	{
 		if (slow_history[index])
-			wprintw(w_slow, slow_history[index]);
+			myprint(w_slow, slow_history[index]);
 		if (fast_history[index])
-			wprintw(w_fast, fast_history[index]);
+			myprint(w_fast, fast_history[index]);
 	}
 
 	doupdate();
@@ -178,10 +270,11 @@ void recreate_terminal(void)
 	win_resize = 0;
 }
 
-void init_ncurses_ui(double graph_limit_in, double hz_in)
+void init_ncurses_ui(double graph_limit_in, double hz_in, char use_colors_in)
 {
 	graph_limit = graph_limit_in;
 	hz = hz_in;
+	use_colors = use_colors_in;
 
         initscr();
         start_color();
@@ -257,7 +350,7 @@ void fast_log(const char *fmt, ...)
 	memmove(&fast_history[1], &fast_history[0], (window_history_n - 1) * sizeof(char *));
 	fast_history[0] = strdup(buffer);
 
-	wprintw(w_fast, buffer);
+	myprint(w_fast, buffer);
 
 	if (win_resize)
 		recreate_terminal();
@@ -276,7 +369,7 @@ void slow_log(const char *fmt, ...)
 	memmove(&slow_history[1], &slow_history[0], (window_history_n - 1) * sizeof(char *));
 	slow_history[0] = strdup(buffer);
 
-	wprintw(w_slow, buffer);
+	myprint(w_slow, buffer);
 
 	if (win_resize)
 		recreate_terminal();
@@ -289,6 +382,7 @@ void my_beep(void)
 
 void status_line(char *fmt, ...)
 {
+	char *line = NULL;
         va_list ap;
 
 	wattron(w_line2, A_REVERSE);
@@ -296,7 +390,11 @@ void status_line(char *fmt, ...)
 	wmove(w_line2, 0, 0);
 
         va_start(ap, fmt);
-        vwprintw(w_line2, fmt, ap);
+
+	vasprintf(&line, fmt, ap);
+        myprint(w_line2, line);
+	free(line);
+
         va_end(ap);
 
 	wattroff(w_line2, A_REVERSE);
@@ -445,7 +543,7 @@ void draw_fft(void)
 	avg_freq = (hz / (double)max_x) * avg_freq_index;
 
 	wattron(w_line1, A_REVERSE);
-	mvwprintw(w_line1, 0, 38, gettext("highest: %6.2fHz, avg: %6.2fHz"), highest_freq, avg_freq);
+	myprintloc(w_line1, 0, 38, gettext("highest: %6.2fHz, avg: %6.2fHz"), highest_freq, avg_freq);
 	wattroff(w_line1, A_REVERSE);
 	wnoutrefresh(w_line1);
 
@@ -571,7 +669,7 @@ void draw_graph(double val)
 			diff = 1.0;
 
 		wattron(w_line1, A_REVERSE);
-		mvwprintw(w_line1, 0, 0, gettext("graph range: %7.2fms - %7.2fms    "), mi, ma);
+		myprintloc(w_line1, 0, 0, gettext("graph range: %7.2fms - %7.2fms    "), mi, ma);
 		wattroff(w_line1, A_REVERSE);
 		wnoutrefresh(w_line1);
 
@@ -623,7 +721,7 @@ void show_stats_t(int y, int x, char *header, stats_t *data, char abbreviate)
 		char *max_str = format_value(data -> max, 6, 2, abbreviate);
 		char *sd_str  = format_value(calc_sd(data), 6, 2, abbreviate);
 
-		mvwprintw(w_stats, y, x, "%s: %s %s %s %s %s", header,
+		myprintloc(w_stats, y, x, "%s: %s %s %s %s %s", header,
 			data -> cur_valid ? cur_str : gettext("   n/a"),
 			min_str, avg_str, max_str, sd_str);
 
@@ -635,7 +733,7 @@ void show_stats_t(int y, int x, char *header, stats_t *data, char abbreviate)
 	}
 	else
 	{
-		mvwprintw(w_stats, y, x, gettext("%s:    n/a"), header);
+		myprintloc(w_stats, y, x, gettext("%s:    n/a"), header);
 	}
 }
 
@@ -652,7 +750,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 		char buffer[4096] = { 0 }, *scc_str = NULL, *kalman_str = NULL;
 		int buflen = 0;
 
-		mvwprintw(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", gettext("latest"), gettext("min"), gettext("avg"), gettext("max"), gettext("sd"));
+		myprintloc(w_stats, 0, 0, "         %6s %6s %6s %6s %6s", gettext("latest"), gettext("min"), gettext("avg"), gettext("max"), gettext("sd"));
 		show_stats_t(1, 0, gettext("resolve"), resolve,   abbreviate);
 		show_stats_t(2, 0, gettext("connect"), connect,   abbreviate);
 		show_stats_t(3, 0, gettext("ssl    "), ssl_setup, abbreviate);
@@ -663,7 +761,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 		scc_str    = format_value(get_cur_scc(), 5, 3, abbreviate);
 		kalman_str = format_value(kalman_do(total -> cur), 5, 3, abbreviate);
-		mvwprintw(w_stats, 8, 0, gettext("ok: %3d, fail: %3d%s, scc: %s, kalman: %s"), n_ok, n_fail, use_tfo ? gettext(", with TFO") : "", scc_str, kalman_str);
+		myprintloc(w_stats, 8, 0, gettext("ok: %3d, fail: %3d%s, scc: %s, kalman: %s"), n_ok, n_fail, use_tfo ? gettext(", with TFO") : "", scc_str, kalman_str);
 		free(kalman_str);
 		free(scc_str);
 
@@ -672,7 +770,7 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			double trend = calc_trend();
 			char trend_dir = ' ';
 
-			mvwprintw(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", gettext("cur"), gettext("min"), gettext("avg"), gettext("max"), gettext("sd"));
+			myprintloc(w_stats, 0, 45, "         %6s %6s %6s %6s %6s", gettext("cur"), gettext("min"), gettext("avg"), gettext("max"), gettext("sd"));
 			show_stats_t(1, 45, gettext("t offst"), st_to, abbreviate);
 
 #if defined(linux) || defined(__FreeBSD__)
@@ -685,20 +783,20 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 			else if (trend > 0)
 				trend_dir = '+';
 
-			mvwprintw(w_stats, 8, 48, gettext("# cookies: %d"), n_cookies);
+			myprintloc(w_stats, 8, 48, gettext("# cookies: %d"), n_cookies);
 
-			mvwprintw(w_stats, 9, 48, gettext("trend: %c%6.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x"), trend_dir, fabs(trend), re_tx, pmtu, tos);
+			myprintloc(w_stats, 9, 48, gettext("trend: %c%6.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x"), trend_dir, fabs(trend), re_tx, pmtu, tos);
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, gettext("HTTP rc: %s, SSL fp: %s"), last_connect_str, fp ? fp : gettext("n/a"));
 
 		if (buflen <= max_x)
-			mvwprintw(w_stats, 9, 0, "%s", buffer);
+			myprintloc(w_stats, 9, 0, "%s", buffer);
 		else
 		{
 			static char prev_sf[48] = { 0 };
 
-			mvwprintw(w_stats, 9, 0, gettext("http result code: %s"), last_connect_str);
+			myprintloc(w_stats, 9, 0, gettext("http result code: %s"), last_connect_str);
 
 			if (fp && strcmp(prev_sf, fp))
 			{

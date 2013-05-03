@@ -13,7 +13,6 @@
 #include "gen.h"
 #include "http.h"
 #include "io.h"
-#include "str.h"
 #include "utils.h"
 
 int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, double timeout)

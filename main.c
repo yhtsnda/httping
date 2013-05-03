@@ -31,9 +31,9 @@
 
 #include "gen.h"
 #include "help.h"
+#include "colors.h"
 #include "http.h"
 #include "io.h"
-#include "str.h"
 #include "tcp.h"
 #include "res.h"
 #include "utils.h"
@@ -52,18 +52,6 @@ char json_output = 0;
 char show_ts = 0;
 
 int max_x = 80, max_y = 24;
-
-const char *c_error = "";
-const char *c_normal = "";
-const char *c_very_normal = "";
-const char *c_red = "";
-const char *c_blue = "";
-const char *c_green = "";
-const char *c_yellow = "";
-const char *c_magenta = "";
-const char *c_cyan = "";
-const char *c_white = "";
-const char *c_bright = "";
 
 char nagios_mode = 0;
 char ncurses_mode = 0;
@@ -613,24 +601,6 @@ void parse_bind_to(const char *in, struct sockaddr_in *bind_to_4, struct sockadd
 		if (inet_pton(AF_INET, in, &bind_to_4 -> sin_addr) != 1)
 			error_exit(gettext("cannot convert ip address '%s' (for -y)\n"), in);
 	}
-}
-
-void set_colors(void)
-{
-	c_red = "\033[31;40m";
-	c_blue = "\033[34;40m";
-	c_green = "\033[32;40m";
-	c_yellow = "\033[33;40m";
-	c_magenta = "\033[35;40m";
-	c_cyan = "\033[36;40m";
-	c_white = "\033[37;40m";
-
-	c_bright = "\033[1;40m";
-	c_normal = "\033[0;37;40m";
-
-	c_very_normal = "\033[0m";
-
-	c_error = "\033[1;4;40m";
 }
 
 time_t parse_date_from_response_headers(const char *in)
@@ -1316,7 +1286,7 @@ int main(int argc, char *argv[])
 		error_exit(gettext("TCP Fast open and SSL not supported together\n"));
 
 	if (colors)
-		set_colors();
+		set_colors(ncurses_mode);
 
 	if (!machine_readable && !json_output)
 		printf("%s%s", c_normal, c_white);
@@ -1333,7 +1303,7 @@ int main(int argc, char *argv[])
 		if (wait == 0.0)
 			wait = 0.001;
 
-		init_ncurses_ui(graph_limit, 1.0 / wait);
+		init_ncurses_ui(graph_limit, 1.0 / wait, colors);
 	}
 #endif
 
@@ -2204,7 +2174,9 @@ persistent_loop:
 				}
 				else
 #endif
+				{
 					printf("%s\n", line);
+				}
 
 				do_aggregates(t_total.cur, (int)(get_ts() - started_at), n_aggregates, aggregates, verbose, show_ts);
 
@@ -2277,6 +2249,8 @@ persistent_loop:
 	if (ncurses_mode)
 		end_ncurses();
 #endif
+
+	set_colors(0);
 
 	if (ok)
 		avg_httping_time = t_total.avg / (double)t_total.n;
