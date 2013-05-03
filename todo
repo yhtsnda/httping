@@ -22,7 +22,7 @@
 
 - multiple urls
 
-- help groeperen, dus switches per type
+- bij -5: fetch from env de socks_proxy (?) env. var pakken
 
 - SPDY
 

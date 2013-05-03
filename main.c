@@ -901,7 +901,7 @@ int main(int argc, char *argv[])
 		{"interval",	1, NULL, 'i' },
 		{"timeout",	1, NULL, 't' },
 		{"ipv6",	0, NULL, '6' },
-		{"show-statusodes",	0, NULL, 's' },
+		{"show-statuscodes",	0, NULL, 's' },
 		{"split-time",	0, NULL, 'S' },
 		{"get-request",	0, NULL, 'G' },
 		{"show-transfer-speed",	0, NULL, 'b' },
