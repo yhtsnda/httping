@@ -46,7 +46,7 @@ int set_no_delay(int fd)
 	return 0;
 }
 
-int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer_size, int tx_buffer_size, int max_mtu, char use_no_delay)
+int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer_size, int tx_buffer_size, int max_mtu, char use_no_delay, int priority)
 {
 	int fd = -1;
 
@@ -108,6 +108,15 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&recv_buffer_size, sizeof recv_buffer_size) == -1)
 		{
 			set_error(gettext("error setting receive buffer size (%s)"), strerror(errno));
+			return RC_INVAL;
+		}
+	}
+
+	if (priority >= 0)
+	{
+		if (setsockopt(fd, SOL_SOCKET, SO_PRIORITY, (char *)&priority, sizeof priority) == -1)
+		{
+			set_error(gettext("error setting priority (%s)"), strerror(errno));
 			return RC_INVAL;
 		}
 	}

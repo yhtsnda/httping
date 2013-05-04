@@ -842,6 +842,7 @@ int main(int argc, char *argv[])
 	char abbreviate = 0;
 	char *divert_connect = NULL;
 	int recv_buffer_size = -1, tx_buffer_size = -1;
+	int priority = -1;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -925,6 +926,7 @@ int main(int argc, char *argv[])
 		{"divert-connect", 1, NULL, 19 },
 		{"recv-buffer", 1, NULL, 20 },
 		{"tx-buffer", 1, NULL, 21 },
+		{"priority", 1, NULL, 23 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 		{"gui",	0, NULL, 'K' },
@@ -943,6 +945,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 23:
+				priority = atoi(optarg);
+				break;
+
 			case 21:
 				tx_buffer_size = atoi(optarg);
 				break;
@@ -1582,7 +1588,7 @@ persistent_loop:
 				int rc = -1;
 				struct addrinfo *ai_dummy = proxy_host ? ai_use_proxy : ai_use;
 
-				fd = create_socket((struct sockaddr *)bind_to, ai_dummy, recv_buffer_size, tx_buffer_size, max_mtu, use_tcp_nodelay);
+				fd = create_socket((struct sockaddr *)bind_to, ai_dummy, recv_buffer_size, tx_buffer_size, max_mtu, use_tcp_nodelay, priority);
 				if (fd < 0)
 					rc = fd; /* FIXME need to fix this, this is ugly */
 				else if (proxy_host)

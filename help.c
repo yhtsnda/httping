@@ -226,6 +226,7 @@ void usage(const char *me)
 #ifdef TCP_TFO
 	format_help("-F", "--tcp-fast-open", gettext("\"TCP fast open\" (TFO), reduces the latency of TCP connects"));
 #endif
+	format_help(NULL, "--priority", gettext("set priority of packets"));
 	fprintf(stderr, "\n");
 
 	/* http authentication */
