@@ -46,7 +46,7 @@ int set_no_delay(int fd)
 	return 0;
 }
 
-int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer_size, int tx_buffer_size, int max_mtu, char use_no_delay, int priority)
+int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer_size, int tx_buffer_size, int max_mtu, char use_no_delay, int priority, int tos)
 {
 	int fd = -1;
 
@@ -117,6 +117,15 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, SOL_SOCKET, SO_PRIORITY, (char *)&priority, sizeof priority) == -1)
 		{
 			set_error(gettext("error setting priority (%s)"), strerror(errno));
+			return RC_INVAL;
+		}
+	}
+
+	if (tos >= 0)
+	{
+		if (setsockopt(fd, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof tos) == -1)
+		{
+			set_error(gettext("failed to set TOS info"));
 			return RC_INVAL;
 		}
 	}

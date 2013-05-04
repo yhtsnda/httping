@@ -147,7 +147,7 @@ void emit_headers(char *in)
 #endif
 }
 
-void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes, stats_t *t_ssl, stats_t *t_write, stats_t *t_close, int n_cookies, stats_t *stats_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int tos, stats_t *t_total)
+void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes, stats_t *t_ssl, stats_t *t_write, stats_t *t_close, int n_cookies, stats_t *stats_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int recv_tos, stats_t *t_total)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -181,7 +181,7 @@ void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t
 		printf("\"tcp_rtt_stats\" : \"%e\", ", tcp_rtt_stats -> cur);
 	printf("\"re_tx\" : \"%d\", ", re_tx);
 	printf("\"pmtu\" : \"%d\", ", pmtu);
-	printf("\"tos\" : \"%02x\", ", tos);
+	printf("\"tos\" : \"%02x\", ", recv_tos);
 	printf("}");
 }
 
@@ -842,7 +842,7 @@ int main(int argc, char *argv[])
 	char abbreviate = 0;
 	char *divert_connect = NULL;
 	int recv_buffer_size = -1, tx_buffer_size = -1;
-	int priority = -1;
+	int priority = -1, send_tos = -1;
 
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
@@ -927,6 +927,7 @@ int main(int argc, char *argv[])
 		{"recv-buffer", 1, NULL, 20 },
 		{"tx-buffer", 1, NULL, 21 },
 		{"priority", 1, NULL, 23 },
+		{"tos", 1, NULL, 24 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 		{"gui",	0, NULL, 'K' },
@@ -945,6 +946,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 24:
+				send_tos = atoi(optarg);
+				break;
+
 			case 23:
 				priority = atoi(optarg);
 				break;
@@ -1471,8 +1476,8 @@ int main(int argc, char *argv[])
 		char *sc = NULL, *scdummy = NULL;
 		char *fp = NULL;
 #if defined(linux) || defined(__FreeBSD__)
-		int re_tx = 0, pmtu = 0, tos = 0;
-		socklen_t tos_len = sizeof tos;
+		int re_tx = 0, pmtu = 0, recv_tos = 0;
+		socklen_t recv_tos_len = sizeof recv_tos;
 #endif
 
 		dstart = get_ts();
@@ -1588,7 +1593,7 @@ persistent_loop:
 				int rc = -1;
 				struct addrinfo *ai_dummy = proxy_host ? ai_use_proxy : ai_use;
 
-				fd = create_socket((struct sockaddr *)bind_to, ai_dummy, recv_buffer_size, tx_buffer_size, max_mtu, use_tcp_nodelay, priority);
+				fd = create_socket((struct sockaddr *)bind_to, ai_dummy, recv_buffer_size, tx_buffer_size, max_mtu, use_tcp_nodelay, priority, send_tos);
 				if (fd < 0)
 					rc = fd; /* FIXME need to fix this, this is ugly */
 				else if (proxy_host)
@@ -1798,10 +1803,10 @@ persistent_loop:
 			}
 #endif
 
-			if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &tos_len) == -1)
+			if (getsockopt(fd, IPPROTO_IP, IP_TOS, &recv_tos, &recv_tos_len) == -1)
 			{
 				set_error(gettext("failed to obtain TOS info"));
-				tos = -1;
+				recv_tos = -1;
 			}
 #endif
 
@@ -2015,7 +2020,7 @@ persistent_loop:
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, gettext("getnameinfo() failed: %d (%s)"), errno, strerror(errno));
 
-				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success, &t_ssl, &t_write, &t_close, n_dynamic_cookies, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_total);
+				emit_json(1, curncount, dstart, &t_resolve, &t_connect, &t_request, atoi(sc ? sc : "-1"), sc ? sc : "?", headers_len, len, Bps, current_host, fp, toff_diff_ts, tfo_success, &t_ssl, &t_write, &t_close, n_dynamic_cookies, &stats_to, &tcp_rtt_stats, re_tx, pmtu, recv_tos, &t_total);
 			}
 			else if (machine_readable)
 			{
@@ -2208,7 +2213,7 @@ persistent_loop:
 		emit_statuslines(get_ts() - started_at);
 #ifdef NC
 		if (ncurses_mode)
-			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, tos, &t_close, &t_write, n_dynamic_cookies, abbreviate, &stats_header_size);
+			update_stats(&t_resolve, &t_connect, &t_request, &t_total, &t_ssl, curncount, err, sc, fp, use_tfo, nc_graph, &stats_to, &tcp_rtt_stats, re_tx, pmtu, recv_tos, &t_close, &t_write, n_dynamic_cookies, abbreviate, &stats_header_size);
 #endif
 
 		free(sc);
