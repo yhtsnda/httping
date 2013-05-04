@@ -173,7 +173,7 @@ void usage(const char *me)
 	char host[256] = { 0 };
 
 	/* where to connect to */
-	fprintf(stderr, " *** where to connect to ***\n");
+	fprintf(stderr, gettext(" *** where to connect to ***\n"));
 	format_help("-g x", "--url", gettext("URL to ping (e.g. -g http://localhost/)"));
 	format_help("-h x", "--hostname", gettext("hostname to ping (e.g. localhost) - use either -g or -h"));
 	format_help("-p x", "--port", gettext("portnumber (e.g. 80) - use with -h"));
@@ -181,10 +181,10 @@ void usage(const char *me)
 #ifndef NO_SSL
 	format_help("-l", "--use-ssl", gettext("connect using SSL. pinging an https URL automatically enables this setting"));
 #endif
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* proxy settings */
-	fprintf(stderr, " *** proxy settings ***\n");
+	fprintf(stderr, gettext(" *** proxy settings ***\n"));
 	format_help("-x x", "--proxy", gettext("x should be \"host:port\" which are the network settings of the http/https proxy server"));
 	format_help("-E", NULL, gettext("fetch proxy settings from environment variables"));
 	format_help(NULL, "--proxy-user x", gettext("username for authentication against proxy"));
@@ -192,19 +192,19 @@ void usage(const char *me)
 	format_help(NULL, "--proxy-password-file x", gettext("read password for proxy authentication from file x"));
 	format_help("-5", NULL, gettext("proxy is a socks5 server"));
 	format_help(NULL, "--proxy-buster x", gettext("adds \"&x=[random value]\" to the request URL"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* timing settings */
-	fprintf(stderr, " *** timing settings ***\n");
+	fprintf(stderr, gettext(" *** timing settings ***\n"));
 	format_help("-c x", "--count", gettext("how many times to ping"));
 	format_help("-i x", "--interval", gettext("delay between each ping"));
 	format_help("-t x", "--timeout", gettext("timeout (default: 30s)"));
 	format_help(NULL, "--ai / --adaptive-interval", gettext("execute pings at multiples of interval relative to start, automatically enabled in ncurses output mode"));
 	format_help("-f", "--flood", gettext("flood connect (no delays)"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* http settings */
-	fprintf(stderr, " *** HTTP settings ***\n");
+	fprintf(stderr, gettext(" *** HTTP settings ***\n"));
 	format_help("-Z", "--no-cache", gettext("ask any proxies on the way not to cache the requests"));
 	format_help(NULL, "--divert-connect", gettext("connect to a different host than in the URL given"));
 	format_help(NULL, "--keep-cookies", gettext("return the cookies given by the HTTP server in the following request(s)"));
@@ -212,10 +212,10 @@ void usage(const char *me)
 	format_help("-Q", "--persistent-connections", gettext("use a persistent connection. adds a 'C' to the output if httping had to reconnect"));
 	format_help("-I x", "--user-agent", gettext("use 'x' for the UserAgent header"));
 	format_help("-R x", "--referer", gettext("use 'x' for the Referer header"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* network settings */
-	fprintf(stderr, " *** networking settings ***\n");
+	fprintf(stderr, gettext(" *** networking settings ***\n"));
 	format_help(NULL, "--max-mtu", gettext("limit the MTU size"));
 	format_help(NULL, "--no-tcp-nodelay", gettext("do not disable Naggle"));
 	format_help(NULL, "--recv-buffer", gettext("receive buffer size"));
@@ -228,18 +228,18 @@ void usage(const char *me)
 #endif
 	format_help(NULL, "--priority", gettext("set priority of packets"));
 	format_help(NULL, "--tos", gettext("set TOS (type of service)"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* http authentication */
-	fprintf(stderr, " *** HTTP authentication ***\n");
+	fprintf(stderr, gettext(" *** HTTP authentication ***\n"));
 	format_help("-A", "--basic-auth", gettext("activate (\"basic\") authentication"));
 	format_help("-U x", "--username", gettext("username for authentication"));
 	format_help("-P x", "--password", gettext("password for authentication"));
 	format_help("-T x", NULL, gettext("read the password fom the file 'x' (replacement for -P)"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* output settings */
-	fprintf(stderr, " *** output settings ***\n");
+	fprintf(stderr, gettext(" *** output settings ***\n"));
 	format_help("-s", "--show-statuscodes", gettext("show statuscodes"));
 	format_help("-S", "--split-time", gettext("split measured time in its individual components (resolve, connect, send, etc."));
 	format_help(NULL, "--threshold-red", gettext("from what ping value to show the value in red (must be bigger than yellow), only in color mode (-Y)"));
@@ -251,19 +251,19 @@ void usage(const char *me)
 	format_help("-z", "--show-fingerprint", gettext("show fingerprint (SSL)"));
 #endif
 	format_help("-v", NULL, gettext("verbose mode"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* GET settings */
-	fprintf(stderr, " *** \"GET\" (instead of HTTP \"HEAD\") settings ***\n");
+	fprintf(stderr, gettext(" *** \"GET\" (instead of HTTP \"HEAD\") settings ***\n"));
 	format_help("-G", "--get-request", gettext("do a GET request instead of HEAD (read the contents of the page as well)"));
 	format_help("-b", "--show-transfer-speed", gettext("show transfer speed in KB/s (use with -G)"));
 	format_help("-B", "--show-xfer-speed-compressed", gettext("like -b but use compression if available"));
 	format_help("-L x", "--data-limit", gettext("limit the amount of data transferred (for -b) to 'x' (in bytes)"));
 	format_help("-X", "--show-kb", gettext("show the number of KB transferred (for -b)"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* output mode settings */
-	fprintf(stderr, " *** output mode settings ***\n");
+	fprintf(stderr, gettext(" *** output mode settings ***\n"));
 	format_help("-q", "--quiet", gettext("quiet, only returncode"));
 	format_help("-m", "--parseable-output", gettext("give machine parseable output (see also -o and -e)"));
 	format_help("-M", NULL, gettext("json output, cannot be combined with -m"));
@@ -274,11 +274,11 @@ void usage(const char *me)
 	format_help("-C cookie=value", "--cookie", gettext("add a cookie to the request"));
 	format_help("-Y", "--colors", gettext("add colors"));
 	format_help("-a", "--audible-ping", gettext("audible ping"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 
 	/* GUI/ncurses mode */
 #if defined(NC)
-	fprintf(stderr, " *** GUI/ncurses mode settings ***\n");
+	fprintf(stderr, gettext(" *** GUI/ncurses mode settings ***\n"));
 	format_help("-K", "--ncurses / --gui", gettext("ncurses/GUI mode"));
 #if defined(FW)
 	format_help(NULL, "--draw-phase", gettext("draw phase (fourier transform) in gui"));
@@ -286,7 +286,7 @@ void usage(const char *me)
 	format_help(NULL, "--slow-log", gettext("when the duration is x or more, show ping line in the slow log window (the middle window)"));
 	format_help(NULL, "--graph-limit x", gettext("do not scale to values above x"));
 	format_help("-D", "--no-graph", gettext("do not show graphs (in ncurses/GUI mode)"));
-	fprintf(stderr, "\n");
+	fprintf(stderr, gettext("\n"));
 #endif
 
 	format_help("-V", "--version", gettext("show the version"));

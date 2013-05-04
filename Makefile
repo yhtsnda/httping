@@ -31,10 +31,12 @@ include version
 
 TARGET=httping
 
+LOCALEDIR=/usr/share/locale
+
 DEBUG=yes
 WFLAGS=-Wall -W
 OFLAGS=
-CFLAGS+=$(WFLAGS) $(OFLAGS) -DVERSION=\"$(VERSION)\"
+CFLAGS+=$(WFLAGS) $(OFLAGS) -DVERSION=\"$(VERSION)\" -DLOCALEDIR=\"$(LOCALEDIR)\"
 LDFLAGS+=-lm
 
 PACKAGE=$(TARGET)-$(VERSION)
@@ -53,6 +55,8 @@ RMDIR=/bin/rm -rf
 MKDIR=/bin/mkdir
 ARCHIVE=/bin/tar cf -
 COMPRESS=/bin/gzip -9
+
+TRANSLATIONS=nl.mo
 
 OBJS=gen.o http.o io.o error.o utils.o main.o tcp.o res.o socks5.o kalman.o cookies.o help.o colors.o
 
@@ -92,14 +96,14 @@ ifeq ($(ARM),yes)
 CC=arm-linux-gcc
 endif
 
-all: $(TARGET)
+all: $(TARGET) $(TRANSLATIONS)
 
 $(TARGET): $(OBJS)
 	$(CC) $(WFLAGS) $(OBJS) $(LDFLAGS) -o $(TARGET)
 	#
 	# Oh, blatant plug: http://www.vanheusden.com/wishlist.php
 
-install: $(TARGET)
+install: $(TARGET) $(TRANSLATIONS)
 	$(INSTALLDIR) $(DESTDIR)/$(BINDIR)
 	$(INSTALLBIN) $(TARGET) $(DESTDIR)/$(BINDIR)
 	$(INSTALLDIR) $(DESTDIR)/$(MANDIR)/man1
@@ -109,12 +113,16 @@ install: $(TARGET)
 ifneq ($(DEBUG),yes)
 	$(STRIP) $(DESTDIR)/$(BINDIR)/$(TARGET)
 endif
+	cp nl.mo $(PREFIX)/share/locale/nl/LC_MESSAGES/httping.mo
 
 makefile.inc:
 	./configure
 
+nl.mo: nl.po
+	msgfmt -o nl.mo nl.po
+
 clean:
-	$(RMDIR) $(OBJS) $(TARGET) *~ core cov-int
+	$(RMDIR) $(OBJS) $(TARGET) *~ core cov-int *.mo
 
 distclean: clean
 	rm -f makefile.inc

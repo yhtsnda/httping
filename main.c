@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include <sys/ioctl.h>
 #include <stdio.h>
+#include <locale.h>
 #include <libintl.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -844,6 +845,10 @@ int main(int argc, char *argv[])
 	int recv_buffer_size = -1, tx_buffer_size = -1;
 	int priority = -1, send_tos = -1;
 
+	setlocale(LC_ALL, "");
+	bindtextdomain("httping", LOCALEDIR);
+	textdomain("httping");
+
 	init_statst(&t_resolve);
 	init_statst(&t_connect);
 	init_statst(&t_write);
@@ -1266,9 +1271,6 @@ int main(int argc, char *argv[])
 				return 1;
 		}
 	}
-
-	if (max_mtu >= 0 && (proxy_host || use_ssl))
-		error_exit(gettext("Cannot combine maximum MTU size setting with proxy connections or SSL"));
 
 	if (do_fetch_proxy_settings)
 		fetch_proxy_settings(&proxy_user, &proxy_password, &proxy_host, &proxy_port, use_ssl, use_ipv6);
