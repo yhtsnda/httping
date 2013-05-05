@@ -9,8 +9,6 @@
 - ping with timestamp:
 	ping google.com | while read i ; do echo `date +%s.%N` $i ; done
 
-- translate gettext
-
 - -A, -H en -J vrijmaken
   - -M en -n tot 1 optie maken
 
@@ -30,4 +28,5 @@
 
 - cookies uit chrome/firefox/etc cache halen
 
+LANGUAGE=nl_NL:nl ./httping -K mauer
 set args --graph-limit 250 -K -i 0.1 -W --aggregate 3,5,7 -Q belle

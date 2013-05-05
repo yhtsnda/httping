@@ -295,7 +295,7 @@ msgstr "toon cumulatief de waardes van x[/y[/etc]] seconden"
 
 #: help.c:251
 msgid "show fingerprint (SSL)"
-msgstr "toon een vingerafdruk voor de SSL verbinding"
+msgstr "toon de vingerafdruk van de X.509 certificaten bij het opzetten van een SSL verbinding"
 
 #: help.c:253
 msgid "verbose mode"
