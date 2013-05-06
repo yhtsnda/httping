@@ -52,6 +52,9 @@ msgstr "Probleem bij het voorbereiden van de FFT berekening."
 msgid "HTTPing v"
 msgstr "HTTPing versie "
 
+msgid "adds an extra request-header"
+msgstr "voeg een extra verzoek-regel toe"
+
 #: help.c:79
 #, c-format
 msgid " * SSL support included (-l)\n"

@@ -266,7 +266,7 @@ char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **static_cookies, int n_static_cookies, char **dynamic_cookies, int n_dynamic_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password)
+char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **static_cookies, int n_static_cookies, char **dynamic_cookies, int n_dynamic_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password, char **additional_headers, int n_additional_headers)
 {
 	int index;
 	char *request = NULL;
@@ -348,6 +348,9 @@ char * create_request_header(const char *get, char use_proxy_host, char get_inst
 		str_add(&request, "Cookie: %s\r\n", static_cookies[index]);
 	for(index=0; index<n_dynamic_cookies; index++)
 		str_add(&request, "Cookie: %s\r\n", dynamic_cookies[index]);
+
+	for(index=0; index<n_additional_headers; index++)
+		str_add(&request, "%s\r\n", additional_headers[index]);
 
 	if (persistent_connections)
 		str_add(&request, "Connection: keep-alive\r\n");
@@ -771,6 +774,24 @@ void stats_close(int *fd, stats_t *t_close, char is_failure)
 	update_statst(t_close, (t_end - t_start) * 1000.0);
 }
 
+void add_header(char ***additional_headers, int *n_additional_headers, const char *in)
+{
+	*additional_headers = (char **)realloc(*additional_headers, (*n_additional_headers + 1) * sizeof(char **));
+	(*additional_headers)[*n_additional_headers] = strdup(in);
+
+	(*n_additional_headers)++;
+}
+
+void free_headers(char **additional_headers, int n_additional_headers)
+{
+	int index = 0;
+
+	for(index=0; index<n_additional_headers; index++)
+		free(additional_headers[index]);
+
+	free(additional_headers);
+}
+
 int main(int argc, char *argv[])
 {
 	char do_fetch_proxy_settings = 0;
@@ -844,6 +865,8 @@ int main(int argc, char *argv[])
 	char *divert_connect = NULL;
 	int recv_buffer_size = -1, tx_buffer_size = -1;
 	int priority = -1, send_tos = -1;
+	char **additional_headers = NULL;
+	int n_additional_headers = 0;
 
 	setlocale(LC_ALL, "");
 	bindtextdomain("httping", LOCALEDIR);
@@ -933,6 +956,7 @@ int main(int argc, char *argv[])
 		{"tx-buffer", 1, NULL, 21 },
 		{"priority", 1, NULL, 23 },
 		{"tos", 1, NULL, 24 },
+		{"header", 1, NULL, 25 },
 #ifdef NC
 		{"ncurses",	0, NULL, 'K' },
 		{"gui",	0, NULL, 'K' },
@@ -951,6 +975,10 @@ int main(int argc, char *argv[])
 	{
 		switch(c)
 		{
+			case 25:
+				add_header(&additional_headers, &n_additional_headers, optarg);
+				break;
+
 			case 24:
 				send_tos = atoi(optarg);
 				break;
@@ -1562,7 +1590,7 @@ persistent_loop:
 			}
 
 			free(request);
-			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password);
+			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password, additional_headers, n_additional_headers);
 			req_len = strlen(request);
 
 			if (req_len >= 4096)
@@ -2320,6 +2348,8 @@ error_exit:
 	free(get);
 	free(hostname);
 	free(complete_url);
+
+	free_headers(additional_headers, n_additional_headers);
 
 	free(aggregates);
 

@@ -212,6 +212,7 @@ void usage(const char *me)
 	format_help("-Q", "--persistent-connections", gettext("use a persistent connection. adds a 'C' to the output if httping had to reconnect"));
 	format_help("-I x", "--user-agent", gettext("use 'x' for the UserAgent header"));
 	format_help("-R x", "--referer", gettext("use 'x' for the Referer header"));
+	format_help(NULL, "--header", gettext("adds an extra request-header"));
 	fprintf(stderr, gettext("\n"));
 
 	/* network settings */
