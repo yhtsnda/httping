@@ -1,7 +1,8 @@
 # Dutch translations for HTTPing package.
-# Copyright (C) 2013 THE HTTPing'S COPYRIGHT HOLDER
+# Copyright (C) 2013 folkert van heusden
 # This file is distributed under the same license as the HTTPing package.
 # folkert van heusden <folkert@vanheusden.com>, 2013.
+# Translated by Joris Zwart - http://joriszwart.nl/
 #
 msgid ""
 msgstr ""
@@ -9,7 +10,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2013-05-04 15:29+0200\n"
 "PO-Revision-Date: 2013-05-04 18:41+0100\n"
-"Last-Translator: Folkert van Heusden <folkert@vanheusden.com>\n"
+"Last-Translator: Joris Zwart <hallo@joriszwart.nl>\n"
 "Language-Team: Dutch\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
