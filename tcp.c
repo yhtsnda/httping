@@ -112,6 +112,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		}
 	}
 
+#ifdef linux
 	if (priority >= 0)
 	{
 		if (setsockopt(fd, SOL_SOCKET, SO_PRIORITY, (char *)&priority, sizeof priority) == -1)
@@ -120,6 +121,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 			return RC_INVAL;
 		}
 	}
+#endif
 
 	if (tos >= 0)
 	{

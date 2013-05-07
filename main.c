@@ -984,7 +984,11 @@ int main(int argc, char *argv[])
 				break;
 
 			case 23:
+#ifdef linux
 				priority = atoi(optarg);
+#else
+				error_exit("Setting the network priority is only supported on Linux.\n");
+#endif
 				break;
 
 			case 21:
@@ -1803,6 +1807,7 @@ persistent_loop:
 
 				t_rc = select(fd + 1, &rfds, NULL, NULL, &tv);
 
+#ifdef linux
 				if (t_rc == 1 && \
 					FD_ISSET(fd, &rfds) && \
 					getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && \
@@ -1816,6 +1821,7 @@ persistent_loop:
 					else if (in_transit_cnt <= MAX_SHOW_SUPPRESSION)
 						slow_log(gettext("\nHTTP server started sending data with %d bytes still in transit"), info.tcpi_unacked);
 				}
+#endif
 
 				if (t_rc == 0)
 				{
@@ -2023,8 +2029,10 @@ persistent_loop:
 
 				update_statst(&tcp_rtt_stats, (double)info.tcpi_rtt / 1000.0);
 
+#ifdef linux
 				re_tx = info.tcpi_retransmits;
 				pmtu = info.tcpi_pmtu;
+#endif
 			}
 #endif
 

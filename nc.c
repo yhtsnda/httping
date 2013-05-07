@@ -781,7 +781,11 @@ void update_stats(stats_t *resolve, stats_t *connect, stats_t *request, stats_t 
 
 			myprintloc(w_stats, 8, 48, gettext("# cookies: %d"), n_cookies);
 
+#ifdef linux
 			myprintloc(w_stats, 9, 48, gettext("trend: %c%6.2f%%, re-tx: %2d, pmtu: %5d, TOS: %02x"), trend_dir, fabs(trend), re_tx, pmtu, tos);
+#else
+			myprintloc(w_stats, 9, 48, gettext("trend: %c%6.2f%%, TOS: %02x"), trend_dir, fabs(trend), tos);
+#endif
 		}
 
 		buflen = snprintf(buffer, sizeof buffer, gettext("HTTP rc: %s, SSL fp: %s"), last_connect_str, fp ? fp : gettext("n/a"));

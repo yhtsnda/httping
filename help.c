@@ -227,7 +227,9 @@ void usage(const char *me)
 #ifdef TCP_TFO
 	format_help("-F", "--tcp-fast-open", gettext("\"TCP fast open\" (TFO), reduces the latency of TCP connects"));
 #endif
+#ifdef linux
 	format_help(NULL, "--priority", gettext("set priority of packets"));
+#endif
 	format_help(NULL, "--tos", gettext("set TOS (type of service)"));
 	fprintf(stderr, gettext("\n"));
 
