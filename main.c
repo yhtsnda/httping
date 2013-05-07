@@ -88,9 +88,9 @@ void determine_terminal_size(int *max_y, int *max_x)
 
                 dummy = getenv("LINES");
                 if (dummy)
-                        *max_x = atoi(dummy);
+                        *max_y = atoi(dummy);
                 else
-                        *max_x = 24;
+                        *max_y = 24;
         }
 }
 
