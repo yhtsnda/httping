@@ -2292,7 +2292,8 @@ persistent_loop:
 		end_ncurses();
 #endif
 
-	set_colors(0);
+	if (colors)
+		set_colors(0);
 
 	if (ok)
 		avg_httping_time = t_total.avg / (double)t_total.n;
