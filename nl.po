@@ -341,7 +341,7 @@ msgstr "toon niets, geef alleen een resultaatwaarde terug"
 
 #: help.c:268
 msgid "give machine parseable output (see also -o and -e)"
-msgstr "produceer uitvoer die met een ander programma te bewerken valt (die ook -o en -e)"
+msgstr "toon resultaat in computervriendelijkformaat (zie ook -o en -e)"
 
 #: help.c:269
 msgid "json output, cannot be combined with -m"
