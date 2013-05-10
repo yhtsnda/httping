@@ -115,7 +115,7 @@ install: $(TARGET) $(TRANSLATIONS)
 ifneq ($(DEBUG),yes)
 	$(STRIP) $(DESTDIR)/$(BINDIR)/$(TARGET)
 endif
-	cp nl.mo $(PREFIX)/share/locale/nl/LC_MESSAGES/httping.mo
+	cp nl.mo $(DESTDIR)/$(PREFIX)/share/locale/nl/LC_MESSAGES/httping.mo
 
 makefile.inc:
 	./configure
