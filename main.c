@@ -266,7 +266,7 @@ char * read_file(const char *file)
 	return strdup(buffer);
 }
 
-char * create_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **static_cookies, int n_static_cookies, char **dynamic_cookies, int n_dynamic_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password, char **additional_headers, int n_additional_headers)
+char * create_http_request_header(const char *get, char use_proxy_host, char get_instead_of_head, char persistent_connections, const char *hostname, const char *useragent, const char *referer, char ask_compression, char no_cache, const char *auth_usr, const char *auth_password, char **static_cookies, int n_static_cookies, char **dynamic_cookies, int n_dynamic_cookies, const char *proxy_buster, const char *proxy_user, const char *proxy_password, char **additional_headers, int n_additional_headers)
 {
 	int index;
 	char *request = NULL;
@@ -1019,9 +1019,11 @@ int main(int argc, char *argv[])
 				use_tcp_nodelay = 0;
 				break;
 
+#ifdef NC
 			case 14:
 				draw_phase = 1;
 				break;
+#endif
 
 			case 13:
 				show_slow_log = atof(optarg);
@@ -1594,7 +1596,7 @@ persistent_loop:
 			}
 
 			free(request);
-			request = create_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password, additional_headers, n_additional_headers);
+			request = create_http_request_header(proxy_host ? complete_url : get, proxy_host ? 1 : 0, get_instead_of_head, persistent_connections, add_host_header ? hostname : NULL, useragent, referer, ask_compression, no_cache, auth_usr, auth_password, static_cookies, n_static_cookies, dynamic_cookies, keep_cookies ? n_dynamic_cookies : 0, proxy_buster, proxy_user, proxy_password, additional_headers, n_additional_headers);
 			req_len = strlen(request);
 
 			if (req_len >= 4096)
