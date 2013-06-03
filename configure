@@ -74,7 +74,7 @@ if [ $? -eq 0 ] || [ $F_OS -eq 1 ] ; then
 	SSL="SSL=yes"
 else
 	echo \- this system does NOT have the OpenSSL development libraries - they are optional
-	SSL=""
+	SSL="SSL=no"
 fi
 
 $CC -O0 -lfftw3 -o $FILE test_fftw3.c 2> $FILE2

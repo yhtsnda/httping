@@ -934,6 +934,7 @@ int main(int argc, char *argv[])
 		{"threshold-red",	1, NULL, 2   },
 		{"offset-show",	1, NULL, 3   },
 		{"show-offset",	1, NULL, 3   },
+		{"threshold-show",	1, NULL, 3   },
 		{"show-threshold",	1, NULL, 3   },
 		{"timestamp",	0, NULL, 4   },
 		{"ts",		0, NULL, 4   },
@@ -1511,10 +1512,8 @@ int main(int argc, char *argv[])
 		int age = -1;
 		char *sc = NULL, *scdummy = NULL;
 		char *fp = NULL;
-#if defined(linux) || defined(__FreeBSD__)
 		int re_tx = 0, pmtu = 0, recv_tos = 0;
 		socklen_t recv_tos_len = sizeof recv_tos;
-#endif
 
 		dstart = get_ts();
 
