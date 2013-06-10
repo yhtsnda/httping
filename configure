@@ -43,9 +43,8 @@ do
 			;;
 
 		*)
-			echo Command line parameter \"$var\" is not understood.
+			echo WARNING: Command line parameter \"$var\" is not understood.
 			echo Re-run this script with --help to see a list of switches.
-			exit 1
 			;;
 	esac
 done
