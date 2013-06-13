@@ -51,7 +51,7 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, do
 		len_in += rrc;
 
 		assert(len_in >= 0);
-		assert(len_in < len);
+		assert(len_in <= len);
 
 		buffer[len_in] = 0x00;
 
