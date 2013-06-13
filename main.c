@@ -26,6 +26,9 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <sys/time.h>
+#if defined(sun) || defined(__sun)
+#include <sys/termios.h>
+#endif
 #ifdef NC
 #include <ncurses.h>
 #endif
