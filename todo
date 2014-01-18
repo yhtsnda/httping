@@ -1,5 +1,7 @@
 - multiple threads! (?)
 
+- http pipelining dwz meerdere requests vooruit zenden dus niet wachten totdat een request afgelopen is
+
 - koppelen aan iets externs? dus een thread die v/e ander programma eea opvangt en dan meeneemt in de logging? (gps bijv.)
 
 - http 302 volgen?
