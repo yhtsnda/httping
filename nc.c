@@ -631,6 +631,9 @@ void draw_graph(double val)
 		n++;
 	}
 
+	if (!n)
+		return;
+
 	avg /= (double)n;
 	sd = sqrt((sd / (double)n) - pow(avg, 2.0));
 

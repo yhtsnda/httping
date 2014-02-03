@@ -151,7 +151,7 @@ void emit_headers(char *in)
 #endif
 }
 
-void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_succes, stats_t *t_ssl, stats_t *t_write, stats_t *t_close, int n_cookies, stats_t *stats_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int recv_tos, stats_t *t_total)
+void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t_connect, stats_t *t_request, int http_code, const char *msg, int header_size, int data_size, double Bps, const char *host, const char *ssl_fp, double toff_diff_ts, char tfo_success, stats_t *t_ssl, stats_t *t_write, stats_t *t_close, int n_cookies, stats_t *stats_to, stats_t *tcp_rtt_stats, int re_tx, int pmtu, int recv_tos, stats_t *t_total)
 {
 	if (seq > 1)
 		printf(", \n");
@@ -173,7 +173,7 @@ void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t
 	printf("\"host\" : \"%s\", ", host);
 	printf("\"ssl_fingerprint\" : \"%s\", ", ssl_fp ? ssl_fp : "");
 	printf("\"time_offset\" : \"%f\", ", toff_diff_ts);
-	printf("\"tfo_succes\" : \"%s\" ", tfo_succes ? "true" : "false");
+	printf("\"tfo_success\" : \"%s\", ", tfo_success ? "true" : "false");
 	if (t_ssl -> cur_valid)
 		printf("\"ssl_ms\" : \"%e\", ", t_ssl -> cur);
 	printf("\"write\" : \"%e\", ", t_write -> cur);
@@ -750,14 +750,32 @@ int nagios_result(int ok, int nagios_mode, int nagios_exit_code, double avg_http
 
 void proxy_to_host_and_port(char *in, char **proxy_host, int *proxy_port)
 {
-	char *dummy = strchr(in, ':');
-
-	*proxy_host = in;
-
-	if (dummy)
+	if (in[0] == '[')
 	{
-		*dummy=0x00;
-		*proxy_port = atoi(dummy + 1);
+		char *dummy = NULL;
+
+		*proxy_host = strdup(in + 1);
+
+		dummy = strchr(*proxy_host, ']');
+		if (dummy)
+		{
+			*dummy = 0x00;
+
+			/* +2: ']:' */
+			*proxy_port = atoi(dummy + 2);
+		}
+	}
+	else
+	{
+		char *dummy = strchr(in, ':');
+
+		*proxy_host = in;
+
+		if (dummy)
+		{
+			*dummy=0x00;
+			*proxy_port = atoi(dummy + 1);
+		}
 	}
 }
 

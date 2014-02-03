@@ -113,8 +113,8 @@ msgid " *** proxy settings ***\n"
 msgstr " *** proxy instellingen ***\n"
 
 #: help.c:188
-msgid "x should be \"host:port\" which are the network settings of the http/https proxy server"
-msgstr "x moet zijn \"host:port\", dat zijn de parameters van de http/https proxyserver"
+msgid "x should be \"host:port\" which are the network settings of the http/https proxy server. ipv6 ip-address should be \"[ip:address]:port\""
+msgstr "x moet zijn \"host:port\", dat zijn de parameters van de http/https proxyserver. ipv6 ip-adressen moeten opgebouwd zijn als volgt: \"[ip:adres]:port\""
 
 #: help.c:189
 msgid "fetch proxy settings from environment variables"

@@ -67,12 +67,14 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof set) == -1)
 		{
 			set_error(gettext("error setting sockopt to interface (%s)"), strerror(errno));
+			close(fd);
 			return RC_INVAL;
 		}
 
 		if (bind(fd, bind_to, sizeof *bind_to) == -1)
 		{
 			set_error(gettext("error binding to interface (%s)"), strerror(errno));
+			close(fd);
 			return RC_INVAL;
 		}
 	}
@@ -82,6 +84,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &max_mtu, sizeof max_mtu) == -1)
 		{
 			set_error(gettext("error setting MTU size (%s)"), strerror(errno));
+			close(fd);
 			return RC_INVAL;
 		}
 	}
@@ -99,6 +102,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&tx_buffer_size, sizeof tx_buffer_size) == -1)
 		{
 			set_error(gettext("error setting transmit buffer size (%s)"), strerror(errno));
+			close(fd);
 			return RC_INVAL;
 		}
 	}
@@ -108,6 +112,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&recv_buffer_size, sizeof recv_buffer_size) == -1)
 		{
 			set_error(gettext("error setting receive buffer size (%s)"), strerror(errno));
+			close(fd);
 			return RC_INVAL;
 		}
 	}
@@ -118,6 +123,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, SOL_SOCKET, SO_PRIORITY, (char *)&priority, sizeof priority) == -1)
 		{
 			set_error(gettext("error setting priority (%s)"), strerror(errno));
+			close(fd);
 			return RC_INVAL;
 		}
 	}
@@ -128,6 +134,7 @@ int create_socket(struct sockaddr *bind_to, struct addrinfo *ai, int recv_buffer
 		if (setsockopt(fd, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof tos) == -1)
 		{
 			set_error(gettext("failed to set TOS info"));
+			close(fd);
 			return RC_INVAL;
 		}
 	}

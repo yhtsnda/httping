@@ -185,7 +185,7 @@ void usage(const char *me)
 
 	/* proxy settings */
 	fprintf(stderr, gettext(" *** proxy settings ***\n"));
-	format_help("-x x", "--proxy", gettext("x should be \"host:port\" which are the network settings of the http/https proxy server"));
+	format_help("-x x", "--proxy", gettext("x should be \"host:port\" which are the network settings of the http/https proxy server. ipv6 ip-address should be \"[ip:address]:port\""));
 	format_help("-E", NULL, gettext("fetch proxy settings from environment variables"));
 	format_help(NULL, "--proxy-user x", gettext("username for authentication against proxy"));
 	format_help(NULL, "--proxy-password x", gettext("password for authentication against proxy"));
