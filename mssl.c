@@ -167,6 +167,9 @@ int connect_ssl(int fd, SSL_CTX *client_ctx, SSL **ssl_h, BIO **s_bio, double ti
 
 SSL_CTX * initialize_ctx(char ask_compression)
 {
+	const SSL_METHOD *meth = NULL;
+	SSL_CTX *ctx = NULL;
+
 	if (!bio_err)
 	{
 		SSL_library_init();
@@ -178,9 +181,8 @@ SSL_CTX * initialize_ctx(char ask_compression)
 	}
 
 	/* create context */
-	const SSL_METHOD *meth = SSLv23_method();
-
-	SSL_CTX *ctx = SSL_CTX_new(meth);
+	meth = SSLv23_method();
+	ctx = SSL_CTX_new(meth);
 
 #ifdef SSL_OP_NO_COMPRESSION
 	if (!ask_compression)

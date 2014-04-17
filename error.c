@@ -14,13 +14,14 @@ char last_error[4096] = { 0 };
 
 void error_exit(char *format, ...)
 {
+	int e = errno;
 	va_list ap;
 
 	va_start(ap, format);
 	(void)vfprintf(stderr, format, ap);
 	va_end(ap);
 
-	fprintf(stderr, gettext("\n\nerrno=%d which means %s (if applicable)\n"), errno, strerror(errno));
+	fprintf(stderr, gettext("\n\nerrno=%d which means %s (if applicable)\n"), e, strerror(e));
 
 	exit(1);
 }
@@ -28,11 +29,10 @@ void error_exit(char *format, ...)
 void set_error(const char *fmt, ...)
 {
 	int buffer_size = sizeof last_error;
+	va_list ap;
 
 	if (last_error[0])
 		fprintf(stderr, "%s\n", last_error);
-
-	va_list ap;
 
 	va_start(ap, fmt);
 	if (vsnprintf(last_error, sizeof last_error, fmt, ap) >= buffer_size)

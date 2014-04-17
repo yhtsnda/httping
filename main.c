@@ -159,10 +159,14 @@ void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t
 	printf("\"status\" : \"%d\", ", ok);
 	printf("\"seq\" : \"%d\", ", seq);
 	printf("\"start_ts\" : \"%f\", ", start_ts);
-	if (t_resolve -> cur_valid)
+	if (t_resolve!=NULL && t_resolve -> cur_valid)
 		printf("\"resolve_ms\" : \"%e\", ", t_resolve -> cur);
-	if (t_connect -> cur_valid)
+	else
+		printf("\"resolve_ms\" : \"%e\", ",-1.0);
+	if (t_connect!=NULL && t_connect -> cur_valid)
 		printf("\"connect_ms\" : \"%e\", ", t_connect -> cur);
+	else
+		printf("\"connect_ms\" : \"%e\", ",-1.0);
 	printf("\"request_ms\" : \"%e\", ", t_request -> cur);
 	printf("\"total_ms\" : \"%e\", ", t_total -> cur);
 	printf("\"http_code\" : \"%d\", ", http_code);
@@ -176,28 +180,31 @@ void emit_json(char ok, int seq, double start_ts, stats_t *t_resolve, stats_t *t
 	printf("\"tfo_success\" : \"%s\", ", tfo_success ? "true" : "false");
 	if (t_ssl -> cur_valid)
 		printf("\"ssl_ms\" : \"%e\", ", t_ssl -> cur);
+	printf("\"tfo_succes\" : \"%s\", ", tfo_success ? "true" : "false");
+	if (t_ssl !=NULL && t_ssl -> cur_valid)
+		printf("\"ssl_ms\" : \"%e\", ", t_ssl -> cur);
 	printf("\"write\" : \"%e\", ", t_write -> cur);
 	printf("\"close\" : \"%e\", ", t_close -> cur);
 	printf("\"cookies\" : \"%d\", ", n_cookies);
-	if (stats_to -> cur_valid)
+	if (stats_to != NULL && stats_to -> cur_valid)
 		printf("\"to\" : \"%e\", ", stats_to -> cur);
-	if (tcp_rtt_stats -> cur_valid)
+	if (tcp_rtt_stats !=NULL && tcp_rtt_stats -> cur_valid)
 		printf("\"tcp_rtt_stats\" : \"%e\", ", tcp_rtt_stats -> cur);
 	printf("\"re_tx\" : \"%d\", ", re_tx);
 	printf("\"pmtu\" : \"%d\", ", pmtu);
-	printf("\"tos\" : \"%02x\", ", recv_tos);
+	printf("\"tos\" : \"%02x\" ", recv_tos);
 	printf("}");
 }
 
 char *get_ts_str(int verbose)
 {
+	char buffer[4096] = { 0 };
+	struct tm *tvm = NULL;
 	struct timeval tv;
 
 	(void)gettimeofday(&tv, NULL);
 
-	struct tm *tvm = localtime(&tv.tv_sec);
-
-	char buffer[4096] = { 0 };
+	tvm = localtime(&tv.tv_sec);
 
 	if (verbose == 1)
 		sprintf(buffer, "%04d/%02d/%02d ", tvm -> tm_year + 1900, tvm -> tm_mon + 1, tvm -> tm_mday);
@@ -222,8 +229,8 @@ void emit_error(int verbose, int seq, double start_ts)
 	}
 	else
 #endif
-	if (!quiet && !machine_readable && !nagios_mode && !json_output)
-		printf("%s%s%s%s\n", ts ? ts : "", c_error, get_error(), c_normal);
+		if (!quiet && !machine_readable && !nagios_mode && !json_output)
+			printf("%s%s%s%s\n", ts ? ts : "", c_error, get_error(), c_normal);
 
 	if (json_output)
 		emit_json(0, seq, start_ts, NULL, NULL, NULL, -1, get_error(), -1, -1, -1, "", "", -1, 0, NULL, NULL, NULL, 0, NULL, NULL, 0, 0, 0, NULL);
@@ -541,12 +548,12 @@ void do_aggregates(double cur_ms, int cur_ts, int n_aggregates, aggregate_t *agg
 				slow_log("\n%s", line);
 			else
 #endif
-			printf("%s\n", line);
+				printf("%s\n", line);
 
 			free(line);
 
 			aggregates[index].value =
-			aggregates[index].sd    = 0.0;
+				aggregates[index].sd    = 0.0;
 			aggregates[index].min =  MY_DOUBLE_INF;
 			aggregates[index].max = -MY_DOUBLE_INF;
 			aggregates[index].n_values = 0;
@@ -815,6 +822,7 @@ void free_headers(char **additional_headers, int n_additional_headers)
 
 int main(int argc, char *argv[])
 {
+	double started_at = -1;
 	char do_fetch_proxy_settings = 0;
 	char *hostname = NULL;
 	char *proxy_host = NULL, *proxy_user = NULL, *proxy_password = NULL;
@@ -888,26 +896,12 @@ int main(int argc, char *argv[])
 	int priority = -1, send_tos = -1;
 	char **additional_headers = NULL;
 	int n_additional_headers = 0;
-
-	setlocale(LC_ALL, "");
-	bindtextdomain("httping", LOCALEDIR);
-	textdomain("httping");
-
-	init_statst(&t_resolve);
-	init_statst(&t_connect);
-	init_statst(&t_write);
-	init_statst(&t_request);
-	init_statst(&t_total);
-	init_statst(&t_ssl);
-	init_statst(&t_close);
-
-	init_statst(&stats_to);
-#if defined(linux) || defined(__FreeBSD__)
-	init_statst(&tcp_rtt_stats);
+#ifndef NO_SSL
+	SSL_CTX *client_ctx = NULL;
 #endif
-	init_statst(&stats_header_size);
-
-	determine_terminal_size(&max_y, &max_x);
+	struct sockaddr_in6 addr;
+	struct addrinfo *ai = NULL, *ai_use = NULL;
+	struct addrinfo *ai_proxy = NULL, *ai_use_proxy = NULL;
 
 	static struct option long_options[] =
 	{
@@ -990,6 +984,26 @@ int main(int argc, char *argv[])
 		{"help",	0, NULL, 22 },
 		{NULL,		0, NULL, 0   }
 	};
+
+	setlocale(LC_ALL, "");
+	bindtextdomain("httping", LOCALEDIR);
+	textdomain("httping");
+
+	init_statst(&t_resolve);
+	init_statst(&t_connect);
+	init_statst(&t_write);
+	init_statst(&t_request);
+	init_statst(&t_total);
+	init_statst(&t_ssl);
+	init_statst(&t_close);
+
+	init_statst(&stats_to);
+#if defined(linux) || defined(__FreeBSD__)
+	init_statst(&tcp_rtt_stats);
+#endif
+	init_statst(&stats_header_size);
+
+	determine_terminal_size(&max_y, &max_x);
 
 	signal(SIGPIPE, SIG_IGN);
 
@@ -1309,7 +1323,7 @@ int main(int argc, char *argv[])
 				fprintf(stderr, gettext("Warning: TCP TFO is not supported. Disabling.\n"));
 #endif
 				break;
- 
+
 			case 22:
 				version();
 
@@ -1413,7 +1427,6 @@ int main(int argc, char *argv[])
 	}
 
 #ifndef NO_SSL
-	SSL_CTX *client_ctx = NULL;
 	if (use_ssl)
 	{
 		client_ctx = initialize_ctx(ask_compression);
@@ -1432,7 +1445,7 @@ int main(int argc, char *argv[])
 			slow_log("\nPING %s:%d (%s):", hostname, portnr, get);
 		else
 #endif
-		printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
+			printf("PING %s%s:%s%d%s (%s):\n", c_green, hostname, c_bright, portnr, c_normal, get);
 	}
 
 	if (json_output)
@@ -1446,22 +1459,18 @@ int main(int argc, char *argv[])
 
 	timeout *= 1000.0;	/* change to ms */
 
-	struct sockaddr_in6 addr;
-	struct addrinfo *ai = NULL, *ai_use = NULL;
-	struct addrinfo *ai_proxy = NULL, *ai_use_proxy = NULL;
-
 	/*
-		if (follow_30x)
-		{
-			get headers
+	   if (follow_30x)
+	   {
+	   get headers
 
-			const char *get_location(const char *host, int port, char use_ssl, char *reply)
+	   const char *get_location(const char *host, int port, char use_ssl, char *reply)
 
-			set new host/port/path/etc
-		}
-	*/
+	   set new host/port/path/etc
+	   }
+	 */
 
-	double started_at = get_ts();
+	started_at = get_ts();
 	if (proxy_host)
 	{
 #ifdef NC
@@ -1511,7 +1520,7 @@ int main(int argc, char *argv[])
 			   next, the program will try to resolve again anyway
 			   this prevents a double error-message while err is increased only
 			   once
-			*/
+			 */
 			have_resolved = 0;
 		}
 
@@ -1818,12 +1827,13 @@ persistent_loop:
 #ifdef NC
 			if (!use_ssl && ncurses_mode)
 			{
+				struct timeval tv;
 				int t_rc = -1;
+
 				fd_set rfds;
 				FD_ZERO(&rfds);
 				FD_SET(fd, &rfds);
 
-				struct timeval tv;
 				tv.tv_sec = (long)(timeout / 1000.0) % 1000000;
 				tv.tv_usec = (long)(timeout * 1000.0) % 1000000;
 
@@ -1831,9 +1841,9 @@ persistent_loop:
 
 #ifdef linux
 				if (t_rc == 1 && \
-					FD_ISSET(fd, &rfds) && \
-					getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && \
-					info.tcpi_unacked > 0)
+						FD_ISSET(fd, &rfds) && \
+						getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &info_len) == 0 && \
+						info.tcpi_unacked > 0)
 				{
 					static int in_transit_cnt = 0;
 
@@ -2110,6 +2120,8 @@ persistent_loop:
 			}
 			else if (!quiet && !nagios_mode && t_total.cur >= offset_show)
 			{
+				char *tot_str = NULL;
+				const char *i6_bs = "", *i6_be = "";
 				char *line = NULL;
 				const char *ms_color = c_green;
 				char current_host[4096] = { 0 };
@@ -2141,7 +2153,6 @@ persistent_loop:
 				else if (getnameinfo((const struct sockaddr *)&addr, sizeof addr, current_host, sizeof current_host, NULL, 0, NI_NUMERICHOST) == -1)
 					snprintf(current_host, sizeof current_host, gettext("getnameinfo() failed: %d (%s)"), errno, strerror(errno));
 
-				const char *i6_bs = "", *i6_be = "";
 				if (addr.sin6_family == AF_INET6)
 				{
 					i6_bs = "[";
@@ -2161,7 +2172,7 @@ persistent_loop:
 				else
 					str_add(&line, gettext("%s%s%s%s%s:%s%d%s (%d bytes), seq=%s%d%s "), c_red, i6_bs, current_host, i6_be, c_white, c_yellow, portnr, c_white, headers_len, c_blue, curncount-1, c_white);
 
-				char *tot_str = format_value(t_total.cur, 6, 2, abbreviate);
+				tot_str = format_value(t_total.cur, 6, 2, abbreviate);
 
 				if (split)
 				{
@@ -2284,7 +2295,7 @@ persistent_loop:
 			update_terminal();
 		else
 #endif
-		fflush(NULL);
+			fflush(NULL);
 
 		if (!stop && wait > 0)
 		{

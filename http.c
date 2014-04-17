@@ -17,6 +17,7 @@
 
 int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, double timeout)
 {
+	char *term = NULL;
 	int len_in=0, len=4096;
 	char *buffer = (char *)malloc(len + 1);
 	int rc = RC_OK;
@@ -67,7 +68,7 @@ int get_HTTP_headers(int socket_h, SSL *ssl_h, char **headers, int *overflow, do
 
 	*headers = buffer;
 
-	char *term = strstr(buffer, "\r\n\r\n");
+	term = strstr(buffer, "\r\n\r\n");
 	if (term)
 		*overflow = len_in - (term - buffer + 4);
 	else

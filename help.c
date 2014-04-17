@@ -167,6 +167,7 @@ void format_help(const char *short_str, const char *long_str, const char *descr)
 		p = n;
 	}
 }
+
 void usage(const char *me)
 {
 	char *dummy = NULL, has_color = 0;

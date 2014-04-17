@@ -34,7 +34,7 @@ TARGET=httping
 LOCALEDIR=/usr/share/locale
 
 DEBUG=yes
-WFLAGS=-Wall -W
+WFLAGS=-Wall -W -Wextra -pedantic
 OFLAGS=
 CFLAGS+=$(WFLAGS) $(OFLAGS) -DVERSION=\"$(VERSION)\" -DLOCALEDIR=\"$(LOCALEDIR)\"
 LDFLAGS+=-lm
